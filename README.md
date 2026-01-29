@@ -1,8 +1,7 @@
 | Milestone                         | Status    | Notes               |
 |:------------------------------------:|:-----------:|:---------------------:|
-| Diagnostic Test Submitted          | Complete  | Good honesty        |
-| Questions on Foundations Clarified | Complete  | Depth added        |
-| Repo Created & Initial Commit      | Complete  | https://github.com/XP-PY/llm-prep-2026 live            |
-| SVD + Attention Notebook           | Complete    | Solid  |
-| AdamW Implementation & Comparison  | Complete | Implement variants + plots |
-| RoPE Implementation + ComparisonIn Progress  | In Progress | |
+| Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
+| SVD + Attention                   | Complete  | Notebook + Code |
+| AdamW                             | Complete  | Notebook + Code |
+| RoPE                              | Complete  | Notebook + Code |
+| FlashAttention                    | Cpmplete  | Notebook |
