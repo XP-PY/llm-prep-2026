@@ -164,4 +164,4 @@ ALiBi (bias)|Relative|Good|0|Some long-context models|
 RoPE|Relative (via rotation)|Excellent (theoretical guarantee)|0|"LLaMA, PaLM, Grok, Gemma"|
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/week1_positional_encodings.ipynb)
+[Python script](../../src/part1_positional_encodings.ipynb)

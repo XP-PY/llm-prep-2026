@@ -24,4 +24,4 @@ From linear algebra: Any matrix A has SVD, but for attention:
 5. **Future Implications**: As models scale (e.g., Grok-2 MoE), SVD informs "rank-aware" training—prune low $  \sigma_i  $ early for faster convergence. Check arXiv: "Spectral Analysis of Self-Attention" (2023) for latest.
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/week1_svd_attention.ipynb)
+[Python script](../../src/part1_svd_attention.ipynb)

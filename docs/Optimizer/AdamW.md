@@ -40,4 +40,4 @@ $$
 → Decay strength is **exactly** `ηλ` for every parameter — independent of gradient statistics.
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/week1_optimizers.ipynb)
+[Python script](../../src/part1_optimizers.ipynb)

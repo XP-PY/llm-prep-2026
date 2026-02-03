@@ -68,4 +68,4 @@ The backward pass needs to compute the gradients for `Q`, `K`, and `V`.
     4.  These gradients are then accumulated and written back to HBM.
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/week2_flash_attention.ipynb)
+[Python script](../../src/part2_flash_attention.ipynb)
