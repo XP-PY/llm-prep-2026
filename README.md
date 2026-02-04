@@ -11,4 +11,5 @@
 | Milestone                         | Status    | Notes               |
 |:------------------------------------:|:-----------:|:---------------------:|
 | [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Cpmplete  | Notebook |
-| [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | In Progress  | Notebook + (Code) |
+| [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
+| [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
