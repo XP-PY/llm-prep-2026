@@ -1,12 +1,12 @@
 # Rotary Position Embeddings (RoPE)
 
 ## Principle: Why RoPE Dominates Modern LLMs
-Absolute positional encodings (original Transformer sinusoidal or learned) add a fixed vector per position → <span style='color : aqua'>poor extrapolation beyond training length</span>.
+Absolute positional encodings (original Transformer sinusoidal or learned) add a fixed vector per position → <span style='color : blue'>poor extrapolation beyond training length</span>.
 
-Relative encodings (e.g., T5 bias, ALiBi) add biases based on distance → <span style='color : aqua'>better extrapolation but can distort attention patterns</span>.
+Relative encodings (e.g., T5 bias, ALiBi) add biases based on distance → <span style='color : blue'>better extrapolation but can distort attention patterns</span>.
 
-**RoPE** elegantly encodes <span style='color : aqua'>**relative positions**</span> by rotating query/key vectors in 2D planes. The inner product becomes a function of $|m-n|$ only 
-→ <span style='color : aqua'>perfect relative bias, length extrapolation and no extra parameters</span>.
+**RoPE** elegantly encodes <span style='color : blue'>**relative positions**</span> by rotating query/key vectors in 2D planes. The inner product becomes a function of $|m-n|$ only 
+→ <span style='color : blue'>perfect relative bias, length extrapolation and no extra parameters</span>.
 
 Real-world impact:
 * LLaMA-3 uses RoPE for 128k context.
@@ -138,7 +138,7 @@ $$
 ### **Step 8: Why This is Perfect Relative Position Encoding?**
 
 #### **Mathematically**
-The attention score $q_m^T R((n-m)\Theta) k_n$ <span style='color : aqua'>**depends only on the relative position**</span> $m-n$, not on absolute positions $m$ or $n$.
+The attention score $q_m^T R((n-m)\Theta) k_n$ <span style='color : blue'>**depends only on the relative position**</span> $m-n$, not on absolute positions $m$ or $n$.
 
 #### **Physical Interpretation**
 If we view vectors as rotations in 2D planes:
@@ -156,12 +156,55 @@ This relative angle encodes the relative position information!
 **One-sentence intuition:** RoPE treats position encoding as rotating the vector in multiple 2D planes, where the rotation difference between positions captures their relative distance.
 
 ## Comparison Table
-| Encoding Type | Absolute/Relative | Extrapolation Performance | Parameters | Used In |
-|:---:|:---:|:---:|:---:|:---:|
-| Sinusoidal (absolute) | Absolute|Poor (fails > train len)|0|Original Transformer|
-Learned absolute|Absolute|Poor|d|Early BERT/GPT|
-ALiBi (bias)|Relative|Good|0|Some long-context models|
-RoPE|Relative (via rotation)|Excellent (theoretical guarantee)|0|"LLaMA, PaLM, Grok, Gemma"|
+| Encoding Type | Absolute/Relative | Extrapolation Performance | Parameters | Bias Form | Length Limit | Used In |
+|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| Sinusoidal (absolute) | Absolute|Poor (fails > train len)|0|Fixed vector add|~Train length|Original Transformer|
+|Learned absolute|Absolute|Poor|d|Fixed vector add|~Train length|Early BERT/GPT|
+|ALiBi |Relative (bias)|Good|0|-slope *|i-j|Some long-context models|
+|RoPE|Relative (via rotation)|Excellent (theoretical guarantee)|0|Rotation matrix on Q/K|32k–128k (with NTK)|LLaMA, PaLM, Grok, Gemma|
+|xPos |Relative (advanced rotary)|Superior|0|RoPE + shrinkage γ^|i-j||
+
+## Appendix
+
+### Neural Tangent Kernel (NTK)
+#### Questions from RoPE
+RoPE works well within the training length, but when encountering sequences that far exceed the training length:
+1. **High-frequency dimensional collapse:** The rotation frequency in high dimensions is too fast, causing positional differences to become indistinct.
+2. **Degraded extrapolation performance:** The model fails to generalize to locations beyond the training length.
+#### The core idea of ​​NTK-aware scaling
+Adjusting the frequency distribution of position encoding by **scaling the base frequency**:
+```python
+# Original RoPE frequency calculation (Llama)
+base = 10000.0
+theta = 1.0 / (base ** (torch.arange(0, dim, 2).float() / dim))
+
+# NTK-aware scaling
+def ntk_scaled_rope(dim, seq_len, base=10000.0, scaling_factor=1.0):
+    """
+    dim: hidden dim
+    seq_len: present seq length
+    base: original base frequency
+    scaling_factor: scaling factor
+    """
+    # Caculate base frequency after Scaling
+    scaled_base = base * scaling_factor ** (dim / (dim - 2))
+    theta = 1.0 / (scaled_base ** (torch.arange(0, dim, 2).float() / dim))
+    return theta
+```
+
+### [ALiBi](https://arxiv.org/abs/2108.12409)
+Add linear bias to attention scores (no embeddings):
+$$S_{ij} = \frac{Q_i K_j^T}{\sqrt{d}} - m \cdot |i - j|$$
+m: Head-specific slope (e.g., 2^{-8/head_idx}).
+
+→ Negative bias for distant tokens → soft window.
+
+### [xPos](https://arxiv.org/abs/2212.10554)
+Builds on RoPE with positional shrinkage:
+$$\text{xPos}(m) = \exp(\gamma (m - L/2)) \cdot \text{RoPE}(m)$$
+γ < 0: Decay for positions > L/2.
+
+Relative form preserves RoPE's rotation while shrinking distant contributions → stable extrapolation to 10x+ lengths.
 
 ## Step-by-Step Code Implementation
 [Python script](../../src/part1_positional_encodings.ipynb)
