@@ -1,13 +1,12 @@
 # DeepSeek-V2
+# Paper Overview & Key Highlights
 ![Model_Architecture](../Resource/pics/DeepSeek-V2.png)
 
-# Paper Overview & Key Highlights
-
 * **Title/Author:** DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model (DeepSeek-AI, June 2024).
-* **Model Scale:** 236B total parameters, <span style="color: aqua">21B activated per token</span> (sparse MoE), 128K context length.
+* **Model Scale:** 236B total parameters, <span style="color: blue">21B activated per token</span> (sparse MoE), 128K context length.
 * **Core Innovations (Two main for efficiency):**
-    * <span style="color: aqua">**Multi-head Latent Attention (MLA)**</span> — Boosting inference efficiency.
-    * <span style="color: aqua">**DeepSeekMoE**</span> — Training strong models at economical costs.
+    * <span style="color: blue">**Multi-head Latent Attention (MLA)**</span> — Boosting inference efficiency.
+    * <span style="color: blue">**DeepSeekMoE**</span> — Training strong models at economical costs.
 * **Wins vs. DeepSeek 67B (dense predecessor):**
     * Stronger performance (top-tier open-source).
     * 42.5% lower training cost.
@@ -30,7 +29,7 @@
     * Jump from DeepSeek-LLM's 2T → more capacity fill for larger MoE.
 * **Setups:**
     * Hyperparams tuned for MoE stability.
-    * Expert parallelism (EP) for routed experts.
+    * [Expert parallelism (EP)](../Parallelism/EP.md) for routed experts.
     * Long context extension to 128K (MLA enables).
 * **Evaluations:**
     * **Base model:** Top open-source (MMLU leader with few active params).
@@ -51,11 +50,11 @@
     * **Strengths:** Math/code/reasoning (DeepSeek tradition), bilingual.
 * **Efficiency Table (vs. DeepSeek 67B dense):**
 
-| Metric | DeepSeek 67B | DeepSeek-V2 |
-| :--- | :--- | :--- |
-| Training Cost | Baseline | 57.5% (42.5% save) |
-| KV Cache | Baseline | 6.7% (93.3% reduction) |
-| Max Throughput | Baseline | 5.76× higher |
+    | Metric | DeepSeek 67B | DeepSeek-V2 |
+    | :--- | :--- | :--- |
+    | Training Cost | Baseline | 57.5% (42.5% save) |
+    | KV Cache | Baseline | 6.7% (93.3% reduction) |
+    | Max Throughput | Baseline | 5.76× higher |
 
 # Conclusion, Limitations, Future Work (Section 5)
 
