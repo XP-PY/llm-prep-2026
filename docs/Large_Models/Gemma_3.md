@@ -1,3 +1,5 @@
+# [Gemma 3](https://arxiv.org/abs/2503.19786)
+
 # Overview and Introduction
 * **Release Date:** March 2025 (Google DeepMind)
 * **Family:** Multimodal extension of Gemma open models (building on Gemma 2 and co-designed with Gemini frontier models)

@@ -24,5 +24,5 @@
 # Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
 | Milestone | Status | Notes |
 |:---:|:---:|:---:|
-| [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
-<!-- | [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | In Progress  | Notebook + Code | -->
+| Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
+| Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | In Progress  | Notebook + Code |

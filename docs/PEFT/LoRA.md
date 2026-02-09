@@ -42,6 +42,7 @@ $$h = x W = x W_0 + x \Delta W = x W_0 + \frac{\alpha}{r} (x A) B^T$$
 |LoRA|$W_0+BA$|r(d_in + d_out)|Low-rank factorization|Near full|~40GB|Alpaca, most PEFT|default choice; simplest; strong baseline; good when you can load the base in fp16/bf16|
 |[QLoRA](./QLoRA.md)|dequant(W_0^{4bit}) + B A|Same + quant overhead|4-bit + paging|Competitive|~10GB|Guanaco, academic|choose when VRAM is tight and you want to fine-tune bigger bases by quantizing them to 4-bit while training adapters|
 |[DoRA](./DoRA.md)|(W_0 + unit-norm(B A)) ⊙ m|Same + magnitude vector|Magnitude-direction split|Often > LoRA|Similar|Latest (2024+) SOTA|try when LoRA underperforms full FT more than you’d like; it aims to narrow that gap while staying PEFT and keeping inference overhead minimal|
+|[Specialized Variants](./Specialized_LoRA.md)|-|-|-|-|-|-|
 
 ## Step-by-Step Code Implementation
 [Python script](../../src/part3_lora_variants.ipynb)

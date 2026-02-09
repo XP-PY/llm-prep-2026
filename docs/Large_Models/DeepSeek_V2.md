@@ -1,4 +1,4 @@
-# DeepSeek-V2
+# [DeepSeek-V2](https://arxiv.org/abs/2405.04434)
 # Paper Overview & Key Highlights
 ![Model_Architecture](../Resource/pics/DeepSeek-V2.png)
 
