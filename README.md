@@ -1,9 +1,13 @@
 # Large Models Learning
 | Model ID | Key Points |
 |:---:|:---:|
+| [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
+| [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
 | [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Decoder-Only Transformer:*** [GQA]((./docs/Attention_Machanisms/GQA.md)) + 5:1 Local/Global Attention Interleaving |
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
-| [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) |  |
+| [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
+| [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) |  |
+
 
 # Part 1: Solidify foundations.
 | Milestone                         | Status    | Notes               |
