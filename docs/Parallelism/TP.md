@@ -1,4 +1,4 @@
-# Model Parallelism: Sharding Strategies
+# Tensor Parallelism (TP)
 
 Shards within a layer (e.g., linear weights along dim) across GPUs
 

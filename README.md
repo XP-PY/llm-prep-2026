@@ -10,33 +10,41 @@
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
 
 # LLMs Basic knowledge Learning
-## Part 1: Solidify foundations.
-| Milestone                         | Status    | Notes               |
-|:------------------------------------:|:-----------:|:---------------------:|
-| Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
-| [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |
-| [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |
-| [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |
+- ## Part 1: Solidify foundations.
+    | Milestone                         | Status    | Notes               |
+    |:------------------------------------:|:-----------:|:---------------------:|
+    | Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
+    | [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |
+    | [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |
+    | [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |
 
-## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale.
-| Milestone                         | Status    | Notes               |
-|:------------------------------------:|:-----------:|:---------------------:|
-| [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
-| [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
-| [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
-| [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook |
+- ## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale.
+    | Milestone                         | Status    | Notes               |
+    |:------------------------------------:|:-----------:|:---------------------:|
+    | [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
+    | [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
+    | [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
+    | [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook |
 
-## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
-| Milestone | Status | Notes |
-|:---:|:---:|:---:|
-| Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
-| Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |
-| Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | In Progress  | Notebook |
+- ## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
+    | Milestone | Status | Notes |
+    |:---:|:---:|:---:|
+    | Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
+    | Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |
+    | Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | Complete  | Notebook |
 
-## Part 4: Inference Optimization Mastery
-| Milestone | Status | Notes |
-|:---:|:---:|:---:|
+- ## Part 4: Inference Optimization Mastery
+    | Milestone | Status | Notes |
+    |:---:|:---:|:---:|
+    | Core Inference Speedups | In Progress ||
 
+- ## Part 5: Others
+    | Milestone | Status | Notes |
+    |:---:|:---:|:---:|
+    | Parallel Methods: [TP](./docs/Parallelism/TP.md)/[PP](./docs/Parallelism/PP.md)/[EP](./docs/Parallelism/EP.md) | In Progress | Notebook |
+
+# Learning Resource Recommendation
+- [LLM 八股文](https://my.feishu.cn/wiki/XGkRwrugwisqaokx909caQ4anEb)
 
 # Fine-Tuning Plan
 1. **Multimodal Document Intelligence & QA System (Best Starter/High-Impact)**

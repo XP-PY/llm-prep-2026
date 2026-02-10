@@ -12,12 +12,12 @@
 ### Basic EP
 
 * Routed experts divided evenly: `n_routed_experts // ep_size` per rank.
-* <span style="color: aqua">Gate/router computes top-K per token</span> → dispatch tokens to expert-owning ranks (all-to-all comm).
+* <span style="color: blue">Gate/router computes top-K per token</span> → dispatch tokens to expert-owning ranks (all-to-all comm).
 * Local compute on owned experts → combine outputs.
 
 ### With EPLB (Expert Parallel Load Balancing, DeepSeek Enhancement)
 
-* Add <span style="color: aqua">redundant duplicates</span> (`n_redundant_experts`).
+* Add <span style="color: blue">redundant duplicates</span> (`n_redundant_experts`).
 * Physical = logical + redundant → dispatch to any copy (choose less-loaded).
 * Smooths imbalance (popular experts overloaded).
 
