@@ -14,6 +14,13 @@ DeepSeek-VL2 is an advanced open-source series of **[Mixture-of-Experts (MoE)](.
 ![DeepSeek-VL2_fig1](../Resource/pics/DeepSeek-VL2_fig1.png)
 Figure 1 in the paper shows DeepSeek-VL2 outperforming or matching open-source peers (e.g., InternVL2, Qwen2-VL, Molmo) on averaged benchmarks (MMBench, MMStar, MMMU, etc.) with fewer activated parameters.
 
+## Convenient Links
+* [Github](https://github.com/deepseek-ai/DeepSeek-VL2)
+* Hugging face:
+    * [DeepSeek-VL2](https://huggingface.co/deepseek-ai/deepseek-vl2)
+    * [DeepSeek-VL2-small](https://huggingface.co/deepseek-ai/deepseek-vl2-small)
+    * [DeepSeek-VL2-tiny](https://huggingface.co/deepseek-ai/deepseek-vl2-tiny)
+
 ## Key Improvements over DeepSeek-VL (Predecessor)
 
 DeepSeek-VL (2024) used a hybrid vision encoder (SigLIP low-res + SAM-B high-res) but was limited to fixed 1024×1024 resolution. DeepSeek-VL2 addresses this and adds efficiency:  

@@ -1,4 +1,13 @@
 # [DeepSeek-V2](https://arxiv.org/abs/2405.04434)
+
+# Convenient Links
+* [Github](https://github.com/deepseek-ai/DeepSeek-V2)
+* Hugging face:
+    * [DeepSeek-V2-Lite](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite)
+    * [DeepSeek-V2-Lite-Chat (SFT)](https://huggingface.co/deepseek-ai/DeepSeek-V2-Lite-Chat)
+    * [DeepSeek-V2](https://huggingface.co/deepseek-ai/DeepSeek-V2)
+    * [DeepSeek-V2-Chat (RL)](https://huggingface.co/deepseek-ai/DeepSeek-V2-Chat)
+
 # Paper Overview & Key Highlights
 ![Model_Architecture](../Resource/pics/DeepSeek-V2.png)
 

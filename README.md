@@ -3,11 +3,35 @@
 |:---:|:---:|
 | [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
 | [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
-| [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Decoder-Only Transformer:*** [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
+| [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Vision-Language Model (on Decoder-only LLM):*** vision encoder (SigLIP) + [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
 | [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
 | [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
+
+# LLMs Basic knowledge Learning
+## Part 1: Solidify foundations.
+| Milestone                         | Status    | Notes               |
+|:------------------------------------:|:-----------:|:---------------------:|
+| Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
+| [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |
+| [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |
+| [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |
+
+## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale.
+| Milestone                         | Status    | Notes               |
+|:------------------------------------:|:-----------:|:---------------------:|
+| [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
+| [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
+| [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
+| [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + No compared Code |
+
+## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
+| Milestone | Status | Notes |
+|:---:|:---:|:---:|
+| Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
+| Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |
+| Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | In Progress  | Notebook |
 
 # Fine-Tuning Plan
 1. **Multimodal Document Intelligence & QA System (Best Starter/High-Impact)**
@@ -40,26 +64,3 @@
     * **What:** Fine-tune Janus-Pro or VL2 for better performance on English + Mandarin/Cantonese queries involving images (e.g., analyzing Hong Kong street signs, menus, or news screenshots).
     * **Why strong:** Shows domain adaptation and cultural awareness — especially valuable if applying to companies in Asia or with global users.
     * **Skills demonstrated:** Multilingual data synthesis, continued pre-training or SFT, evaluation on custom test set.
-
-# LLMs Basic knowledge Learning
-## Part 1: Solidify foundations.
-| Milestone                         | Status    | Notes               |
-|:------------------------------------:|:-----------:|:---------------------:|
-| Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
-| [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |
-| [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |
-| [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |
-
-## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale.
-| Milestone                         | Status    | Notes               |
-|:------------------------------------:|:-----------:|:---------------------:|
-| [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
-| [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
-| [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
-| [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + No compared Code |
-
-## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
-| Milestone | Status | Notes |
-|:---:|:---:|:---:|
-| Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
-| Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | In Progress  | Notebook + Code |

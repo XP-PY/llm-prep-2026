@@ -1,5 +1,11 @@
 # [DeepSeek-V3](https://arxiv.org/abs/2412.19437v1)
 
+## Convenient Links
+* [Github](https://github.com/deepseek-ai/DeepSeek-V3)
+* Hugging face:
+    * [DeepSeek-V3-Base](https://huggingface.co/deepseek-ai/DeepSeek-V3-Base)
+    * [DeepSeek-V3](https://huggingface.co/deepseek-ai/DeepSeek-V3)
+
 ## Compare Table with [DeepSeek-V2](./DeepSeek_V2.md)
 |Component|DeepSeek-V2|DeepSeek-V3|Why the Change/Improvement?|
 |:---:|:---:|:---:|:---:|

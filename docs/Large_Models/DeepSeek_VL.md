@@ -1,5 +1,13 @@
 # [DeepSeek-VL](https://arxiv.org/abs/2403.05525)
 
+## Convenient Links
+* [Github](https://github.com/deepseek-ai/DeepSeek-VL)
+* Hugging face:
+    * [DeepSeek-VL-1.3B-base](https://huggingface.co/deepseek-ai/deepseek-vl-1.3b-base)
+    * [DeepSeek-VL-1.3B-chat](https://huggingface.co/deepseek-ai/deepseek-vl-1.3b-chat)
+    * [DeepSeek-VL-7B-base](https://huggingface.co/deepseek-ai/deepseek-vl-7b-base)
+    * [DeepSeek-VL-7B-chat](https://huggingface.co/deepseek-ai/deepseek-vl-7b-chat)
+
 ## 1. Overview & Key Contributions
 
 **Goal**: Build an open-source VLM that excels in **real-world** tasks, not just academic benchmarks.

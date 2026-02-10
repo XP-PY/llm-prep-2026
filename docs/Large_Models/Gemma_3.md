@@ -1,5 +1,9 @@
 # [Gemma 3](https://arxiv.org/abs/2503.19786)
 
+# Convenient Links
+* [Github](https://github.com/google-deepmind/gemma?tab=readme-ov-file)
+* [Hugging face](https://huggingface.co/collections/google/gemma-3-release)
+
 # Overview and Introduction
 * **Release Date:** March 2025 (Google DeepMind)
 * **Family:** Multimodal extension of Gemma open models (building on Gemma 2 and co-designed with Gemini frontier models)
