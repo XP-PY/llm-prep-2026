@@ -24,7 +24,7 @@
 | [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
 | [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
 | [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
-| [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + No compared Code |
+| [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook |
 
 ## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
 | Milestone | Status | Notes |
@@ -32,6 +32,11 @@
 | Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
 | Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |
 | Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | In Progress  | Notebook |
+
+## Part 4: Inference Optimization Mastery
+| Milestone | Status | Notes |
+|:---:|:---:|:---:|
+
 
 # Fine-Tuning Plan
 1. **Multimodal Document Intelligence & QA System (Best Starter/High-Impact)**
