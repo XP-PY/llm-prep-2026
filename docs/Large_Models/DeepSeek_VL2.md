@@ -1,16 +1,17 @@
 # [DeepSeek-VL2](https://arxiv.org/abs/2412.10302)
 
-DeepSeek-VL2 is an advanced open-source series of **Mixture-of-Experts (MoE)** Vision-Language Models (VLMs) from DeepSeek-AI (2024). It builds on DeepSeek-VL (the predecessor) with major upgrades in vision encoding, language modeling, and data quality. The series includes three variants: Tiny (1.0B activated parameters), Small (2.8B), and Base (4.5B). These models excel in real-world multimodal tasks like visual question answering (VQA), OCR, document/chart understanding, and visual grounding, often achieving state-of-the-art (SOTA) or competitive performance with fewer activated parameters than dense or other MoE models.
+DeepSeek-VL2 is an advanced open-source series of **[Mixture-of-Experts (MoE)](../MoE/DeepSeekMoE.md)** Vision-Language Models (VLMs) from DeepSeek-AI (2024). It builds on [DeepSeek-VL (the predecessor)](./DeepSeek_VL.md) with major upgrades in vision encoding, language modeling, and data quality. The series includes three variants: Tiny (1.0B activated parameters), Small (2.8B), and Base (4.5B). These models excel in real-world multimodal tasks like visual question answering (VQA), OCR, document/chart understanding, and visual grounding, often achieving state-of-the-art (SOTA) or competitive performance with fewer activated parameters than dense or other MoE models.
 
 **Key Highlights from the Abstract**  
 - Two core upgrades:  
   1. Dynamic tiling for high-resolution images of varying aspect ratios.  
-  2. DeepSeekMoE + Multi-head Latent Attention (MLA) for efficient inference (compressed KV cache).  
+  2. [DeepSeekMoE](../MoE/DeepSeekMoE.md) + [Multi-head Latent Attention (MLA)](../Attention_Machanisms/MLA.md) for efficient inference (compressed KV cache).  
 - Trained on improved, diverse vision-language data.  
 - Strong in VQA, OCR, document/table/chart understanding, visual grounding.  
 - Open-source: Codes and models at https://github.com/deepseek-ai/DeepSeek-VL2.
 
 **Performance Context**  
+![DeepSeek-VL2_fig1](../Resource/pics/DeepSeek-VL2_fig1.png)
 Figure 1 in the paper shows DeepSeek-VL2 outperforming or matching open-source peers (e.g., InternVL2, Qwen2-VL, Molmo) on averaged benchmarks (MMBench, MMStar, MMMU, etc.) with fewer activated parameters.
 
 ## Key Improvements over DeepSeek-VL (Predecessor)
@@ -22,7 +23,7 @@ DeepSeek-VL (2024) used a hybrid vision encoder (SigLIP low-res + SAM-B high-res
 - **New Capabilities**: Precise visual grounding, GUI perception.
 
 ## Model Architecture (Core Focus)
-
+![DeepSeek-VL2_fig2](../Resource/pics/DeepSeek-VL2_fig2.png)
 DeepSeek-VL2 follows a LLaVA-style decoder-only architecture:  
 **Vision Encoder** → **VL Adaptor** → **MoE LLM**.
 
@@ -41,6 +42,8 @@ DeepSeek-VL2 follows a LLaVA-style decoder-only architecture:
 - **Trade-offs**: Slight overhead for tile selection; managed by disabling for multi-image inputs.
 
 **Visual Flow (Figure 3 in paper)**: Global thumbnail + grid of local tiles, with special tokens for row/column separation.
+![DeepSeek-VL2_fig3](../Resource/pics/DeepSeek-VL2_fig3.png)
+
 
 ### 2. Vision-Language Adaptor
 - Post-tiling: Applies 2×2 pixel shuffle → compresses each tile from 27×27 → 14×14 = 196 tokens.  
@@ -55,24 +58,26 @@ DeepSeek-VL2 follows a LLaVA-style decoder-only architecture:
 - **Multi-head Latent Attention (MLA)**: Compresses KV cache into latent vectors → drastic memory reduction and higher throughput.  
 - **MoE Details** (Table 1 in paper):
 
-| Component              | Tiny          | Small         | Base          |
-|-----------------------|---------------|---------------|---------------|
-| Total Params (LLM)    | 3B            | 16B           | 27B           |
-| Activated Params      | 0.57B → 1.0B total | 2.4B → 2.8B total | 4.1B → 4.5B total |
-| Layers                | 12            | 27            | 30            |
-| Embedding Size        | 1,280         | 2,048         | 2,560         |
-| Attention Heads       | 10            | 16            | 32            |
-| Attention Type        | Standard MHA  | MLA (rank=512)| MLA (rank=512)|
-| Routed Experts        | 64            | 64            | 72            |
-| Shared Experts        | 2             | 2             | 2             |
-| Top-K Routing         | 6             | 6             | 6             |
-| Routing Function      | Softmax       | Softmax       | Sigmoid       |
-| Expert Bias Correction| No            | No            | Yes           |
+    | Component              | Tiny          | Small         | Base          |
+    |-----------------------|---------------|---------------|---------------|
+    | Total Params (LLM)    | 3B            | 16B           | 27B           |
+    | Activated Params      | 0.57B → 1.0B total | 2.4B → 2.8B total | 4.1B → 4.5B total |
+    | Layers                | 12            | 27            | 30            |
+    | Embedding Size        | 1,280         | 2,048         | 2,560         |
+    | Attention Heads       | 10            | 16            | 32            |
+    | Attention Type        | Standard MHA  | MLA (rank=512)| MLA (rank=512)|
+    | Routed Experts        | 64            | 64            | 72            |
+    | Shared Experts        | 2             | 2             | 2             |
+    | Top-K Routing         | 6             | 6             | 6             |
+    | Routing Function      | Softmax       | Softmax       | Sigmoid       |
+    | Expert Bias Correction| No            | No            | Yes           |
 
 - **Efficiency Gains**: Sparse MoE + MLA → low activated params, fast inference, high throughput.
 
 **Overall Token Flow**  
+```
 Image → Dynamic tiles → SigLIP features → Pixel shuffle + special tokens → MLP projection → MoE LLM (with text tokens).
+```
 
 ## Data Construction
 
