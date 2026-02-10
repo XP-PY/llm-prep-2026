@@ -92,6 +92,9 @@ Image → Hybrid Vision Encoder → Vision-Language Adaptor → DeepSeek LLM →
 Most VLMs use a single vision encoder (e.g., CLIP/SigLIP) → good semantics but:
 - Low resolution → poor at tiny text/objects
 - "CLIP-blind pairs" → similar embeddings for visually different images
+> **CLIP-blind pairs:**
+>  * Definition: Pairs of images that are perceptually/ visually very different but have **high cosine similarity** (>0.9 sometimes) in CLIP's embedding space.
+>  * Why "blind"? The model is "blind" to the visual differences that humans easily see because CLIP is trained with **InfoNCE (noise-contrastive estimation) loss:** for a batch, pull the matching image-text pair close, push all others away.
 
 **Solution**: Combine **two** encoders:
 
@@ -139,7 +142,7 @@ They start from an **intermediate checkpoint** of DeepSeek-LLM (not from scratch
 ---
 
 ## 5. Training Strategy (3 Stages)
-
+![DeepSeek-VL](../Resource/pics/DeepSeek-VL.png)
 | Stage | What is Trained | Frozen Parts | Key Ideas & Findings |
 |-------|-----------------|--------------|---------------------|
 | 1 – Adaptor Warmup | Only VL adaptor | Vision encoders + LLM | Use ~3.75M caption + OCR pairs. Scaling data here **does not help** (projector capacity limited). |
@@ -175,29 +178,8 @@ They start from an **intermediate checkpoint** of DeepSeek-LLM (not from scratch
 - DeepSeek-VL-7B close to GPT-4V in recognition, conversion, commonsense.
 - Wins >60% head-to-head vs other open-source VLMs when judged by GPT-4V.
 
----
 
-## Mini-Quiz / Understanding Check
-
-1. Why does DeepSeek-VL use a **hybrid** vision encoder instead of just one high-resolution encoder?
-2. What is the main risk when doing joint vision-language pretraining on top of a strong LLM, and how does DeepSeek-VL solve it?
-3. How many visual tokens does a 1024×1024 image produce in DeepSeek-VL, and why is that number important?
-4. Which training stage do you think contributed the most to real-world performance, and why?
-
-Answer these (or ask for clarification) when you're ready, and we'll discuss!
-
----
-
-## Suggested Next Steps
-
-Once you're comfortable with DeepSeek-VL:
-
-**Hands-on suggestion**:  
-Try the models on Hugging Face!  
-- `deepseek-ai/deepseek-vl-1.3b-chat`  
-- `deepseek-ai/deepseek-vl-7b-chat`  
-
-Simple inference example (we can walk through code next session):
+## Simple inference example:
 ```python
 from transformers import AutoModelForCausalLM, AutoProcessor
 model = AutoModelForCausalLM.from_pretrained("deepseek-ai/deepseek-vl-7b-chat", trust_remote_code=True)
@@ -208,5 +190,3 @@ conversation = [{"role": "User", "content": "<image_placeholder>\nDescribe this 
 inputs = processor(conversation, return_tensors="pt")
 # Generate...
 ```
-
-Let me know your quiz answers or if you'd like to dive deeper into any section (especially architecture diagrams or ablation results). Ready when you are!
