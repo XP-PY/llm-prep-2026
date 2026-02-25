@@ -36,7 +36,9 @@
 - ## Part 4: Inference Optimization Mastery
     | Milestone | Status | Notes |
     |:---:|:---:|:---:|
-    | Core Inference Speedups | In Progress ||
+    | Core Inference Speedups ([Speculative Decoding](./docs/Math/speculative_decoding.md)) | In Progress ||
+    | Memory & Quantization | Pending ||
+    | Advanced Serving & Safety | Pending ||
 
 - ## Part 5: Others
     | Milestone | Status | Notes |
