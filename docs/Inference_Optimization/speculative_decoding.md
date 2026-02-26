@@ -1,4 +1,4 @@
-# Speculative Decoding
+<!-- # Speculative Decoding
 
 ## Principle: Breaking Autoregressive Bottlenecks
 Vanilla autoregressive decoding generates one token at a time → latency linear in output length.
@@ -27,7 +27,161 @@ Repeat until max length.
 $$\text{Speedup} = \frac{\gamma + 1}{1 + \frac{k}{\gamma + 1}} \quad \text{(k = draft steps, simplified)}$$
 Real formula (Leviathan et al.):
 $$\text{Speedup} = \frac{1 + \gamma}{1 + p_{\text{reject}}}$$
-p_reject ≈ probability of mismatch per step.
+p_reject ≈ probability of mismatch per step. -->
+
+# Speculative Decoding
+
+## 1) Why decoding is slow
+
+**Autoregressive decoding** normally generates **one token per step**:
+
+* Step 1: run the big model → get token 1
+* Step 2: run the big model again → get token 2
+* …
+
+So if you generate (L) tokens, you do about **(L) expensive model steps**.
+That’s the “autoregressive bottleneck”.
+
+---
+
+## 2) Core idea: “Draft many, verify once”
+
+**Speculative Decoding** speeds this up by splitting generation into two roles:
+
+* **Draft (cheap):** propose the next (k) tokens quickly
+* **Verify (expensive but batched):** run the real target model once to check the whole chunk
+* **Accept:** keep the longest prefix that matches what the target model would have chosen
+
+### The loop (one cycle)
+
+1. Start with current prefix (x).
+2. Draft model proposes a chunk:
+$$
+   \hat{y}_1, \hat{y}_2, \dots, \hat{y}_k
+$$
+3. Target model verifies in one forward pass on ($x + \hat{y}_{1:k}$).
+4. Accept the longest prefix of the draft that agrees with the target:
+
+   * accepted length $\gamma$
+5. Append those $\gamma$ tokens to output and repeat.
+
+**Key metric:**
+$\gamma$ = *average number of drafted tokens accepted per cycle.*
+
+If $\gamma$ is large, you get speedups because **one target-model pass produces multiple final tokens**.
+
+---
+
+## 3) Why speedup happens (intuition)
+
+Baseline greedy (big model only):
+
+* roughly **1 big-model step per output token**
+
+Speculative decoding:
+
+* roughly **1 big-model step per $\gamma$ output tokens**
+* plus some cheap drafting overhead
+
+So big-model work per token goes down by about a factor of ($\gamma$.
+
+A common rule of thumb:
+
+* If $\gamma \approx 3 \text{to} 6$, you can often see **~2× to 4×** speedups in practice (depending on overheads).
+
+---
+
+## 4) Common variants (what changes between methods)
+
+### Comparison Table (interpreting each column)
+
+* **Speedup:** what people often see in practice
+* **Extra Params/Model:** what you need to add
+* **Acceptance rate $\gamma$:** larger is better
+* **Quality impact:** usually none if the target model is the “judge”
+* **Complexity:** engineering difficulty
+
+|             Method             | Main idea                                             | Speedup (typical) |  Extra Params/Model  | Typical $\gamma$ |      Quality Impact     | Complexity | Used In            |
+| :---: | :---: | :---------------: | :------------------: | :--------------: | :---------------------: | :--------: | :---: |
+|         Greedy Sampling        | big model generates 1 token/step                      |         1×        |         None         |        N/A       |         Baseline        |     Low    | HF `generate()`    |
+|         Medusa (heads)         | add $k$ extra “future-token” heads to the same model  |       2–2.5×      |     ~1–5% params     |        4–6       |           None          |     Low    | vLLM / production  |
+|       Lookahead (n-gram)       | draft tokens using simple heuristics / cache patterns |      2.5–3.5×     |         None         |        5–8       | sometimes slight change |   Medium   | research systems   |
+| Full Speculative (draft model) | small model drafts, big model verifies                |        2–4×       | separate small model |       6–10       |           None          |    High    | academic / systems |
+
+**Important:** all these aim to reduce **how often you run the big model**.
+
+---
+
+## 5) Medusa-focused explanation (simplest production variant)
+
+### What Medusa adds
+
+* Keep the **same backbone model**.
+* Add **$k$ lightweight heads** (usually linear layers) on top of final hidden states.
+* Head (i) tries to predict token (t+i) (future tokens).
+
+### Medusa decoding cycle
+
+1. **Draft (cheap):** the $k$ heads propose $k$ future tokens in parallel.
+2. **Verify (expensive):** run the backbone once over the proposed chunk.
+3. **Accept:** keep the longest prefix that matches the backbone’s greedy choice.
+4. Repeat.
+
+---
+
+## 6) Speedup formulas (what they mean, not just math)
+
+### A practical mental model
+
+* Each cycle costs about:
+
+  * **1 target-model verification step** (expensive)
+  * draft overhead (cheap)
+* Each cycle produces about **$\gamma$** accepted tokens (sometimes plus a guaranteed progress token)
+
+So speedup increases when:
+
+* $\gamma$ increases (draft aligns well with target)
+* overhead decreases (draft is very cheap, verification is efficient)
+
+### Two common simplified expressions
+
+**Heuristic / simplified view:**
+$$
+\text{Speedup} \approx \text{(tokens gained per verify)} \sim \gamma (\text{or } \gamma+1 \text{ depending on variant})
+$$
+Meaning: *one verify pass yields multiple output tokens.*
+
+**Another abstract approximation:**
+$$
+\text{Speedup} = \frac{1+\gamma}{1+p_{\text{reject}}}
+$$
+
+* $p_{\text{reject}}$: chance that draft mismatches early → wasted drafted tokens → lower speedup
+  This says: *more acceptance helps; more rejection hurts.*
+
+*(Exact formulas differ by paper/system because they count costs differently: draft compute, KV-cache ops, batching, etc.)*
+
+---
+
+## 7) Common pitfalls (why speedups sometimes disappoint)
+
+* **Draft mismatch → small $\gamma$:** if the draft is wrong early, you accept few tokens.
+* **Overheads dominate:** memory bandwidth, KV-cache movement, kernel launch overhead.
+* **Tree explosion (advanced variants):** too many branches → kills efficiency.
+
+---
+
+## 8) Future directions (what people try next)
+
+* **Distill a better draft model** (raise $\gamma$)
+* **Multimodal speculation** (e.g., speculate image/audio tokens)
+* **Hybrid approaches** that mix speculation with other inference tricks (keep an eye on newer arXiv work)
+
+---
+
+If you want, I can also rewrite this into a **one-page “cheat sheet”** with a diagram-like ASCII flow and a tiny numeric example ($\gamma=5, k=8$) to make the speedup feel concrete.
+
 
 ## Code Implementation
 ```Python

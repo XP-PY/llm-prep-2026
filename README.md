@@ -36,8 +36,8 @@
 - ## Part 4: Inference Optimization Mastery
     | Milestone | Status | Notes |
     |:---:|:---:|:---:|
-    | Core Inference Speedups ([Speculative Decoding](./docs/Math/speculative_decoding.md)) | In Progress ||
-    | Memory & Quantization | Pending ||
+    | [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md) for Inference Speedups | Complete | Notebook |
+    | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete ||
     | Advanced Serving & Safety | Pending ||
 
 - ## Part 5: Others
