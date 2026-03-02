@@ -202,6 +202,8 @@ Continuous batching tries to maximize this by minimizing GPU idle time—i.e., k
 * **Paging overhead:** mapping and block management must be efficient; bad choices can hurt performance.
 * **Fairness vs throughput:** always filling the batch can starve long/slow requests unless you schedule carefully.
 
+---
+
 ## Code Implementation
 ```Python
 # =========================

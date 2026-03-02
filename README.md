@@ -37,8 +37,9 @@
     | Milestone | Status | Notes |
     |:---:|:---:|:---:|
     | [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md) for Inference Speedups | Complete | Notebook |
-    | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete ||
-    | Advanced Serving & Safety | Pending ||
+    | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete | Notebook |
+    | [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
+    | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | In Progress | Notebook |
 
 - ## Part 5: Others
     | Milestone | Status | Notes |
