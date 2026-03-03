@@ -39,9 +39,12 @@
     | [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md) for Inference Speedups | Complete | Notebook |
     | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete | Notebook |
     | [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
-    | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | In Progress | Notebook |
+    | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
+    | [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md) | In Progress | Notebook |
 
-- ## Part 5: Others
+- ## Part 5: Multimodality
+
+- ## Part 6: Others
     | Milestone | Status | Notes |
     |:---:|:---:|:---:|
     | Parallel Methods: [TP](./docs/Parallelism/TP.md)/[PP](./docs/Parallelism/PP.md)/[EP](./docs/Parallelism/EP.md) | In Progress | Notebook |
@@ -50,7 +53,7 @@
 - [LLM 八股文](https://my.feishu.cn/wiki/XGkRwrugwisqaokx909caQ4anEb)
 
 # Fine-Tuning Plan
-1. **Multimodal Document Intelligence & QA System (Best Starter/High-Impact)**
+1. **[Multimodal Document Intelligence & QA System (Best Starter/High-Impact)](https://github.com/XP-PY/Medical-DeepSeek-VL)**
     * **What:** Fine-tune DeepSeek-VL2 on a domain-specific dataset (e.g., financial reports, legal contracts, or Hong Kong government/Chinese-English bilingual documents). Add features like table/chart understanding, OCR on complex layouts, and accurate question answering.
     * **Why strong for resume:** Directly builds on the “CLIP-blind pairs” and hybrid encoder concepts we discussed. Shows you understand vision encoder limitations and how MoE models like VL2 solve them.
     * **Skills demonstrated:** LoRA fine-tuning on VL models, data curation (synthetic + real PDFs), evaluation on OCRBench/DocVQA-style metrics, Gradio demo with PDF upload.
