@@ -40,7 +40,7 @@
     | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete | Notebook |
     | [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
     | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
-    | [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md) | In Progress | Notebook |
+    | [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md) | Complete | Notebook |
 
 - ## Part 5: Multimodality
 
