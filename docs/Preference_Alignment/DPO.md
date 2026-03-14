@@ -1,4 +1,175 @@
-# Direct Preference Optimization (DPO) Methods in Large Language Models
+# Direct Preference Optimization (DPO) for LLM Alignment
+
+## 0) What DPO is ?
+Direct Preference Optimization (DPO) aligns a language model **directly on preference pairs**
+(prompt x, chosen y⁺, rejected y⁻) **without** training a separate reward model and **without**
+an on-policy RL loop (e.g., [PPO](./RLHF.md)). It turns “make chosen more likely than rejected” into a
+stable supervised objective, while still keeping the model close to a reference policy via an
+implicit KL regularization term.
+
+**One-line intuition:**  
+> DPO trains the model so that (chosen − rejected) gets a positive *log-odds margin* compared to a frozen reference model.
+
+---
+
+## 1) Where DPO sits in the pipeline
+| Stage | Classic RLHF | DPO-style |
+|:---:|:---:|:---:|
+| Base pretrain | ✓ | ✓ |
+| SFT / instruction tuning | usually ✓ (strongly recommended) | usually ✓ (strongly recommended) |
+| Preference data | (x, y⁺, y⁻) | same |
+| Reward model | train RM | **skip** |
+| Policy optimization | PPO (on-policy) + explicit KL | **offline** preference optimization (supervised) |
+| Stability / engineering | harder | easier |
+
+DPO is most effective when the **reference policy is already good** (often the SFT checkpoint).
+
+---
+
+## 2) The key object: log-ratio advantage vs reference
+Define the model policy $\pi_\theta$ (your trainable LLM) and reference policy $\pi_{ref}$ (reference model (frozen), usually SFT checkpoint).
+
+For a prompt $x$ (input text) and completion $y$ (the model’s answer text), define the **reference-corrected score**:
+$$
+s_\theta(x,y) := \log \pi_\theta(y|x) - \log \pi_{\text{ref}}(y|x)
+$$
+This measures “how much more (or less) my model likes $y$ compared to the reference”.
+> $\pi_\theta(y|x)$ means: 
+> If I give prompt $x$, what probability does the model assign to generating the whole answer $y$?
+> Because $y$ is a sequence of tokens $y_1, y_2, \dots, y_T$, $$
+\pi_\theta(y|x) = \prod_{t=1}^T \pi_\theta(y_t \mid x, y_{<t})
+$$
+
+For a preference pair ($y^+$ preferred over $y^-$), the margin is:
+$$
+\Delta s_\theta := s_\theta(x,y^+) - s_\theta(x,y^-)
+$$
+where $y^+$ and $y^-$ represent chosen / preferred answer and rejected / dispreferred answer respectively. Expand it (this is the key “aha”):
+$$
+\Delta s_\theta = \big( \log \pi_\theta(y^+|x) - \log \pi_{\text{ref}}(y^+|x) \big) - \big( \log \pi_\theta(y^-|x) - \log \pi_{\text{ref}}(y^-|x) \big)
+$$
+
+Regroup:
+$$
+\Delta s_\theta = 
+\underbrace{
+\left( \log \pi_\theta(y^+ \mid x) - \log \pi_\theta(y^- \mid x) \right)
+}_{\text{how much }\theta\text{ prefers chosen over rejected}} - 
+\underbrace{
+\left( \log \pi_{\text{ref}}(y^+ \mid x) - \log \pi_{\text{ref}}(y^- \mid x) \right)
+}_{\text{how much ref prefers chosen over rejected}}
+$$
+
+$\Delta s_\theta$ literally means:
+- Compared with the reference model, how much more does my current model favor the chosen answer over the rejected answer?
+
+So:
+- If $\Delta s_\theta > 0$: good
+- If $\Delta s_\theta < 0$: bad
+- If $\Delta s_\theta = 0$: your model is no better than reference on this pair
+
+---
+
+## 3) DPO loss (what is actually implemented)
+DPO models the probability that $y^+$ is preferred over $y^-$ as:
+$$
+P(y^+ \succ y^-|x) = \sigma(\beta \, \Delta s_\theta)
+$$
+and maximizes the log-likelihood. So the loss is:
+$$
+\mathcal{L}_{\text{DPO}}(\theta) =
+-\mathbb{E}_{(x,y^+,y^-)} \left[ \log \sigma(\beta \, \Delta s_\theta) \right]
+$$
+
+### What β does (important)
+- β controls **how aggressively** you move away from πref.
+- Larger β ⇒ stronger push to separate chosen from rejected (can “over-align”, become bland / brittle).
+- Smaller β ⇒ stays closer to reference (may under-align).
+
+In practice β is task/model dependent; common starting points are around **0.05–0.5**.
+
+---
+
+## 4) Where this comes from (derivation sketch, minimal but correct)
+Start from the KL-regularized RL objective (the “RLHF view”):
+$$
+\max_\pi \; \mathbb{E}_{y\sim\pi(\cdot|x)}[r(x,y)] - \beta \, D_{KL}(\pi(\cdot|x)\|\pi_{\text{ref}}(\cdot|x))
+$$
+This has a closed-form optimal policy:
+$$
+\pi^*(y|x) \propto \pi_{\text{ref}}(y|x)\exp(r(x,y)/\beta)
+$$
+so reward differences correspond to **log-ratio differences**:
+$$
+r(x,y_1)-r(x,y_2) = \beta\left[\log\frac{\pi^*(y_1|x)}{\pi_{\text{ref}}(y_1|x)}-\log\frac{\pi^*(y_2|x)}{\pi_{\text{ref}}(y_2|x)}\right]
+$$
+Assume preferences follow Bradley–Terry:
+$$
+P(y^+\succ y^-|x)=\sigma(r(x,y^+)-r(x,y^-))
+$$
+Replace the unknown reward difference with the policy log-ratio difference, and optimize θ to
+match those preferences. This yields the DPO objective in Section 3.
+
+---
+
+## 5) Practical details that matter
+
+### 5.1 Computing log π(y|x)
+In code, \(\log \pi_\theta(y|x)\) is the **sum of token logprobs of the completion tokens**,
+conditioned on the prompt. (Mask prompt tokens; only score completion tokens.)
+
+### 5.2 Reference model choice
+- Usually πref is the **SFT checkpoint** (frozen).
+- Some setups use the same architecture/weights snapshot as reference.
+- If reference is weak, DPO can drift or learn weird shortcuts.
+
+### 5.3 Data format (minimum)
+Each example needs:
+- `prompt`
+- `chosen` (preferred response)
+- `rejected` (dispreferred response)
+
+Quality beats quantity: noisy preference pairs can harm more than help.
+
+---
+
+## 6) Common failure modes (and how to notice them)
+1) **Verbosity / length bias**
+- Symptom: model gets overly long or overly short.
+- Mitigation: balanced preference data; length normalization variants (e.g., SimPO-style); evaluation with length-controlled prompts.
+
+2) **Overfitting to preference style**
+- Symptom: “sounds aligned” but worsens factuality/reasoning.
+- Mitigation: diverse domains; holdout eval; mix some SFT data (or do multi-objective training).
+
+3) **Too strong β**
+- Symptom: bland, refusal-heavy, loses creativity/helpfulness.
+- Mitigation: sweep β downward; monitor win-rate + qualitative samples.
+
+4) **Bad pairs**
+- Symptom: instability, regressions, reward hacking-like behavior.
+- Mitigation: filter ties/low-confidence; dedup; remove contradictory labels.
+
+---
+
+## 7) Key variants (high-level)
+| Method | Idea | Why it exists |
+|:---:|:---:|:---:|
+| DPO | logistic on log-ratio margin | simple baseline |
+| IPO | squared loss variant | smoother gradients in some regimes |
+| SimPO | length-aware / reward shaping | reduce verbosity bias |
+| ORPO | mix SFT + preference penalty | “one-stage” training feel |
+| KTO | works with (good/bad) signals | weaker feedback settings |
+
+---
+
+## 8) Minimal TRL usage (conceptual)
+- Prepare dataset with `prompt/chosen/rejected`
+- Load model + reference model (frozen)
+- Run DPOTrainer with a reasonable β, lr, batch, and LoRA (optional)
+- Evaluate win-rate vs SFT baseline on heldout prompts
+
+<!-- # Direct Preference Optimization (DPO) Methods in Large Language Models
 
 ## Overview
 
@@ -167,4 +338,4 @@ For KTO, replace with `KTOTrainer` and use a dataset with binary labels (desirab
 - **Iterative DPO** (online preference collection)
 - **Multimodal preference optimization** (image/text preferences)
 - **Mixture-of-Experts alignment**
-- **Theoretical unification** of all direct methods under generalized loss frameworks
+- **Theoretical unification** of all direct methods under generalized loss frameworks -->

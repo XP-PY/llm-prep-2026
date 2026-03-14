@@ -6,6 +6,7 @@
 | [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Vision-Language Model (on Decoder-only LLM):*** vision encoder (SigLIP) + [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
 | [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
+| [DeepSeek-V3.2](./docs/Large_Models/DeepSeek_V32.md) | |
 | [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
 
@@ -83,3 +84,70 @@
     * **What:** Fine-tune Janus-Pro or VL2 for better performance on English + Mandarin/Cantonese queries involving images (e.g., analyzing Hong Kong street signs, menus, or news screenshots).
     * **Why strong:** Shows domain adaptation and cultural awareness — especially valuable if applying to companies in Asia or with global users.
     * **Skills demonstrated:** Multilingual data synthesis, continued pre-training or SFT, evaluation on custom test set.
+
+# File Structure of /docs
+```text
+docs/
+|-- Activation_Layers/
+|   `-- SwiGLU.md
+|-- Attention_Machanisms/
+|   |-- FlashAttention.md
+|   |-- GQA.md
+|   |-- MHA.md
+|   |-- MLA.md
+|   |-- MQA.md
+|   `-- SVD_Attention.md
+|-- Inference_Optimization/
+|   |-- continuous_batching.md
+|   |-- hallucination_mitigation.md
+|   |-- quantization_inference.md
+|   |-- speculative_decoding.md
+|   `-- tensorrt_multilora.md
+|-- Large_Models/
+|   |-- CLIP.md
+|   |-- DeepSeek_V2.md
+|   |-- DeepSeek_V3.md
+|   |-- DeepSeek_V32.md
+|   |-- DeepSeek_VL.md
+|   |-- DeepSeek_VL2.md
+|   |-- Gemma_3.md
+|   `-- SigLIP.md
+|-- Math/
+|   |-- SVD.md
+|   `-- dtypes.md
+|-- MoE/
+|   `-- DeepSeekMoE.md
+|-- Optimizer/
+|   `-- AdamW.md
+|-- PEFT/
+|   |-- DoRA.md
+|   |-- LoRA.md
+|   |-- QLoRA.md
+|   `-- Specialized_LoRA.md
+|-- Parallelism/
+|   |-- EP.md
+|   |-- PP.md
+|   `-- TP.md
+|-- Position_Embeding/
+|   `-- RoPE.md
+|-- Preference_Alignment/
+|   |-- DPO.md
+|   |-- GRPO.md
+|   |-- PPO.md
+|   |-- RLHF.md
+|   `-- SFT.md
+`-- Resource/
+    |-- Text_Color_Table.md
+    `-- pics/
+        |-- DeepSeek-V2.png
+        |-- DeepSeek-V3_ALF.png
+        |-- DeepSeek-V3_MTP.png
+        |-- DeepSeek-V3_MoE.png
+        |-- DeepSeek-VL.png
+        |-- DeepSeek-VL2_fig1.png
+        |-- DeepSeek-VL2_fig2.png
+        |-- DeepSeek-VL2_fig3.png
+        |-- DeepSeek-VL32_Attention_Architecture.png
+        |-- DeepSeek-VL32_Inference-cost.png
+        `-- DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png
+```
