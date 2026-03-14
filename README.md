@@ -10,80 +10,74 @@
 | [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
 
-# LLMs Basic knowledge Learning
-- ## Part 1: Solidify foundations.
-    | Milestone                         | Status    | Notes               |
-    |:------------------------------------:|:-----------:|:---------------------:|
-    | Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |
-    | [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |
-    | [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |
-    | [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |
+# LLM Knowledge System
+A topic-based map of this repo. This section is organized by knowledge domains rather than learning phases.
 
-- ## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale.
-    | Milestone                         | Status    | Notes               |
-    |:------------------------------------:|:-----------:|:---------------------:|
-    | [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |
-    | [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |
-    | [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |
-    | [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook |
+## Visual Map
+```mermaid
+flowchart TD
+    A[LLM Knowledge System]
 
-- ## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs
-    | Milestone | Status | Notes |
-    |:---:|:---:|:---:|
-    | Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |
-    | Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |
-    | Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | Complete  | Notebook |
+    A --> B[Foundations]
+    A --> C[Architecture and Scaling]
+    A --> D[Adaptation and Alignment]
+    A --> E[Inference and Serving]
+    A --> G[Model Case Studies]
 
-- ## Part 4: Inference Optimization Mastery
-    | Milestone | Status | Notes |
-    |:---:|:---:|:---:|
-    | [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md) for Inference Speedups | Complete | Notebook |
-    | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete | Notebook |
-    | [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
-    | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |
-    | [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md) | Complete | Notebook |
+    B --> B1[SVD / dtypes / AdamW]
+    B --> B2[Attention: MHA / MQA / GQA]
+    B --> B3[RoPE / SwiGLU]
 
-- ## Part 5: Multimodality
+    C --> C1[FlashAttention / MLA]
+    C --> C2[DeepSeekMoE]
+    C --> C3[TP / PP / EP]
 
-- ## Part 6: Others
-    | Milestone | Status | Notes |
-    |:---:|:---:|:---:|
-    | Parallel Methods: [TP](./docs/Parallelism/TP.md)/[PP](./docs/Parallelism/PP.md)/[EP](./docs/Parallelism/EP.md) | In Progress | Notebook |
+    D --> D1[LoRA / QLoRA / DoRA]
+    D --> D2[Specialized LoRA Variants]
+    D --> D3[SFT / RLHF / DPO / PPO / GRPO]
 
-# Learning Resource Recommendation
-- [LLM 八股文](https://my.feishu.cn/wiki/XGkRwrugwisqaokx909caQ4anEb)
+    E --> E1[Speculative Decoding]
+    E --> E2[Continuous Batching / PagedAttention]
+    E --> E3[AWQ / GPTQ / TensorRT-LLM]
+    E --> E4[Hallucination Mitigation]
 
-# Fine-Tuning Plan
-1. **[Multimodal Document Intelligence & QA System (Best Starter/High-Impact)](https://github.com/XP-PY/Medical-DeepSeek-VL)**
-    * **What:** Fine-tune DeepSeek-VL2 on a domain-specific dataset (e.g., financial reports, legal contracts, or Hong Kong government/Chinese-English bilingual documents). Add features like table/chart understanding, OCR on complex layouts, and accurate question answering.
-    * **Why strong for resume:** Directly builds on the “CLIP-blind pairs” and hybrid encoder concepts we discussed. Shows you understand vision encoder limitations and how MoE models like VL2 solve them.
-    * **Skills demonstrated:** LoRA fine-tuning on VL models, data curation (synthetic + real PDFs), evaluation on OCRBench/DocVQA-style metrics, Gradio demo with PDF upload.
-    * **Difficulty:** Medium. Compute: VL2-Small or Tiny is very efficient.
-    * **Bonus:** Deploy as a web tool and benchmark against LLaVA or closed models.
+    G --> G1[DeepSeek-V2]
+    G --> G2[DeepSeek-V3]
+    G --> G3[DeepSeek-V3.2]
 
-2. **VLM-Guided Text-to-Image Generation Pipeline (Directly Addresses Your Interest)**
-    * **What:** Build a system where DeepSeek-VL2 first analyzes an input image or user description → generates rich, detailed prompts or scene graphs → feeds them to Janus-Pro for high-quality image generation. Add iterative refinement (e.g., “critique and regenerate” loop using R1 reasoning).
-    * **Why strong:** Shows end-to-end multimodal understanding + generation in one pipeline. Addresses the exact limitation we talked about (pure CLIP-style models being “blind” to details).
-    * **Skills demonstrated:** Prompt engineering with VLMs, model chaining, evaluation (GenEval, human preference studies), comparison of direct Janus-Pro vs. VL2-enhanced outputs.
-    * **Difficulty:** Medium-High. Great portfolio piece with before/after image examples.
-    * **Resume highlight:** “Built a multimodal pipeline that improved text-to-image alignment by X% using DeepSeek-VL2 + Janus-Pro.”
+    G1 -. combines .-> C1
+    G1 -. combines .-> C2
+    G2 -. combines .-> C1
+    G2 -. combines .-> C2
+```
 
-3. **Visual Reasoning Agent for Domain Tasks (Agentic + Trending)**
-    * **What:** Create an agent powered by DeepSeek-R1 (reasoning) + VL2 that can take images/PDFs, reason step-by-step, and act (e.g., analyze charts and suggest data insights, or describe a UI screenshot and generate code improvements).
-    * **Why strong:** Agents are hot in 2026. Combines reasoning (R1), vision (VL2), and optionally generation (Janus-Pro).
-    * **Skills demonstrated:** LangGraph/LangChain or custom agent loops, tool use (image tools, code interpreter), evaluation on complex visual reasoning benchmarks.
-    * **Difficulty:** Medium-High. Start simple (single image → multi-step reasoning) then add generation.
+The diagram gives a high-level overview; the sections below act as the detailed index.
 
-4. **Efficient Fine-Tuning & Quantization Study of DeepSeek Models**
-    * **What:** Take a distilled DeepSeek-R1 or VL2-Small, apply QLoRA + 4-bit/8-bit quantization, fine-tune on a custom task (e.g., HK-specific bilingual VQA or medical image captioning), then benchmark speed/memory vs. full model.
-    * **Why strong:** Demonstrates systems-level understanding (efficiency is a huge differentiator). Easy to get strong quantitative results.
-    * **Skills demonstrated:** PEFT, bitsandbytes, vLLM or Ollama deployment, ablation studies.
-    * **Difficulty:** Medium. Very doable on modest hardware and highly interview-discussable.
+| Domain | Focus | Core Topics |
+|:---|:---|:---|
+| Foundations | Math, optimization, and Transformer building blocks | SVD, dtypes, AdamW, MHA/MQA/GQA, RoPE, SwiGLU |
+| Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP |
+| Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
+| Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
 
-5. **Bilingual Multimodal Chat Application (Location Advantage)**
-    * **What:** Fine-tune Janus-Pro or VL2 for better performance on English + Mandarin/Cantonese queries involving images (e.g., analyzing Hong Kong street signs, menus, or news screenshots).
-    * **Why strong:** Shows domain adaptation and cultural awareness — especially valuable if applying to companies in Asia or with global users.
-    * **Skills demonstrated:** Multilingual data synthesis, continued pre-training or SFT, evaluation on custom test set.
+## 1. Foundations
+- Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [AdamW](./docs/Optimizer/AdamW.md)
+- Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
+- Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
+
+## 2. Architecture & Scaling
+- Efficient attention: [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md), [MLA](./docs/Attention_Machanisms/MLA.md)
+- Sparse architecture: [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md)
+- Distributed training: [TP](./docs/Parallelism/TP.md), [PP](./docs/Parallelism/PP.md), [EP](./docs/Parallelism/EP.md) (`In Progress`)
+
+## 3. Adaptation & Alignment
+- PEFT: [LoRA](./docs/PEFT/LoRA.md), [QLoRA](./docs/PEFT/QLoRA.md), [DoRA](./docs/PEFT/DoRA.md), [Specialized LoRA Variants](./docs/PEFT/Specialized_LoRA.md)
+- Supervised and preference alignment: [SFT](./docs/Preference_Alignment/SFT.md), [RLHF](./docs/Preference_Alignment/RLHF.md), [DPO](./docs/Preference_Alignment/DPO.md), [PPO](./docs/Preference_Alignment/PPO.md), [GRPO](./docs/Preference_Alignment/GRPO.md)
+
+## 4. Inference & Serving
+- Decoding acceleration: [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md)
+- Serving systems: [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md), [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/tensorrt_multilora.md)
+- Compression and reliability: [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md), [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md)
 
 # File Structure of /docs
 ```text
@@ -151,3 +145,48 @@ docs/
         |-- DeepSeek-VL32_Inference-cost.png
         `-- DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png
 ```
+
+# Learning Resource Recommendation
+- [LLM 八股文](https://my.feishu.cn/wiki/XGkRwrugwisqaokx909caQ4anEb)
+
+[//]: # "Archived previous phase-based version of the README section:"
+[//]: # ""
+[//]: # "# LLMs Basic knowledge Learning"
+[//]: # "- ## Part 1: Solidify foundations."
+[//]: # "    | Milestone                         | Status    | Notes               |"
+[//]: # "    |:------------------------------------:|:-----------:|:---------------------:|"
+[//]: # "    | Repo Created & Initial Commit     | Complete  | https://github.com/XP-PY/llm-prep-2026 |"
+[//]: # "    | [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md) | Complete  | Notebook + Code |"
+[//]: # "    | [AdamW](./docs/Optimizer/AdamW.md) | Complete  | Notebook + Code |"
+[//]: # "    | [RoPE](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook + Code |"
+[//]: # ""
+[//]: # "- ## Part 2: Master the key innovations that make modern LLMs fast and memory-efficient at scale."
+[//]: # "    | Milestone                         | Status    | Notes               |"
+[//]: # "    |:------------------------------------:|:-----------:|:---------------------:|"
+[//]: # "    | [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md) | Complete  | Notebook |"
+[//]: # "    | [GQA/MQA](./docs/Attention_Machanisms/GQA.md) | Complete  | Notebook + Code |"
+[//]: # "    | [SwiGLU & RMSNorm](./docs/Activation_Layers/SwiGLU.md) | Complete  | Notebook + Code |"
+[//]: # "    | [Positional Encoding Comparison](./docs/Position_Embeding/RoPE.md) | Complete  | Notebook |"
+[//]: # ""
+[//]: # "- ## Part 3: Master Parameter-Efficient Fine-Tuning (PEFT) techniques that enable fine-tuning massive models on consumer GPUs"
+[//]: # "    | Milestone | Status | Notes |"
+[//]: # "    |:---:|:---:|:---:|"
+[//]: # "    | Basic LoRA Variants: [LoRA](./docs/PEFT/LoRA.md)/[QLoRA](./docs/PEFT/QLoRA.md)/[DoRA](./docs/PEFT/DoRA.md) | Complete  | Notebook + Code |"
+[//]: # "    | Specialized LoRA Variants: [LongLoRA/LoHA/VeRA](./docs/PEFT/Specialized_LoRA.md) | Complete  | Notebook + Code |"
+[//]: # "    | Preference Alignment: [SFT](./docs/Preference_Alignment/SFT.md)/[RLHF](./docs/Preference_Alignment/RLHF.md)/[DPO](./docs/Preference_Alignment/DPO.md) | Complete  | Notebook |"
+[//]: # ""
+[//]: # "- ## Part 4: Inference Optimization Mastery"
+[//]: # "    | Milestone | Status | Notes |"
+[//]: # "    |:---:|:---:|:---:|"
+[//]: # "    | [Speculative Decoding (Medusa/Lookahead)](./docs/Inference_Optimization/speculative_decoding.md) for Inference Speedups | Complete | Notebook |"
+[//]: # "    | [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md) | Complete | Notebook |"
+[//]: # "    | [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |"
+[//]: # "    | [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/quantization_inference.md) | Complete | Notebook |"
+[//]: # "    | [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md) | Complete | Notebook |"
+[//]: # ""
+[//]: # "- ## Part 5: Multimodality"
+[//]: # ""
+[//]: # "- ## Part 6: Others"
+[//]: # "    | Milestone | Status | Notes |"
+[//]: # "    |:---:|:---:|:---:|"
+[//]: # "    | Parallel Methods: [TP](./docs/Parallelism/TP.md)/[PP](./docs/Parallelism/PP.md)/[EP](./docs/Parallelism/EP.md) | In Progress | Notebook |"
