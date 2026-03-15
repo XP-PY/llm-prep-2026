@@ -1,5 +1,5 @@
 # Large Models Learning
-| Model ID | Key Points |
+| Model | Key Points |
 |:---:|:---:|
 | [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
 | [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
@@ -8,7 +8,7 @@
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
 | [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
-| [DeepSeek-V3.2](./docs/Large_Models/DeepSeek_V32.md) | *In Progress* |
+| [DeepSeek-V3.2](./docs/Large_Models/DeepSeek_V32.md) | ***Decoder-only Transformer (Long-Context + Agentic RL):*** **DeepSeek Sparse Attention (DSA)** (Lightning Indexer → Top-k KV selection; O(L·k) core attention for 128K) + MLA; **MQA-mode** integration for efficient sparse KV sharing + **scaled post-training RL (GRPO)** (>10% pretrain compute) + large-scale **agent/tool-use task synthesis** (verified environments) |
 
 ---
 
@@ -137,17 +137,7 @@ docs/
 `-- Resource/
     |-- Text_Color_Table.md
     `-- pics/
-        |-- DeepSeek-V2.png
-        |-- DeepSeek-V3_ALF.png
-        |-- DeepSeek-V3_MTP.png
-        |-- DeepSeek-V3_MoE.png
-        |-- DeepSeek-VL.png
-        |-- DeepSeek-VL2_fig1.png
-        |-- DeepSeek-VL2_fig2.png
-        |-- DeepSeek-VL2_fig3.png
-        |-- DeepSeek-VL32_Attention_Architecture.png
-        |-- DeepSeek-VL32_Inference-cost.png
-        `-- DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png
+        `-- ...
 ```
 
 ---

@@ -196,7 +196,7 @@ Then:
 
 ### 6.2 Mixed RL training (GRPO)
 
-They use **GRPO** and train on reasoning + agent + human alignment together to avoid catastrophic forgetting from multi-stage RL. 
+They use **[GRPO](../Preference_Alignment/GRPO.md)** and train on reasoning + agent + human alignment together to avoid catastrophic forgetting from multi-stage RL. 
 
 Rewards mentioned:
 
@@ -212,19 +212,19 @@ Rewards mentioned:
 
 ## 7) Scaling GRPO (RL stability tricks)
 
-They restate GRPO objective (Eq. 5–6) and then list stabilizers. 
+They restate GRPO objective (Eq. 5-6 in paper) and then list stabilizers. 
 Key ideas to remember:
 
 ### 7.1 Unbiased KL estimate (fix K3 estimator issues)
 
-They adjust KL estimation with importance sampling to make gradients unbiased (Eq. 7), arguing original estimator can blow up gradients when ( \pi_\theta \ll \pi_{ref} ). 
+They adjust KL estimation with importance sampling to make gradients unbiased (Eq. 7 in paper), arguing original estimator can blow up gradients when $ \pi_\theta \ll \pi_{ref} $. 
 
 ### 7.2 Off-policy sequence masking
 
 Because they reuse rollout data across multiple updates (off-policy drift) + inference/training impl differences, they:
 
-* compute divergence between sampling policy ( \pi_{old} ) and current ( \pi_\theta )
-* **mask** sequences with **negative advantage** and **too large divergence** (Eq. 8–9) 
+* compute divergence between sampling policy $ \pi_{old} $ and current $ \pi_\theta $
+* **mask** sequences with **negative advantage** and **too large divergence** (Eq. 8–9 in paper) 
 
 ### 7.3 Keep Routing (MoE stability)
 
@@ -232,7 +232,7 @@ MoE routing may differ between inference sampling and training due to policy upd
 
 ### 7.4 Keep Sampling Mask (top-p/top-k consistency)
 
-Sampling truncation changes action space, breaking importance sampling assumptions. They **preserve truncation masks** from ( \pi_{old} ) and apply them in training so ( \pi_\theta ) and ( \pi_{old} ) share the same action subset. 
+Sampling truncation changes action space, breaking importance sampling assumptions. They **preserve truncation masks** from $ \pi_{old} $ and apply them in training so $ \pi_\theta $ and $ \pi_{old} $ share the same action subset. 
 
 ---
 
