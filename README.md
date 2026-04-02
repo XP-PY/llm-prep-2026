@@ -64,7 +64,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
 
 ## 1. Foundations
-- Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [AdamW](./docs/Optimizer/AdamW.md)
+- Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
 - Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
 - Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
 
@@ -113,6 +113,7 @@ docs/
 |   |-- Gemma_3.md
 |   `-- SigLIP.md
 |-- Math/
+|   |-- Memory_Estimation.md
 |   |-- SVD.md
 |   `-- dtypes.md
 |-- MoE/
