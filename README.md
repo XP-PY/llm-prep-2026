@@ -9,6 +9,7 @@
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
 | [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
 | [DeepSeek-V3.2](./docs/Large_Models/DeepSeek_V32.md) | ***Decoder-only Transformer (Long-Context + Agentic RL):*** **DeepSeek Sparse Attention (DSA)** (Lightning Indexer → Top-k KV selection; O(L·k) core attention for 128K) + MLA; **MQA-mode** integration for efficient sparse KV sharing + **scaled post-training RL (GRPO)** (>10% pretrain compute) + large-scale **agent/tool-use task synthesis** (verified environments) |
+| [DeepSeek-R1](./docs/Large_Models/DeepSeek_R1.md) | ***Reasoning MoE on DeepSeek-V3-Base:*** **R1-Zero** shows pure RL can induce long-CoT reasoning; **R1** adds cold-start SFT + multi-stage RL to improve readability, language consistency, and general assistant behavior |
 
 ---
 
@@ -103,6 +104,7 @@ docs/
 |   `-- tensorrt_multilora.md
 |-- Large_Models/
 |   |-- CLIP.md
+|   |-- DeepSeek_R1.md
 |   |-- DeepSeek_V2.md
 |   |-- DeepSeek_V3.md
 |   |-- DeepSeek_V32.md

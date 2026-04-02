@@ -109,18 +109,48 @@ This is why it is called **Group Relative** Policy Optimization.
 
 ## 5) Why GRPO does not need a critic
 
+In reinforcement learning, a **critic** is mainly used to provide a **baseline** for the advantage.
+
 In PPO, advantage is often estimated using a learned value model:
 $$
 A \approx R - V
 $$
 
-In GRPO, instead of learning a separate value function $V$, the algorithm uses the **other sampled responses in the same group** as a baseline.
+Here:
+
+* $R$ = the return or reward of the sampled output
+* $V$ = the critic's estimate of what reward is expected for this prompt/state
+
+So PPO uses the critic to answer:
+
+> Is this sampled output better or worse than what I expected here?
+
+In section 4, GRPO already introduced a different way to answer the same question:
+$$
+A_i = \frac{r_i - \mu}{\sigma}
+$$
+
+where $\mu$ is the **mean reward of the sampled group for the same prompt**.
+
+That means GRPO is still doing "reward minus baseline", but the baseline is no longer a learned value model $V$. Instead, the baseline is the **group average** $\mu$.
+
+So the comparison becomes:
+
+* **PPO:** $A \approx R - V$
+* **GRPO:** $A_i \propto r_i - \mu$
+
+In GRPO, instead of learning a separate value function $V$, the algorithm uses the **other sampled responses in the same group** to construct that baseline.
 
 So the group itself acts like a cheap, local estimate of:
 
 * what is good for this prompt,
 * what is bad for this prompt,
 * and how strongly one answer stands out.
+
+Another way to say it:
+
+* PPO asks a critic model for the baseline.
+* GRPO gets the baseline directly from peer samples for the same prompt.
 
 That is the main memory/computation-saving idea of GRPO.
 
