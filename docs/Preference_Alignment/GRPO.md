@@ -390,7 +390,7 @@ for prompt in prompts:
 
 ## 15) Minimal Hugging Face TRL-style view
 
-TRL provides a **GRPOTrainer** specifically for this training style. The current docs describe it as support for GRPO as introduced in DeepSeekMath, and note that it can combine multiple reward functions. ([Hugging Face][8])
+TRL provides a **GRPOTrainer** specifically for this training style and supports combining multiple reward functions in practice.
 
 Conceptually, you provide:
 

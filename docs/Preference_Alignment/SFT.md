@@ -2,7 +2,7 @@
 
 ## Overview
 
-Supervised Fine-Tuning (SFT) is the critical **instruction-following** stage in the modern LLM training pipeline. After pre-training on massive unlabeled text (next-token prediction), the base model is further trained on a curated dataset of **high-quality (input, desired output)** pairs so that it learns to generate helpful, coherent, and styled responses when prompted.
+Supervised Fine-Tuning (SFT) is the core **instruction-following** stage in the modern LLM training pipeline. After pre-training on massive unlabeled text with next-token prediction, the base model is further trained on a curated dataset of **high-quality (prompt, desired response)** pairs so that it learns to answer user requests in a more helpful, coherent, and consistently formatted way.
 
 SFT bridges the gap between a powerful but "raw" autocomplete engine and a usable instruction-following assistant.
 
@@ -10,7 +10,7 @@ Key characteristics:
 - **Supervised**: Uses explicit (prompt → response) pairs with cross-entropy loss on the desired tokens.
 - **Fine-tuning**: Typically performed on the full model or with parameter-efficient methods ([LoRA](../PEFT/LoRA.md), [QLoRA](../PEFT/QLoRA.md), adapters).
 - **Dataset size**: Usually 10k–200k high-quality examples (much smaller than pre-training data).
-- **Goal**: Teach style, format, safety, helpfulness, and task-solving ability.
+- **Goal**: Teach instruction following, style, format, safety patterns, and task-specific response behavior.
 
 ## Position in the Full Training Pipeline
 
@@ -21,22 +21,33 @@ Key characteristics:
 | Preference Tuning (RLHF / DPO / KTO) | Alignment with human values       | Preference pairs or rankings       | 100k–1M preferences            | Reward modeling or direct pref |
 | Post-training (safety, tools) | Additional capabilities & safeguards | Specialized datasets              | Varies                         | Varies                         |
 
-SFT is the **foundation** for all later alignment stages. Poor SFT → poor alignment performance, even with excellent RLHF.
+SFT is the **foundation** for later alignment stages. If SFT is weak, later preference optimization usually has less to build on.
+
+## What SFT Solves
+
+SFT is mainly used when the problem is:
+
+* the model does not follow instructions reliably,
+* the output format is unstable,
+* the tone or style is inconsistent,
+* or the model needs to adapt to a domain-specific task pattern.
+
+SFT is less about "which of several good answers is more preferred" and more about "can the model learn to answer in the demonstrated way at all?"
 
 ## Data Preparation
 
 Quality > quantity. Common sources:
 
-1. **Human-written datasets**
-   - ShareGPT / Vicuna conversations
+1. **Human-written or human-curated datasets**
+   - ShareGPT-style conversation dumps
    - OpenAssistant
    - Dolly 15k
-   - Alpaca (GPT-3.5/4 generated)
 
 2. **Synthetic datasets**
    - Self-Instruct (Wang et al., 2022)
+   - Alpaca
    - Evolution-based methods (e.g., UltraChat, Orca)
-   - Distilled from stronger models (Phi-3, Llama-3 uses heavy synthetic data)
+   - Distilled from stronger models
 
 3. **Multimodal extensions**
    - LLaVA: (image, caption, detailed description) pairs
@@ -73,7 +84,7 @@ where `x` is the prompt, `y` is the desired response.
 
 ### Parameter-Efficient Variants
 - **Full fine-tuning**: All parameters updated (expensive, risk of catastrophic forgetting).
-- **LoRA / QLoRA**: Low-rank adapters (r=16–64). QLoRA adds 4-bit quantization → fits 70B on single 48GB GPU.
+- **LoRA / QLoRA**: Low-rank adapters (r=16–64). QLoRA adds 4-bit quantization and can drastically reduce VRAM requirements.
 - **DoRA**: Decomposed LoRA with magnitude/angle separation (slightly better than LoRA).
 - **Adapters**: Bottleneck layers.
 
@@ -153,7 +164,7 @@ trainer.train()
 
 ## Real-World Examples
 
-- **Llama-2**: SFT on ~1M human + synthetic instructions → major capability jump over Llama-1.
-- **Llama-3**: Heavy use of synthetic high-quality data + rejection sampling → state-of-the-art open 70B.
-- **Grok-1 / Grok-2**: xAI’s models also undergo extensive SFT before alignment.
-- **Mistral / Mixtral**: Fine-tuned versions (e.g., Mistral-7B-Instruct) dominate leaderboards with efficient SFT + minimal RLHF.
+- **Llama-2-Chat**: Strong capability jump over the base model after instruction tuning.
+- **Llama-3 / Llama-3.1 Instruct**: Heavy use of high-quality synthetic and curated instruction data in post-training.
+- **Mistral / Mixtral Instruct**: Strong instruction-tuned variants built with efficient SFT and lightweight alignment.
+- **Many vertical models**: Domain assistants in law, customer service, coding, or finance often start by using SFT to lock in task format and tone before trying more complex preference optimization.

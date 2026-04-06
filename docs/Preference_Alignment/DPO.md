@@ -1,11 +1,11 @@
 # Direct Preference Optimization (DPO) for LLM Alignment
 
-## 0) What DPO is ?
+## Overview
 Direct Preference Optimization (DPO) aligns a language model **directly on preference pairs**
-(prompt x, chosen y⁺, rejected y⁻) **without** training a separate reward model and **without**
-an on-policy RL loop (e.g., [PPO](./RLHF.md)). It turns “make chosen more likely than rejected” into a
-stable supervised objective, while still keeping the model close to a reference policy via an
-implicit KL regularization term.
+\((x, y^+, y^-)\) **without** training a separate reward model and **without**
+running an on-policy RL loop such as [PPO](./PPO.md). It turns
+"make the chosen response more likely than the rejected one" into a stable supervised objective,
+while still keeping the model close to a frozen reference policy through an **implicit KL regularization** effect.
 
 **One-line intuition:**  
 > DPO trains the model so that (chosen − rejected) gets a positive *log-odds margin* compared to a frozen reference model.
@@ -26,25 +26,31 @@ DPO is most effective when the **reference policy is already good** (often the S
 
 ---
 
-## 2) The key object: log-ratio advantage vs reference
-Define the model policy $\pi_\theta$ (your trainable LLM) and reference policy $\pi_{ref}$ (reference model (frozen), usually SFT checkpoint).
+## 2) The key object: reference-corrected preference score
+Define:
+
+* $\pi_\theta$: your trainable model
+* $\pi_{\text{ref}}$: a frozen reference model, usually the SFT checkpoint
 
 For a prompt $x$ (input text) and completion $y$ (the model’s answer text), define the **reference-corrected score**:
 $$
 s_\theta(x,y) := \log \pi_\theta(y|x) - \log \pi_{\text{ref}}(y|x)
 $$
-This measures “how much more (or less) my model likes $y$ compared to the reference”.
-> $\pi_\theta(y|x)$ means: 
-> If I give prompt $x$, what probability does the model assign to generating the whole answer $y$?
-> Because $y$ is a sequence of tokens $y_1, y_2, \dots, y_T$, $$
-\pi_\theta(y|x) = \prod_{t=1}^T \pi_\theta(y_t \mid x, y_{<t})
+This measures:
+
+> How much more or less does my current model like this answer compared with the reference model?
+
+Here $\pi_\theta(y|x)$ is the probability of generating the **whole completion** $y$ given prompt $x$.
+Because $y$ is a token sequence \(y_1, y_2, \dots, y_T\), in practice:
+$$
+\pi_\theta(y|x) = \prod_{t=1}^{T} \pi_\theta(y_t \mid x, y_{<t})
 $$
 
 For a preference pair ($y^+$ preferred over $y^-$), the margin is:
 $$
 \Delta s_\theta := s_\theta(x,y^+) - s_\theta(x,y^-)
 $$
-where $y^+$ and $y^-$ represent chosen / preferred answer and rejected / dispreferred answer respectively. Expand it (this is the key “aha”):
+where $y^+$ is the chosen response and $y^-$ is the rejected response. Expand it:
 $$
 \Delta s_\theta = \big( \log \pi_\theta(y^+|x) - \log \pi_{\text{ref}}(y^+|x) \big) - \big( \log \pi_\theta(y^-|x) - \log \pi_{\text{ref}}(y^-|x) \big)
 $$

@@ -9,7 +9,23 @@ Classic RLHF (InstructGPT / ChatGPT style) has three phases:
 2. **Reward Model (RM) Training** → learns a scalar reward function from human preference data.
 3. **Policy Optimization** → fine-tunes the SFT model via reinforcement learning (usually **[PPO, Proximal Policy Optimization](./PPO.md)**) to maximize the learned reward while staying close to the original model.
 
-RLHF is computationally expensive and unstable, which has led to **[direct preference optimization methods (DPO, KTO, ORPO)](./DPO.md)** that skip the explicit reward model and RL loop while achieving comparable or better results.
+RLHF is computationally expensive and can be unstable, which is one reason modern open-source pipelines often prefer **[direct preference optimization methods (DPO, KTO, ORPO)](./DPO.md)** that skip the explicit reward model and RL loop.
+
+## What RLHF Adds Beyond SFT
+
+Compared with SFT, classic RLHF adds three new ingredients:
+
+1. **Preference data**: humans compare multiple candidate answers and indicate which one is better.
+2. **Reward model**: a learned scoring model that predicts which answers are preferred.
+3. **Policy optimization**: reinforcement learning updates that push the model toward higher-reward behavior while controlling drift.
+
+So SFT mainly answers:
+
+> Can the model follow the instruction and produce a reasonable answer?
+
+RLHF goes one step further and answers:
+
+> Among several reasonable answers, which one is more preferred?
 
 ## Position in the Full Training Pipeline
 
@@ -21,7 +37,7 @@ RLHF is computationally expensive and unstable, which has led to **[direct prefe
 | **Direct Pref Opt**    | Preference alignment (no RM/RL)        | Preference pairs                       | Same as above                     | DPO / KTO / ORPO                   |
 | Safety / Tools         | Additional safeguards & capabilities   | Specialized datasets                   | Varies                            | Red-teaming, tool-use training     |
 
-RLHF (or its alternatives) is what gives models their "personality" and dramatically improves helpfulness and safety.
+RLHF and its alternatives are a major way to shape post-SFT model behavior, especially on helpfulness, harmlessness, tone, and response preference.
 
 ## Data Preparation for Preference Tuning
 
@@ -59,7 +75,11 @@ Best practices:
 \mathcal{L}_{RM} = -\mathbb{E}_{(x,y_w,y_l) \sim D} \left[ \log \sigma \left( r_\phi(y_w | x) - r_\phi(y_l | x) \right) \right]
 ```
 
-where \( r_\phi \) is the reward model, \( y_w \) chosen, \( y_l \) rejected.
+where:
+
+* $r_\phi$ is the reward model,
+* $y_w$ is the chosen response,
+* $y_l$ is the rejected response.
 
 ### 2. Policy Optimization with PPO
 - Treat the LLM as the policy $\pi_\theta$.
@@ -86,9 +106,11 @@ Key hyperparameters (typical 7B–70B):
 | KTO    | Uses Kahneman-Tversky objective (human-like)     | Works with binary feedback only        | Slightly more complex math        |
 | ORPO   | Adds odds ratio penalty during SFT                | No separate preference data needed     | Early stage                        |
 
-**DPO is currently the go-to for open-source alignment** (used in Zephyr, Intel NeuralChat, etc.).
+**DPO is currently the go-to preference-optimization method in many open-source pipelines** because it is simpler and more stable than classic PPO-based RLHF.
 
-## Practical Implementation (Hugging Face TRL)
+## Practical Open-Source Path (DPO Example with TRL)
+
+The code example below is intentionally a **DPO** example rather than a classic PPO-based RLHF example. That matches common open-source practice today: teams often use SFT first, then prefer DPO-like methods for preference optimization because they are easier to run and debug.
 
 ```python
 from trl import DPOTrainer, DPOConfig
@@ -123,7 +145,7 @@ trainer = DPOTrainer(
 trainer.train()
 ```
 
-For classic PPO, use `PPOTrainer` in TRL—more complex and resource-heavy.
+If you specifically want classic RLHF, use `PPOTrainer` (or an equivalent PPO pipeline) and expect substantially more complexity in rollout generation, reward scoring, advantage estimation, and training stability.
 
 ## Common Pitfalls & Mitigations
 
@@ -137,11 +159,11 @@ For classic PPO, use `PPOTrainer` in TRL—more complex and resource-heavy.
 
 ## Real-World Examples
 
-- **ChatGPT / GPT-4**: Classic RLHF with massive proprietary preference data.
+- **InstructGPT / ChatGPT-style assistants**: proprietary RLHF-style pipelines built on large-scale preference data.
 - **Llama-2-Chat**: RLHF with safety-specific rejection sampling.
 - **Claude series**: Constitutional AI (similar spirit but rule-based reward).
 - **Zephyr-7B**: SFT → DPO on UltraFeedback → beats many 70B models.
-- **Llama-3**: Heavy use of rejection sampling + DPO-like methods.
+- **Llama-3 family**: large-scale post-training with instruction tuning, rejection sampling, and preference optimization.
 
 ## Future Directions
 
