@@ -147,4 +147,5 @@ docs/
 
 # Learning Resource Recommendation
 - [Datawhale/happy-llm](https://github.com/datawhalechina/happy-llm)
-- [LLM 八股文](https://my.feishu.cn/wiki/XGkRwrugwisqaokx909caQ4anEb)
+- [Datawhale/hello-agents](https://github.com/datawhalechina/Hello-Agents)
+- [Datawhale/all-in-rag](https://github.com/datawhalechina/all-in-rag)
