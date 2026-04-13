@@ -2,7 +2,7 @@
 
 ## Overview
 Direct Preference Optimization (DPO) aligns a language model **directly on preference pairs**
-\((x, y^+, y^-)\) **without** training a separate reward model and **without**
+$(x, y^+, y^-)$ **without** training a separate reward model and **without**
 running an on-policy RL loop such as [PPO](./PPO.md). It turns
 "make the chosen response more likely than the rejected one" into a stable supervised objective,
 while still keeping the model close to a frozen reference policy through an **implicit KL regularization** effect.
@@ -41,7 +41,7 @@ This measures:
 > How much more or less does my current model like this answer compared with the reference model?
 
 Here $\pi_\theta(y|x)$ is the probability of generating the **whole completion** $y$ given prompt $x$.
-Because $y$ is a token sequence \(y_1, y_2, \dots, y_T\), in practice:
+Because $y$ is a token sequence $y_1, y_2, \dots, y_T$, in practice:
 $$
 \pi_\theta(y|x) = \prod_{t=1}^{T} \pi_\theta(y_t \mid x, y_{<t})
 $$
@@ -121,7 +121,7 @@ match those preferences. This yields the DPO objective in Section 3.
 ## 5) Practical details that matter
 
 ### 5.1 Computing log π(y|x)
-In code, \(\log \pi_\theta(y|x)\) is the **sum of token logprobs of the completion tokens**,
+In code, $\log \pi_\theta(y|x)$ is the **sum of token logprobs of the completion tokens**,
 conditioned on the prompt. (Mask prompt tokens; only score completion tokens.)
 
 ### 5.2 Reference model choice

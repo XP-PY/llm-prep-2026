@@ -105,6 +105,44 @@ Interpretation:
 
 This is why it is called **Group Relative** Policy Optimization.
 
+### What if all sampled answers get the same reward?
+
+This can happen. For example, a whole group may be:
+
+* all correct,
+* all wrong,
+* or all assigned the same reward by the verifier.
+
+In that case, GRPO gets little or no useful **relative** learning signal from that prompt.
+
+Using the grouped advantage
+
+$$
+A_i = \frac{r_i - \mu}{\sigma}
+$$
+
+if all rewards are the same, then:
+
+$$
+r_i - \mu = 0
+$$
+
+and the standard deviation $\sigma$ is also $0$ or very small. So in practice:
+
+* the normalized advantages become $0$ or near $0$,
+* the policy update from that group becomes negligible,
+* and some implementations may skip such groups or divide by $\sigma + \epsilon$ for numerical stability.
+
+This is not a bug. It simply means:
+
+> If the reward function says every sampled answer is equally good or equally bad, then GRPO has no reason to prefer one over another.
+
+That is why GRPO works best when the same prompt can produce a **mix of better and worse candidates** inside the group. In engineering practice, people often improve this by:
+
+* increasing group size,
+* using harder prompts,
+* or designing a more fine-grained reward instead of only a binary correct/incorrect signal.
+
 ---
 
 ## 5) Why GRPO does not need a critic

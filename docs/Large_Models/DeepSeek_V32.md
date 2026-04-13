@@ -174,132 +174,304 @@ They also mention:
 
 ---
 
-## 6) Post-training pipeline (what happens after continued pretraining)
+## 6) Post-training pipeline (the main flow after continued pretraining)
 
-They say V3.2 keeps the same post-training pipeline as V3.2-Exp:
+**One-line picture:**
 
-* **Specialist distillation**
-* **Mixed RL training** (single RL stage mixing reasoning + agent + alignment) 
+1. start from the DSA-upgraded base model,
+2. train multiple **specialist models** with heavy RL,
+3. use those specialists to generate domain data and **distill** a stronger general model,
+4. run one **mixed RL stage** over reasoning + agent + alignment tasks,
+5. choose either the more efficient official V3.2 recipe or the more reasoning-heavy **Speciale** recipe.
 
-### 6.1 Specialist distillation
+The paper says V3.2 keeps the same post-training recipe as **V3.2-Exp**. The key design choice is:
 
-They train **specialist models** per domain (fine-tuned from the same V3.2 base checkpoint) with large-scale RL compute. Domains include:
+> instead of doing many separate RL stages one after another, they try to merge reasoning, agent, and alignment into a single large mixed-RL stage.
 
-* math, programming, general logical reasoning
-* general agent tasks, agentic coding, agentic search
-* each has thinking + non-thinking modes 
+That is different in flavor from DeepSeek-R1, where the paper emphasizes a clearer multi-stage SFT/RL pipeline.
 
-Then:
+### 6.1 Why specialists appear first
 
-* Specialists generate domain data for the final model
-* Distilled model is slightly below specialists, then RL “closes the gap.” 
+They first train several **specialist models** from the same V3.2 base checkpoint using large-scale RL compute.
 
-### 6.2 Mixed RL training (GRPO)
+Domains include:
 
-They use **[GRPO](../Preference_Alignment/GRPO.md)** and train on reasoning + agent + human alignment together to avoid catastrophic forgetting from multi-stage RL. 
+* math
+* programming
+* general logical reasoning
+* general agent tasks
+* agentic coding
+* agentic search
 
-Rewards mentioned:
+Each specialist can have both **thinking** and **non-thinking** modes.
 
-* For reasoning + agent tasks: rule-based outcome reward, length penalty, language consistency reward
-* For general tasks: generative reward model with per-prompt rubrics 
+The intuition is simple:
 
-### 6.3 DeepSeek-V3.2 vs DeepSeek-V3.2-Speciale
+* a specialist can push much harder in one domain,
+* then its high-quality trajectories / outputs can be reused as training data,
+* and a later distilled model can inherit that domain knowledge without maintaining many separate deployed models.
 
-* **V3.2 (official)**: trained with token constraints for efficiency
-* **Speciale**: trained **only on reasoning data**, reduced length penalty, plus DeepSeekMath-V2 dataset & reward method to strengthen proof ability 
+### 6.2 What “specialist distillation” means here
 
----
+After specialist RL:
 
-## 7) Scaling GRPO (RL stability tricks)
+* the specialists generate domain-specific data for the final model,
+* a distilled general model is trained on that specialist-generated data,
+* this distilled model is already strong, but still slightly below the specialists,
+* then a final RL stage is used to close the gap.
 
-They restate GRPO objective (Eq. 5-6 in paper) and then list stabilizers. 
-Key ideas to remember:
+So the specialist stage is not the final serving model. It is more like a **data-and-capability generator** for the eventual unified model.
 
-### 7.1 Unbiased KL estimate (fix K3 estimator issues)
+### 6.3 The mixed RL stage
 
-They adjust KL estimation with importance sampling to make gradients unbiased (Eq. 7 in paper), arguing original estimator can blow up gradients when $ \pi_\theta \ll \pi_{ref} $. 
+After distillation, they run **[GRPO](../Preference_Alignment/GRPO.md)** on a mixed task distribution instead of doing completely separate RL phases for each ability.
 
-### 7.2 Off-policy sequence masking
+The paper's motivation is to reduce **catastrophic forgetting**. If reasoning RL, agent RL, and alignment RL are done too separately, one stage may damage abilities built in another stage.
 
-Because they reuse rollout data across multiple updates (off-policy drift) + inference/training impl differences, they:
+So the training mix contains at least three broad buckets:
 
-* compute divergence between sampling policy $ \pi_{old} $ and current $ \pi_\theta $
-* **mask** sequences with **negative advantage** and **too large divergence** (Eq. 8–9 in paper) 
+* reasoning tasks,
+* agent / tool-use tasks,
+* general alignment tasks.
 
-### 7.3 Keep Routing (MoE stability)
+### 6.4 Official V3.2 vs V3.2-Speciale
 
-MoE routing may differ between inference sampling and training due to policy updates / framework mismatch. They **record routing paths during sampling** and enforce them during training. 
+The two published variants mainly differ in how aggressively they optimize for long reasoning:
 
-### 7.4 Keep Sampling Mask (top-p/top-k consistency)
+* **DeepSeek-V3.2 (official)**: keeps stronger token / efficiency constraints, aiming for a better quality-cost balance.
+* **DeepSeek-V3.2-Speciale**: focuses more heavily on reasoning, trains only on reasoning data, reduces the length penalty, and adds DeepSeekMath-V2 data and reward design to strengthen proof-style ability.
 
-Sampling truncation changes action space, breaking importance sampling assumptions. They **preserve truncation masks** from $ \pi_{old} $ and apply them in training so $ \pi_\theta $ and $ \pi_{old} $ share the same action subset. 
+So:
 
----
-
-## 8) “Thinking in Tool-Use” (agent + reasoning integration)
-
-### 8.1 Thinking context management (key practical trick)
-
-They keep reasoning traces **across tool calls**, and only discard them when a **new user message** arrives. Tool call history/results remain preserved even if reasoning gets removed. 
-
-They warn: some agent frameworks simulate tool interactions via *user messages*, which reduces the benefit—so they recommend non-thinking models for those frameworks. 
-
-### 8.2 Cold-start
-
-They combine:
-
-* reasoning data (with `<think>...</think>`)
-* non-reasoning agent data (toolcall format)
-* a designed system prompt to teach “tool calls inside thinking”
-  …so the model sometimes produces the desired mixed trajectories, which becomes a seed for later RL. 
-  (Examples of system prompts are in Appendix B tables 6–8.) 
+* **official V3.2** = more balanced production-oriented model
+* **Speciale** = more reasoning-maximized variant
 
 ---
 
-## 9) Large-scale agent task synthesis (the big data engine)
+## 7) What data and rewards feed the post-training pipeline?
 
-Based on keu idea **Use environments where success is easy to verify (tests, search verification, programmatic checks), so RL reward is reliable at scale**, they build RL tasks across several agent types (Table 1 in paper): 
+DeepSeek-V3.2 is not trained on one uniform post-training dataset. Instead, it combines several task/data/reward regimes.
 
-* **Code agent**: 24,667 tasks (real env, extracted prompts)
-* **Search agent**: 50,275 tasks (real env, synthesized prompts)
-* **General agent**: 4,417 tasks (synth env, synth prompts)
-* **Code interpreter**: 5,908 tasks (real env, extracted prompts)
+### 7.1 Reasoning and agent tasks: mostly rule-based rewards
 
-### 9.1 Search agent synthesis pipeline (multi-agent)
+For reasoning and agentic tasks, the paper emphasizes rewards that can be checked automatically.
 
-Pipeline:
+Examples mentioned:
 
-1. sample long-tail entities from web corpora
-2. question-construction agent explores entity via search tools
-3. multiple answer-generation agents produce diverse candidates
-4. verification agent validates answers via multi-pass search
-5. retain samples where ground truth is correct and all candidates are verifiably incorrect
-   Then combine with filtered helpful RL data + rubrics + generative RM scoring. 
+* **rule-based outcome reward**
+* **length penalty**
+* **language consistency reward**
 
-### 9.2 Code agent environments (GitHub issues → executable tests)
+This is the same general philosophy in R1 and GRPO:
 
-They mine issue–PR pairs, filter for quality, and build reproducible environments using an environment-setup agent that installs deps and runs tests (JUnit output). Environment accepted only if:
+* if the environment can tell you whether the answer is correct,
+* RL becomes much more scalable and much less dependent on fragile learned reward models.
 
-* gold patch turns failing tests to passing (F2P > 0)
-* without causing regressions (P2F = 0) 
+### 7.2 General assistant tasks: generative reward model + rubric
 
-### 9.3 General agent synthesis (synth envs that are “hard to solve, easy to verify”)
+For more subjective tasks, V3.2 does not rely only on rule-based verification.
 
-They auto-synthesize:
+Instead, it uses:
 
-* a sandbox DB (data gathered from web)
-* task-specific tools (functions)
-* tasks + solution function + verification function (Python)
-* iterative difficulty increase; expand tools if needed
+* a **generative reward model**
+* **per-prompt rubrics**
 
-Then keep only tasks with non-zero pass@100 and end up with **1,827 environments** / **4,417 tasks**. 
-Trip planning example shown on page 12 illustrates constraints + toolset + JSON output format. 
+This means the reward signal is more like:
+
+* "Given this prompt, what does a good answer look like?"
+* "Score the answer according to that rubric."
+
+So the post-training setup is mixed:
+
+* **objective / verifiable tasks** -> rule-based rewards
+* **subjective / alignment tasks** -> rubric-guided model-based rewards
+
+### 7.3 Why this mixed reward design matters
+
+This is one of the main engineering lessons from the paper:
+
+* do not force everything into one reward style,
+* use **verification** where the environment is reliable,
+* use **rubric-based judging** where the task is subjective.
+
+That hybrid design is part of why the pipeline can cover both reasoning and general assistant behavior.
 
 ---
 
-## 10) Evaluation overview (what they measure and how)
+## 8) Scaling GRPO in practice (why RL does not collapse)
 
-### 10.1 Benchmarks (selected)
+Once you understand the main pipeline, the next question is: how do they make GRPO stable at this scale?
+
+They restate the GRPO objective in the paper and then add several stabilizers.
+
+### 8.1 Unbiased KL estimate
+
+They adjust KL estimation with importance sampling to make gradients less biased, arguing that the original estimator can produce bad gradients when $ \pi_\theta \ll \pi_{ref} $.
+
+You can read this as:
+
+* the KL term is important for trust-region behavior,
+* but if its estimator is numerically poor, RL can become unstable.
+
+### 8.2 Off-policy sequence masking
+
+They reuse rollout data across multiple updates, so the data can drift off-policy. They also note implementation differences between sampling and training.
+
+To reduce the damage from that drift, they:
+
+* measure divergence between the sampling policy $ \pi_{old} $ and current policy $ \pi_\theta $,
+* mask sequences with **negative advantage** and **too large divergence**.
+
+So not every collected rollout is trusted equally during training.
+
+### 8.3 Keep Routing
+
+Because the model is MoE, routing paths may differ between sampling-time inference and training-time recomputation.
+
+They therefore:
+
+* record routing paths during sampling,
+* replay / enforce them during training.
+
+This is a very practical detail. Without it, the "same" sampled trajectory is no longer really the same action under the training graph.
+
+### 8.4 Keep Sampling Mask
+
+Top-p / top-k truncation changes the effective action space. That breaks the assumptions behind importance weighting if training later recomputes probabilities over a different candidate set.
+
+So they preserve the original truncation mask from $ \pi_{old} $ and reuse it during training, so current and old policy are compared over the same action subset.
+
+---
+
+## 9) Agent training data engine (large-scale task synthesis)
+
+A major claim of V3.2 is that open models were under-investing not only in RL compute, but also in **agent environments and task synthesis**.
+
+The core idea is:
+
+> build environments where solving the task is hard, but verifying success is easy.
+
+That gives RL a scalable reward signal.
+
+The paper reports four major task buckets:
+
+* **Code agent**: 24,667 tasks, real environments, extracted prompts
+* **Search agent**: 50,275 tasks, real environments, synthesized prompts
+* **General agent**: 4,417 tasks, synthetic environments, synthetic prompts
+* **Code interpreter**: 5,908 tasks, real environments, extracted prompts
+
+### 9.1 Search agent: synthetic questions in real search environments
+
+The search pipeline is explicitly multi-agent:
+
+1. sample long-tail entities from web corpora,
+2. let a question-construction agent explore those entities with search tools,
+3. generate multiple candidate answers,
+4. verify them with a search-based verifier,
+5. keep only samples whose correctness is verifiable.
+
+So the important output is not just "a question". It is a question paired with a search environment and a reliable way to check whether an answer is supported.
+
+### 9.2 Code agent: executable issue-resolution tasks
+
+For coding agents, they mine GitHub issue-PR pairs and try to turn them into executable environments.
+
+An environment is kept only if:
+
+* the gold patch turns some failing tests into passing ones (`F2P > 0`),
+* and does not break previously passing tests (`P2F = 0`).
+
+That means the reward is grounded in actual execution, not just in a human preference score saying "this patch looks good."
+
+### 9.3 General agent: synthetic environments with built-in verifiers
+
+For general agents, they synthesize:
+
+* a small sandbox database,
+* task-specific tools / functions,
+* tasks,
+* a solution function,
+* and a verification function.
+
+Then they iteratively raise difficulty and keep only tasks that are neither trivial nor impossible.
+
+The trip-planning example in the paper is a good mental model:
+
+* many constraints,
+* several tools,
+* structured output,
+* and a programmatic verifier.
+
+### 9.4 Code interpreter: execution-heavy problems in notebook-like environments
+
+The fourth bucket is **code interpreter** training.
+
+The idea is:
+
+* give the model an execution environment,
+* ask it to solve problems that require writing and running code,
+* and score it based on whether the execution actually produces the right result.
+
+The paper describes these as real environments with extracted prompts, covering problems from areas like:
+
+* math,
+* logic,
+* data analysis / data science.
+
+So this bucket sits between "reasoning" and "agent use":
+
+* it is not just static QA,
+* but it is also not full open-ended web/search agency,
+* and execution gives a clean verifier.
+
+### 9.5 Why this data engine matters
+
+The key point is not just that there are many tasks. It is that each task comes with:
+
+* an **environment**,
+* a **prompt**,
+* and a **verifier / reward path**.
+
+That is what makes agentic RL possible at scale. Without the environment and verifier, you would only have static QA data, not true agent-training data.
+
+---
+
+## 10) “Thinking in Tool-Use” (how reasoning and tools are combined)
+
+One subtle point in the paper is that they do not treat "reasoning model" and "tool-use model" as completely separate things.
+
+### 10.1 Thinking context management
+
+They keep reasoning traces **across tool calls**, and only discard them when a **new user message** arrives.
+
+Tool call history and tool results remain preserved even if some reasoning trace is later removed.
+
+This matters because many agent tasks are not "think once, then act once." They are:
+
+* think,
+* call tool,
+* observe result,
+* think again,
+* call another tool,
+* then answer.
+
+The paper also warns that some frameworks convert tool interactions into new user messages. That weakens this benefit, so they recommend non-thinking models in such frameworks.
+
+### 10.2 Cold-start for tool-using reasoning
+
+They seed the model with a mixture of:
+
+* reasoning data using `<think>...</think>`,
+* non-reasoning agent data in tool-call format,
+* a system prompt that demonstrates "tool calls inside thinking."
+
+The purpose is not to fully solve agent behavior with supervised data. It is to create enough initial successful trajectories that later RL can expand on them.
+
+---
+
+## 11) Evaluation overview (what they measure and how)
+
+### 11.1 Benchmarks (selected)
 
 They evaluate on a large set including:
 
@@ -308,26 +480,26 @@ They evaluate on a large set including:
 * coding: LiveCodeBench, Codeforces
 * agent/tool: Terminal Bench 2.0, SWE-Verified, BrowseComp (+Zh), τ²-bench, MCP-Universe, MCP-Mark, Tool-Decathlon 
 
-### 10.2 Tool-use eval settings
+### 11.2 Tool-use eval settings
 
 * tool-use benchmarks use function call format with thinking mode
 * temperature 1.0
 * context window 128K 
 
-### 10.3 Main result narrative
+### 11.3 Main result narrative
 
 * DeepSeek-V3.2: ~GPT-5-High level on many reasoning tasks, below Gemini-3.0-Pro overall
 * Strong gains in coding-agent benchmarks vs open models
 * Tool-use still below frontier but gap narrowed 
 
-### 10.4 Speciale results
+### 11.4 Speciale results
 
 Speciale improves accuracy by using more reasoning tokens, and reports “gold-level” performance on competitions (IOI/IMO/ICPC/CMO tables). 
 But token efficiency is worse; official V3.2 uses stricter length constraints to balance cost. 
 
 ---
 
-## 11) Context management for search agents (test-time compute scaling)
+## 12) Context management for search agents (test-time compute scaling)
 
 When token usage > 80% of context length, they apply strategies:
 
@@ -338,7 +510,7 @@ When token usage > 80% of context length, they apply strategies:
 
 ---
 
-## 12) Limitations & future work (their own admission)
+## 13) Limitations & future work (their own admission)
 
 They cite three main limitations vs frontier closed models:
 
@@ -348,7 +520,7 @@ They cite three main limitations vs frontier closed models:
 
 ---
 
-## 13) Mental model: “What changed from V3 to V3.2?”
+## 14) Mental model: “What changed from V3 to V3.2?”
 
 If you already learned V2/V3, a useful compression is:
 

@@ -61,6 +61,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Foundations | Math, optimization, and Transformer building blocks | SVD, dtypes, AdamW, MHA/MQA/GQA, RoPE, SwiGLU |
 | Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
+| Agent Systems | Retrieval, memory, tool use, and task orchestration | Agent Basics, Memory Systems, RAG Systems |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
 
 ## 1. Foundations
@@ -82,11 +83,26 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Serving systems: [Continuous Batching & PagedAttention](./docs/Inference_Optimization/continuous_batching.md), [TensorRT-LLM & Multi-LoRA Serving](./docs/Inference_Optimization/tensorrt_multilora.md)
 - Compression and reliability: [Post-Training Quantization (AWQ/GPTQ)](./docs/Inference_Optimization/quantization_inference.md), [Hallucination Mitigation at Inference](./docs/Inference_Optimization/hallucination_mitigation.md)
 
+## 5. Agent Systems
+- Core concepts: [Agent Systems Basics](./docs/Agent_Systems/Agent_Basics.md)
+- Memory design: [Memory Systems for Agents](./docs/Agent_Systems/Memory_Systems.md)
+- Retrieval grounding: [RAG Systems](./docs/Agent_Systems/RAG_Systems.md)
+- Reusable task methods: [Skill Systems](./docs/Agent_Systems/Skill_Systems.md)
+- Tool architecture: [Tool Registry and Function Calling](./docs/Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
+
 ---
 
 # File Structure of /docs
 ```text
 docs/
+|-- Agent_Systems/
+|   |-- Agent_Basics.md
+|   |-- MCP_Protocol.md
+|   |-- Memory_Systems.md
+|   |-- RAG_Systems.md
+|   |-- Skill_Systems.md
+|   `-- Tool_Registry_and_Function_Calling.md
 |-- Activation_Layers/
 |   `-- SwiGLU.md
 |-- Attention_Machanisms/
