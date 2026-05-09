@@ -22,6 +22,18 @@ from .gemma_3 import (
     Gemma3Output,
     Gemma3VisionConfig,
 )
+from .gemma_4 import (
+    Gemma4AudioConfig,
+    Gemma4Config,
+    Gemma4Model,
+    Gemma4Output,
+    Gemma4TextConfig,
+    Gemma4VisionConfig,
+    build_gemma_4_e2b_tiny,
+    build_gemma_4_e4b_tiny,
+    make_gemma_4_e2b_reference_config,
+    make_gemma_4_e4b_reference_config,
+)
 from .siglip import SigLIPConfig, SigLIPModel, SigLIPOutput, SigLIPTextConfig
 
 __all__ = [
@@ -42,6 +54,12 @@ __all__ = [
     "Gemma3Model",
     "Gemma3Output",
     "Gemma3VisionConfig",
+    "Gemma4AudioConfig",
+    "Gemma4Config",
+    "Gemma4Model",
+    "Gemma4Output",
+    "Gemma4TextConfig",
+    "Gemma4VisionConfig",
     "HighResVisionConfig",
     "SigLIPConfig",
     "SigLIPModel",
@@ -49,4 +67,8 @@ __all__ = [
     "SigLIPTextConfig",
     "TextTransformerConfig",
     "VisionTransformerConfig",
+    "build_gemma_4_e2b_tiny",
+    "build_gemma_4_e4b_tiny",
+    "make_gemma_4_e2b_reference_config",
+    "make_gemma_4_e4b_reference_config",
 ]

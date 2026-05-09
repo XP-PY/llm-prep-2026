@@ -1,4 +1,4 @@
-# [Sigmoid](https://docs.pytorch.org/docs/2.11/generated/torch.nn.Sigmoid.html#torch.nn.Sigmoid) and Binary Logistic Loss
+# [Sigmoid](https://docs.pytorch.org/docs/stable/generated/torch.nn.Sigmoid.html) and Binary Logistic Loss
 
 ## 1. Why this note exists
 
@@ -127,7 +127,7 @@ The shortest contrast is:
 
 ---
 
-## 6. [Binary cross-entropy](https://docs.pytorch.org/docs/2.11/generated/torch.nn.BCELoss.html#torch.nn.BCELoss)
+## 6. [Binary cross-entropy](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCELoss.html)
 
 If the target is $y \in \{0, 1\}$ and the predicted probability is $p = \sigma(x)$, then binary cross-entropy is:
 
@@ -144,7 +144,7 @@ Interpretation:
 
 ---
 
-## 7. Why [`BCEWithLogitsLoss`](https://docs.pytorch.org/docs/2.11/generated/torch.nn.BCEWithLogitsLoss.html#torch.nn.BCEWithLogitsLoss) is preferred
+## 7. Why [`BCEWithLogitsLoss`](https://docs.pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html) is preferred
 
 In PyTorch, you will often see:
 
@@ -183,7 +183,7 @@ In practice:
 
 ---
 
-## 8. Relation to [`softplus`](https://docs.pytorch.org/docs/2.11/generated/torch.nn.modules.activation.Softplus.html)
+## 8. Relation to [`softplus`](https://docs.pytorch.org/docs/stable/generated/torch.nn.modules.activation.Softplus.html)
 
 Binary logistic loss can be rewritten in a numerically stable form.
 
@@ -237,43 +237,3 @@ $$
 This is why many implementations do not explicitly call `sigmoid` inside the training loss even though the loss is conceptually a sigmoid loss.
 
 ---
-
-## 9. Examples in real models
-
-You do not need to see sigmoid only as an abstract math function. It appears in real model design in several common ways:
-
-* **[SigLIP](../Large_Models/SigLIP.md)**: uses sigmoid-style pairwise matching loss instead of CLIP-style softmax contrastive loss.
-* **[SwiGLU](../Activation_Layers/SwiGLU.md)**: uses `swish(x) = x * sigmoid(x)` inside a gated feed-forward block.
-* **Binary classifiers** in many NLP/CV systems: one logit is mapped by sigmoid to the probability of a positive label.
-* **Multi-label classifiers**: each class gets its own sigmoid probability because labels are not mutually exclusive.
-
-The shared pattern is:
-
-> sigmoid is a natural choice when each score should be judged independently, rather than forced to compete with other scores.
-
----
-
-## 10. Common pitfalls
-
-Common mistakes:
-
-* using sigmoid for mutually exclusive classes when softmax is the right tool
-* applying sigmoid before `BCEWithLogitsLoss`
-* interpreting raw logits as probabilities without sigmoid
-* forgetting that saturated logits produce tiny gradients
-* confusing "sigmoid loss" with "sigmoid activation in hidden layers"
-
----
-
-## 11. Practical mental model
-
-Use this shortcut:
-
-* one logit -> one independent probability -> `sigmoid`
-* many logits competing for one answer -> `softmax`
-* binary training from raw logits -> `BCEWithLogitsLoss`
-* pairwise match/mismatch scoring -> sigmoid-style logistic loss is often natural
-
-The shortest useful summary:
-
-> sigmoid maps one score to one probability; BCE trains that score; many systems use it whenever scores should be interpreted independently.

@@ -4,6 +4,7 @@
 | [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
 | [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
 | [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Vision-Language Model (on Decoder-only LLM):*** vision encoder (SigLIP) + [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
+| [Gemma 4](./docs/Large_Models/Gemma_4.md) | ***Multimodal Open Model Family:*** Hybrid local/global attention + Per-Layer Embeddings (PLE) + variable-resolution vision token budgets + Dense / MoE deployment scaling |
 | [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
 | [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
 | [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
@@ -58,15 +59,17 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
-| Foundations | Math, optimization, losses, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, MHA/MQA/GQA, RoPE, SwiGLU |
+| Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, MHA/MQA/GQA, RoPE, SwiGLU |
 | Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
+| VLA & Robotics | Vision-language-action policies and embodied control | RT-1 |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
-- Loss basics: [Sigmoid](./docs/loss/Sigmoid.md)
+- Activation basics: [Sigmoid](./docs/Activation_Layers/Sigmoid.md), [GELU](./docs/Activation_Layers/GELU.md)
+- Normalization basics: [LayerNorm](./docs/Norm/LayerNorm.md), [RMSNorm](./docs/Norm/RMSNorm.md), [BatchNorm](./docs/Norm/BatchNorm.md)
 - Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
 - Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
 
@@ -93,6 +96,9 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - API interface format: [OpenAI API Interface Format](./docs/Agent_Systems/OpenAI_API_Interface_Format.md)
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
+## 6. VLA & Robotics
+- Vision-language-action policies: [RT-1](./docs/VLAs/RT_1.md)
+
 ---
 
 # File Structure of /docs
@@ -107,6 +113,8 @@ docs/
 |   |-- Skill_Systems.md
 |   `-- Tool_Registry_and_Function_Calling.md
 |-- Activation_Layers/
+|   |-- GELU.md
+|   |-- Sigmoid.md
 |   `-- SwiGLU.md
 |-- Attention_Machanisms/
 |   |-- FlashAttention.md
@@ -130,6 +138,7 @@ docs/
 |   |-- DeepSeek_VL.md
 |   |-- DeepSeek_VL2.md
 |   |-- Gemma_3.md
+|   |-- Gemma_4.md
 |   `-- SigLIP.md
 |-- Math/
 |   |-- Memory_Estimation.md
@@ -137,6 +146,10 @@ docs/
 |   `-- dtypes.md
 |-- MoE/
 |   `-- DeepSeekMoE.md
+|-- Norm/
+|   |-- BatchNorm.md
+|   |-- RMSNorm.md
+|   `-- LayerNorm.md
 |-- Optimizer/
 |   `-- AdamW.md
 |-- PEFT/
@@ -156,8 +169,9 @@ docs/
 |   |-- PPO.md
 |   |-- RLHF.md
 |   `-- SFT.md
-|-- loss/
-|   `-- Sigmoid.md
+|-- Loss/
+|-- VLAs/
+|   `-- RT_1.md
 `-- Resource/
     |-- Text_Color_Table.md
     `-- pics/
