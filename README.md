@@ -58,14 +58,15 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
-| Foundations | Math, optimization, and Transformer building blocks | SVD, dtypes, AdamW, MHA/MQA/GQA, RoPE, SwiGLU |
+| Foundations | Math, optimization, losses, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, MHA/MQA/GQA, RoPE, SwiGLU |
 | Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
-| Agent Systems | Retrieval, memory, tool use, and task orchestration | Agent Basics, Memory Systems, RAG Systems |
+| Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
+- Loss basics: [Sigmoid](./docs/loss/Sigmoid.md)
 - Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
 - Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
 
@@ -89,6 +90,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Retrieval grounding: [RAG Systems](./docs/Agent_Systems/RAG_Systems.md)
 - Reusable task methods: [Skill Systems](./docs/Agent_Systems/Skill_Systems.md)
 - Tool architecture: [Tool Registry and Function Calling](./docs/Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- API interface format: [OpenAI API Interface Format](./docs/Agent_Systems/OpenAI_API_Interface_Format.md)
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
 ---
@@ -100,6 +102,7 @@ docs/
 |   |-- Agent_Basics.md
 |   |-- MCP_Protocol.md
 |   |-- Memory_Systems.md
+|   |-- OpenAI_API_Interface_Format.md
 |   |-- RAG_Systems.md
 |   |-- Skill_Systems.md
 |   `-- Tool_Registry_and_Function_Calling.md
@@ -153,6 +156,8 @@ docs/
 |   |-- PPO.md
 |   |-- RLHF.md
 |   `-- SFT.md
+|-- loss/
+|   `-- Sigmoid.md
 `-- Resource/
     |-- Text_Color_Table.md
     `-- pics/

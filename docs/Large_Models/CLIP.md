@@ -1,4 +1,4 @@
-# [CLIP: Contrastive Language-Image Pre-training](https://arxiv.org/abs/2410.02746)  
+# [CLIP: Contrastive Language-Image Pre-training](https://arxiv.org/abs/2103.00020)
 
 ## 1. Overview & Motivation
 - **Core Idea**: Learn visual representations directly from natural language supervision (internet image-text pairs) instead of fixed-class labeled datasets like ImageNet.
@@ -23,7 +23,7 @@ Two families explored (ViT performs best at scale):
 ### 2.2 Text Encoder
 - Transformer (GPT-2 style, causal/masked attention).
 - Vocabulary: Lower-cased Byte-Pair Encoding (49,152 tokens).
-- Max length: 76 tokens.
+- Max length: 77 tokens (context length, including special tokens).
 - Input: Text wrapped with [SOS] and [EOS] tokens.
 - **Feature extraction**: Hidden state of the **[EOS]** token (aggregates full sequence context) → layer norm → linear projection → L2-normalized embedding.
 - Sizes: 63M parameters base (12 layers, 512 width, 8 heads); scaled by width to match image encoder.
@@ -36,19 +36,76 @@ Two families explored (ViT performs best at scale):
 - **Task**: Given batch of N real (image, text) pairs, predict which image matches which text.
 - **Symmetric InfoNCE-style loss**:
 
-```math
-\text{logits} = I_e @ T_e^T \cdot \exp(\tau)
-```
-where τ is learned temperature.
+For L2-normalized image embeddings $\hat{I} \in \mathbb{R}^{N \times d}$ and text embeddings $\hat{T} \in \mathbb{R}^{N \times d}$:
 
-```math
-L_{i2t} = \text{cross_entropy}(\text{logits}, \text{labels}=[0..N-1]) \\
-L_{t2i} = \text{cross_entropy}(\text{logits}^T, \text{labels}=[0..N-1]) \\
-L = (L_{i2t} + L_{t2i}) / 2
-```
+$$
+S = \hat{I}\hat{T}^{\top}
+$$
+
+$$
+Z = \exp(t) \cdot S
+$$
+
+where $t$ is a learned **logit scale** parameter. Many implementations store the parameter in log space and use `exp(t)` at runtime.
+
+$$
+\begin{aligned}
+L_{i \rightarrow t} &= \operatorname{CE}(Z, \operatorname{diag\_labels}) \\
+L_{t \rightarrow i} &= \operatorname{CE}(Z^{\top}, \operatorname{diag\_labels}) \\
+L &= \frac{L_{i \rightarrow t} + L_{t \rightarrow i}}{2}
+\end{aligned}
+$$
+
+with:
+
+$$
+\operatorname{diag\_labels} = [0, 1, \dots, N-1]
+$$
+
+Equivalently, written out as row-wise softmax losses:
+
+$$
+\begin{aligned}
+L_{i \rightarrow t}
+&= - \frac{1}{N} \sum_{i=1}^{N}
+\log \frac{\exp(Z_{ii})}{\sum_{j=1}^{N} \exp(Z_{ij})} \\
+L_{t \rightarrow i}
+&= - \frac{1}{N} \sum_{i=1}^{N}
+\log \frac{\exp(Z_{ii})}{\sum_{j=1}^{N} \exp(Z_{ji})}
+\end{aligned}
+$$
 
 - **Why symmetric**: Ensures bidirectional alignment (image→text and text→image retrieval both strong).
 - Batch size: 32,768 (many hard negatives → strong signal).
+
+### Why CLIP uses a logit scale parameter
+
+![CLIP logit scale intuition](../Resource/pics/CLIP_logit_scale_effect.svg)
+
+After L2 normalization, image-text similarities are cosine scores, so they are bounded and often numerically small. If we directly apply softmax to these raw scores, the distribution can be too flat:
+
+* the positive pair does not stand out enough
+* hard negatives are not penalized strongly enough
+* the contrastive cross-entropy provides a weaker ranking signal
+
+CLIP therefore learns a scalar multiplier:
+
+$$
+Z = \exp(t) \cdot \hat{I}\hat{T}^{\top}
+$$
+
+This parameter is often called `logit_scale`, and it is effectively an **inverse temperature**:
+
+* **larger** `exp(t)` → sharper softmax, stronger separation between matched and mismatched pairs
+* **smaller** `exp(t)` → flatter softmax, weaker discrimination
+
+Why learn it instead of fixing it?
+
+* The best sharpness changes during training.
+* Different model sizes, batch sizes, and embedding distributions prefer different scales.
+* A learned scale lets the model adapt automatically instead of relying on one hand-picked constant.
+
+In practice, implementations usually store the parameter in log space and compute `exp(t)` at runtime. They also often clamp the maximum value for stability, because an excessively large scale can make the logits too confident and training less stable.
 
 ### PyTorch Implementation (Core Loss)
 ```python
@@ -59,10 +116,10 @@ def clip_loss(image_embeds, text_embeds, logit_scale):
     # [N, D] -> L2 normalize
     image_embeds = F.normalize(image_embeds, dim=-1)
     text_embeds = F.normalize(text_embeds, dim=-1)
-    
+
     logits = image_embeds @ text_embeds.T * logit_scale.exp()
     labels = torch.arange(len(logits), device=logits.device)
-    
+
     loss_i2t = F.cross_entropy(logits, labels)
     loss_t2i = F.cross_entropy(logits.T, labels)
     return (loss_i2t + loss_t2i) / 2
@@ -83,7 +140,7 @@ pooled_output = last_hidden_state[
   1. Create prompted texts: e.g., "a photo of a {c_i}."
   2. Encode texts → text embeddings T.
   3. Encode image → image embedding I.
-  4. Probabilities: softmax(I · T * exp(τ))
+  4. Probabilities: softmax(I · T * exp(t))
 
 ### PyTorch Zero-Shot Example (Hugging Face / OpenCLIP style)
 ```python

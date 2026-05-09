@@ -1,0 +1,113 @@
+<svg width="1200" height="800" viewBox="0 0 1200 800" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1200" y2="800" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F8FBFF"/>
+      <stop offset="1" stop-color="#EEF6F1"/>
+    </linearGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#FFFFFF"/>
+      <stop offset="1" stop-color="#F6F8FB"/>
+    </linearGradient>
+    <style>
+      .title { font: 700 34px 'DejaVu Sans', Arial, sans-serif; fill: #122033; }
+      .subtitle { font: 500 18px 'DejaVu Sans', Arial, sans-serif; fill: #415268; }
+      .panel-title { font: 700 22px 'DejaVu Sans', Arial, sans-serif; fill: #13253A; }
+      .body { font: 500 17px 'DejaVu Sans', Arial, sans-serif; fill: #31455C; }
+      .small { font: 500 15px 'DejaVu Sans', Arial, sans-serif; fill: #4E627B; }
+      .mono { font: 600 16px 'DejaVu Sans Mono', 'Courier New', monospace; fill: #17314F; }
+      .note { font: 600 14px 'DejaVu Sans', Arial, sans-serif; fill: #5B6E83; }
+    </style>
+  </defs>
+
+  <rect x="0" y="0" width="1200" height="800" fill="url(#bg)"/>
+
+  <text x="70" y="72" class="title">Why CLIP Learns a Logit Scale</text>
+  <text x="70" y="108" class="subtitle">CLIP first normalizes image/text embeddings, so raw cosine similarities are bounded</text>
+  <text x="70" y="132" class="subtitle">and often too small for a sharp contrastive softmax.</text>
+
+  <rect x="70" y="156" width="1060" height="94" rx="20" fill="#13253A"/>
+  <text x="110" y="209" class="mono" fill="#F4F8FC">Z = exp(t) * (I_hat T_hat^T)</text>
+  <text x="375" y="199" class="body" fill="#DDE8F2">learned positive scale = inverse temperature;</text>
+  <text x="375" y="225" class="body" fill="#DDE8F2">larger scale makes the softmax sharper</text>
+
+  <rect x="70" y="278" width="300" height="440" rx="26" fill="url(#panel)" stroke="#D7E2EE"/>
+  <rect x="390" y="278" width="420" height="440" rx="26" fill="url(#panel)" stroke="#D7E2EE"/>
+  <rect x="830" y="278" width="300" height="440" rx="26" fill="url(#panel)" stroke="#D7E2EE"/>
+
+  <text x="100" y="324" class="panel-title">1. Raw cosine scores are small</text>
+  <text x="100" y="362" class="body">Example for one image</text>
+  <text x="100" y="386" class="body">vs three text candidates:</text>
+
+  <rect x="100" y="406" width="240" height="66" rx="14" fill="#F0F5FB"/>
+  <text x="120" y="448" class="mono">S = [0.30, 0.20, -0.10]</text>
+
+  <text x="100" y="510" class="body">Because embeddings are L2-normalized:</text>
+  <text x="100" y="544" class="small">- dot product = cosine similarity</text>
+  <text x="100" y="574" class="small">- values are typically in a narrow range</text>
+  <text x="100" y="604" class="small">- softmax over these logits can be too flat</text>
+
+  <rect x="100" y="632" width="240" height="66" rx="14" fill="#FFF6E8" stroke="#F2D39B"/>
+  <text x="118" y="668" class="body" fill="#704D12">Flat logits mean the correct pair</text>
+  <text x="118" y="692" class="body" fill="#704D12">does not stand out enough.</text>
+
+  <text x="420" y="324" class="panel-title">2. Larger scale sharpens the softmax</text>
+  <text x="420" y="356" class="small">Same cosine scores, different scales.</text>
+  <text x="420" y="378" class="small">Orange = correct match; blue/green = negatives.</text>
+
+  <line x1="450" y1="644" x2="770" y2="644" stroke="#AABCD0" stroke-width="2"/>
+  <line x1="450" y1="404" x2="450" y2="644" stroke="#AABCD0" stroke-width="2"/>
+  <text x="430" y="404" class="note">1.0</text>
+  <text x="430" y="524" class="note">0.5</text>
+  <text x="430" y="644" class="note">0.0</text>
+
+  <text x="492" y="672" class="body">scale = 1</text>
+  <text x="597" y="672" class="body">scale = 5</text>
+  <text x="698" y="672" class="body">scale = 10</text>
+
+  <rect x="485" y="550" width="22" height="94" rx="6" fill="#F29F05"/>
+  <rect x="512" y="560" width="22" height="84" rx="6" fill="#4A90E2"/>
+  <rect x="539" y="582" width="22" height="62" rx="6" fill="#50B88F"/>
+
+  <rect x="590" y="507" width="22" height="137" rx="6" fill="#F29F05"/>
+  <rect x="617" y="560" width="22" height="84" rx="6" fill="#4A90E2"/>
+  <rect x="644" y="625" width="22" height="19" rx="6" fill="#50B88F"/>
+
+  <rect x="695" y="471" width="22" height="173" rx="6" fill="#F29F05"/>
+  <rect x="722" y="579" width="22" height="65" rx="6" fill="#4A90E2"/>
+  <rect x="749" y="641" width="22" height="3" rx="3" fill="#50B88F"/>
+
+  <text x="476" y="542" class="note">0.39</text>
+  <text x="503" y="552" class="note">0.35</text>
+  <text x="530" y="574" class="note">0.26</text>
+
+  <text x="581" y="499" class="note">0.57</text>
+  <text x="608" y="552" class="note">0.35</text>
+  <text x="638" y="617" class="note">0.08</text>
+
+  <text x="686" y="463" class="note">0.72</text>
+  <text x="713" y="571" class="note">0.27</text>
+  <text x="741" y="633" class="note">0.01</text>
+
+  <text x="452" y="706" class="small">The correct pair receives higher probability</text>
+  <text x="452" y="728" class="small">as the scale increases.</text>
+
+  <text x="860" y="324" class="panel-title">3. Why learn it</text>
+  <text x="860" y="350" class="panel-title">instead of fixing it?</text>
+
+  <rect x="860" y="384" width="240" height="90" rx="16" fill="#EDF6FF" stroke="#C6DDF7"/>
+  <text x="880" y="416" class="body">Small scale</text>
+  <text x="880" y="444" class="small">- softmax too flat</text>
+  <text x="880" y="468" class="small">- weak contrast among negatives</text>
+
+  <rect x="860" y="494" width="240" height="104" rx="16" fill="#EEF8F1" stroke="#C8E4D0"/>
+  <text x="880" y="526" class="body">Learned scale</text>
+  <text x="880" y="554" class="small">- adapts during training</text>
+  <text x="880" y="578" class="small">- stronger signal for hard negatives</text>
+
+  <rect x="860" y="618" width="240" height="80" rx="16" fill="#FFF2F0" stroke="#F2CBC5"/>
+  <text x="880" y="650" class="body">Too large</text>
+  <text x="880" y="676" class="small">- logits become over-confident</text>
+
+  <text x="70" y="764" class="note">Example probabilities use softmax(exp(t) * [0.30, 0.20, -0.10]).</text>
+  <text x="70" y="786" class="note">In CLIP code, t is usually stored in log-space and exponentiated at runtime.</text>
+</svg>

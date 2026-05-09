@@ -45,24 +45,65 @@ Two variants introduced:
 
 ## 4. Loss Function (Mathematical Details)
 
-For batch size B, embeddings normalized:
+For batch size $B$, let the normalized image embedding be $x_i$ and the normalized text embedding be $y_j$:
 
-- Similarity matrix: \( s_{ij} = x_i \cdot y_j \)
-- Logit: \( l_{ij} = t \cdot s_{ij} + b \)  (t = exp(t′), b learned)
-- Label matrix: \( z_{ij} = +1 \) if i==j else -1
-- Loss:
-  \[
-  L = -\frac{1}{B^2} \sum_{i,j} \log \sigma \left( z_{ij} \cdot l_{ij} \right)
-  \]
+$$
+s_{ij} = x_i \cdot y_j
+$$
+
+SigLIP uses a scaled and shifted pairwise logit:
+
+$$
+l_{ij} = \exp(t) \cdot s_{ij} + b
+$$
+
+where:
+
+* $t$ is the learned **logit scale** parameter, stored in log space
+* $b$ is a learned **logit bias**
+
+The pairwise label matrix is:
+
+$$
+z_{ij} =
+\begin{cases}
++1, & i = j \\
+-1, & i \neq j
+\end{cases}
+$$
+
+The sigmoid contrastive loss is:
+
+$$
+L = -\frac{1}{B^2} \sum_{i=1}^{B} \sum_{j=1}^{B} \log \sigma \left( z_{ij} l_{ij} \right)
+$$
+
+An equivalent and often numerically friendlier form is:
+
+$$
+L = \frac{1}{B^2} \sum_{i=1}^{B} \sum_{j=1}^{B} \operatorname{softplus}(-z_{ij} l_{ij})
+$$
+
+Compared with CLIP:
+
+* CLIP normalizes over each row or column with a softmax
+* SigLIP treats every image-text pair independently with a sigmoid objective
+* This removes the need for global batch-wide normalization
 
 Initializations:
-- t′ = log(10) → t ≈ 10
-- b = -10 (helps with initial positive/negative imbalance)
+- $t = \log(10)$ so the initial multiplicative scale is $\exp(t) \approx 10$
+- $b = -10$ to reflect the strong positive/negative imbalance at initialization
+
+Why use a bias term?
+
+* In a batch of size $B$, there are only $B$ positive pairs but $B^2 - B$ negative pairs.
+* A negative initial bias prevents the model from starting with overly optimistic pairwise probabilities.
+* This makes early optimization more stable when most pairs should indeed be classified as mismatches.
 
 ## 5. PyTorch Implementation Highlights (Hugging Face)
 
 ```python
-# Zero-shot classification (same as CLIP)
+import torch
 from transformers import AutoProcessor, AutoModel
 from PIL import Image
 
@@ -78,8 +119,8 @@ outputs = model(**inputs)
 image_emb = outputs.image_embeds  # [1, dim] (pooled, normalized)
 text_embs = outputs.text_embeds   # [num_texts, dim]
 
-logits = image_emb @ text_embs.T  # cosine similarities
-probs = logits.softmax(dim=-1)
+logits = outputs.logits_per_image  # scaled pairwise logits
+probs = torch.sigmoid(logits)      # independent pair probabilities
 ```
 
 Key internal components:
