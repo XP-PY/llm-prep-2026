@@ -161,8 +161,8 @@ $$
 
 where:
 
-* `p_\ell^{token-id}` comes from a token-identity lookup
-* `p_\ell^{context}` comes from projecting the main input embeddings
+* $p_\ell^{token-id}$ comes from a token-identity lookup
+* $p_\ell^{context}$ comes from projecting the main input embeddings
 
 Conceptually:
 

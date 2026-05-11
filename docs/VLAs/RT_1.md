@@ -109,9 +109,9 @@ $$
 
 where:
 
-* `h` is an intermediate visual feature
-* `e_i` is the instruction embedding
-* `\gamma(\cdot)` and `\beta(\cdot)` are learned functions of the instruction
+* $`h`$ is an intermediate visual feature
+* $`e_i`$ is the instruction embedding
+* $`\gamma(\cdot)`$ and $`\beta(\cdot)`$ are learned functions of the instruction
 
 This is important because RT-1 does **early language fusion**. Instead of extracting image features first and only later mixing in language, the instruction already shapes what the vision stack should pay attention to.
 
@@ -151,7 +151,7 @@ $$
 \{y_k\}_{k=1}^{K}
 $$
 
-where the input sequence `\{\xi_h\}` comes from language-conditioned visual tokens and the output sequence `\{y_k\}` corresponds to action tokens.
+where the input sequence $`\{\xi_h\}`$ comes from language-conditioned visual tokens and the output sequence $`\{y_k\}`$ corresponds to action tokens.
 
 ### 5.5 Action Space and Action Tokenization
 

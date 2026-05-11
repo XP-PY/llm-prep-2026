@@ -64,7 +64,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies and embodied control | RT-1 |
+| VLA & Robotics | Vision-language-action policies and embodied control | RT-1, RT-2 |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
@@ -97,7 +97,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
 ## 6. VLA & Robotics
-- Vision-language-action policies: [RT-1](./docs/VLAs/RT_1.md)
+- Vision-language-action policies: [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md)
 
 ---
 
@@ -171,7 +171,8 @@ docs/
 |   `-- SFT.md
 |-- Loss/
 |-- VLAs/
-|   `-- RT_1.md
+|   |-- RT_1.md
+|   `-- RT_2.md
 `-- Resource/
     |-- Text_Color_Table.md
     `-- pics/
