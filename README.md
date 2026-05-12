@@ -34,7 +34,7 @@ flowchart TD
 
     C --> C1[FlashAttention / MLA]
     C --> C2[DeepSeekMoE]
-    C --> C3[TP / PP / EP]
+    C --> C3[TP / PP / EP / FSDP]
 
     D --> D1[LoRA / QLoRA / DoRA]
     D --> D2[Specialized LoRA Variants]
@@ -60,7 +60,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
 | Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, MHA/MQA/GQA, RoPE, SwiGLU |
-| Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP |
+| Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP/FSDP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
@@ -76,7 +76,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 ## 2. Architecture & Scaling
 - Efficient attention: [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md), [MLA](./docs/Attention_Machanisms/MLA.md)
 - Sparse architecture: [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md)
-- Distributed training: [TP](./docs/Parallelism/TP.md), [PP](./docs/Parallelism/PP.md), [EP](./docs/Parallelism/EP.md) (`In Progress`)
+- Distributed training: [TP](./docs/Parallelism/TP.md), [PP](./docs/Parallelism/PP.md), [EP](./docs/Parallelism/EP.md), [FSDP](./docs/Parallelism/FSDP.md)
 
 ## 3. Adaptation & Alignment
 - PEFT: [LoRA](./docs/PEFT/LoRA.md), [QLoRA](./docs/PEFT/QLoRA.md), [DoRA](./docs/PEFT/DoRA.md), [Specialized LoRA Variants](./docs/PEFT/Specialized_LoRA.md)
@@ -160,6 +160,7 @@ docs/
 |   `-- Specialized_LoRA.md
 |-- Parallelism/
 |   |-- EP.md
+|   |-- FSDP.md
 |   |-- PP.md
 |   `-- TP.md
 |-- Position_Embeding/
