@@ -1,0 +1,126 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="640" viewBox="0 0 1080 640">
+  <rect width="1080" height="640" fill="#f7f4ec"/>
+  <rect x="28" y="28" width="1024" height="584" rx="24" fill="#fffdf8" stroke="#2f2a24" stroke-width="3"/>
+
+  <text x="540" y="72" text-anchor="middle" font-family="Georgia, serif" font-size="30" fill="#1f1b18">
+    Open X-Embodiment
+  </text>
+  <text x="540" y="104" text-anchor="middle" font-family="Georgia, serif" font-size="16" fill="#5c534a">
+    Many robot datasets -> shared RLDS structure -> coarse alignment -> cross-embodiment pretraining
+  </text>
+
+  <rect x="70" y="150" width="250" height="360" rx="18" fill="#efe5d4" stroke="#5f4d3c" stroke-width="2"/>
+  <text x="195" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#2d251f">
+    Source Data Pool
+  </text>
+  <text x="95" y="232" font-family="Georgia, serif" font-size="17" fill="#2d251f">
+    - 60 datasets
+  </text>
+  <text x="95" y="264" font-family="Georgia, serif" font-size="17" fill="#2d251f">
+    - 22 embodiments
+  </text>
+  <text x="95" y="296" font-family="Georgia, serif" font-size="17" fill="#2d251f">
+    - 1M+ trajectories
+  </text>
+  <text x="95" y="328" font-family="Georgia, serif" font-size="17" fill="#2d251f">
+    - 527 skills
+  </text>
+  <text x="95" y="360" font-family="Georgia, serif" font-size="17" fill="#2d251f">
+    - 160,266 tasks
+  </text>
+  <text x="95" y="408" font-family="Georgia, serif" font-size="16" fill="#5c534a">
+    Different robots, grippers,
+  </text>
+  <text x="95" y="434" font-family="Georgia, serif" font-size="16" fill="#5c534a">
+    cameras, control styles,
+  </text>
+  <text x="95" y="460" font-family="Georgia, serif" font-size="16" fill="#5c534a">
+    and collection pipelines
+  </text>
+
+  <rect x="414" y="132" width="252" height="396" rx="18" fill="#dfe9dd" stroke="#4e6750" stroke-width="2"/>
+  <text x="540" y="172" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#1f2c20">
+    Shared Training Surface
+  </text>
+  <text x="438" y="214" font-family="Georgia, serif" font-size="17" fill="#1f2c20">
+    RLDS episode container
+  </text>
+  <text x="438" y="246" font-family="Georgia, serif" font-size="17" fill="#1f2c20">
+    observation dicts
+  </text>
+  <text x="438" y="278" font-family="Georgia, serif" font-size="17" fill="#1f2c20">
+    action dicts
+  </text>
+  <text x="438" y="310" font-family="Georgia, serif" font-size="17" fill="#1f2c20">
+    is_first / is_last flags
+  </text>
+  <text x="438" y="342" font-family="Georgia, serif" font-size="17" fill="#1f2c20">
+    task / language metadata
+  </text>
+  <text x="438" y="390" font-family="Georgia, serif" font-size="16" fill="#445846">
+    Common observation:
+  </text>
+  <text x="438" y="416" font-family="Georgia, serif" font-size="16" fill="#445846">
+    static RGB image + instruction
+  </text>
+  <text x="438" y="454" font-family="Georgia, serif" font-size="16" fill="#445846">
+    Common action:
+  </text>
+  <text x="438" y="480" font-family="Georgia, serif" font-size="16" fill="#445846">
+    7D gripper-frame interface
+  </text>
+  <text x="438" y="512" font-family="Georgia, serif" font-size="16" fill="#445846">
+    Coarse alignment,
+  </text>
+  <text x="438" y="538" font-family="Georgia, serif" font-size="16" fill="#445846">
+    not exact normalization
+  </text>
+
+  <rect x="760" y="150" width="250" height="360" rx="18" fill="#e1e7f3" stroke="#53627c" stroke-width="2"/>
+  <text x="885" y="190" text-anchor="middle" font-family="Georgia, serif" font-size="24" fill="#202837">
+    Downstream Impact
+  </text>
+  <text x="785" y="232" font-family="Georgia, serif" font-size="17" fill="#202837">
+    RT-1-X
+  </text>
+  <text x="785" y="264" font-family="Georgia, serif" font-size="17" fill="#202837">
+    RT-2-X
+  </text>
+  <text x="785" y="296" font-family="Georgia, serif" font-size="17" fill="#202837">
+    Octo
+  </text>
+  <text x="785" y="328" font-family="Georgia, serif" font-size="17" fill="#202837">
+    OpenVLA
+  </text>
+  <text x="785" y="376" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    Enables cross-robot
+  </text>
+  <text x="785" y="402" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    pretraining, mixture
+  </text>
+  <text x="785" y="428" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    reweighting, and
+  </text>
+  <text x="785" y="454" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    later VLA fine-tuning
+  </text>
+  <text x="785" y="502" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    Main idea:
+  </text>
+  <text x="785" y="528" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    scale robot data across
+  </text>
+  <text x="785" y="554" font-family="Georgia, serif" font-size="16" fill="#505c74">
+    embodiments, not just tasks
+  </text>
+
+  <path d="M320 330 L414 330" fill="none" stroke="#6c604f" stroke-width="4"/>
+  <polygon points="414,330 398,322 398,338" fill="#6c604f"/>
+
+  <path d="M666 330 L760 330" fill="none" stroke="#607091" stroke-width="4"/>
+  <polygon points="760,330 744,322 744,338" fill="#607091"/>
+
+  <text x="540" y="592" text-anchor="middle" font-family="Georgia, serif" font-size="15" fill="#5c534a">
+    Figure for learning notes in this repository
+  </text>
+</svg>

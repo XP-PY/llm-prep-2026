@@ -22,6 +22,17 @@ from .rt_2 import (
     build_rt2_pali_x_tiny,
     build_rt2_palm_e_tiny,
 )
+from .openvla import (
+    OpenVLAActionConfig,
+    OpenVLABackboneConfig,
+    OpenVLAConfig,
+    OpenVLAModel,
+    OpenVLAOutput,
+    OpenVLATextConfig,
+    OpenVLAVisionConfig,
+    build_openvla_siglip_only_tiny,
+    build_openvla_tiny,
+)
 
 __all__ = [
     "RT1ActionConfig",
@@ -42,4 +53,13 @@ __all__ = [
     "RT2VisionConfig",
     "build_rt2_pali_x_tiny",
     "build_rt2_palm_e_tiny",
+    "OpenVLAActionConfig",
+    "OpenVLABackboneConfig",
+    "OpenVLAConfig",
+    "OpenVLAModel",
+    "OpenVLAOutput",
+    "OpenVLATextConfig",
+    "OpenVLAVisionConfig",
+    "build_openvla_siglip_only_tiny",
+    "build_openvla_tiny",
 ]

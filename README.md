@@ -64,7 +64,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies and embodied control | RT-1, RT-2 |
+| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | Open X-Embodiment, RT-1, RT-2, OpenVLA |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
@@ -97,7 +97,8 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
 ## 6. VLA & Robotics
-- Vision-language-action policies: [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md)
+- Embodied dataset foundation: [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
+- Vision-language-action policies: [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md)
 
 ---
 
@@ -171,8 +172,10 @@ docs/
 |   `-- SFT.md
 |-- Loss/
 |-- VLAs/
+|   |-- Open_X_Embodiment.md
 |   |-- RT_1.md
-|   `-- RT_2.md
+|   |-- RT_2.md
+|   `-- OpenVLA.md
 `-- Resource/
     |-- Text_Color_Table.md
     `-- pics/
