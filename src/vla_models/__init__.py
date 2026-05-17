@@ -1,5 +1,27 @@
 """Vision-language-action model implementations used in this repository."""
 
+from .act import (
+    ACTConfig,
+    ACTModel,
+    ACTObservationConfig,
+    ACTOutput,
+    ACTTemporalEnsembler,
+    ACTTrainingConfig,
+    ACTTransformerConfig,
+    ACTVisionConfig,
+    build_act_tiny,
+)
+from .diffusion_policy import (
+    DiffusionPolicyConfig,
+    DiffusionPolicyDenoiserConfig,
+    DiffusionPolicyModel,
+    DiffusionPolicyObservationConfig,
+    DiffusionPolicyOutput,
+    DiffusionPolicySchedulerConfig,
+    DiffusionPolicyVisionConfig,
+    MinMaxActionNormalizer,
+    build_diffusion_policy_tiny,
+)
 from .rt_1 import (
     RT1ActionConfig,
     RT1Config,
@@ -35,6 +57,24 @@ from .openvla import (
 )
 
 __all__ = [
+    "ACTConfig",
+    "ACTModel",
+    "ACTObservationConfig",
+    "ACTOutput",
+    "ACTTemporalEnsembler",
+    "ACTTrainingConfig",
+    "ACTTransformerConfig",
+    "ACTVisionConfig",
+    "build_act_tiny",
+    "DiffusionPolicyConfig",
+    "DiffusionPolicyDenoiserConfig",
+    "DiffusionPolicyModel",
+    "DiffusionPolicyObservationConfig",
+    "DiffusionPolicyOutput",
+    "DiffusionPolicySchedulerConfig",
+    "DiffusionPolicyVisionConfig",
+    "MinMaxActionNormalizer",
+    "build_diffusion_policy_tiny",
     "RT1ActionConfig",
     "RT1Config",
     "RT1InstructionConfig",
