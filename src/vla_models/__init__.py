@@ -55,6 +55,16 @@ from .openvla import (
     build_openvla_siglip_only_tiny,
     build_openvla_tiny,
 )
+from .octo import (
+    OctoConfig,
+    OctoDiffusionConfig,
+    OctoModel,
+    OctoObservationConfig,
+    OctoOutput,
+    OctoTaskConfig,
+    OctoTransformerConfig,
+    build_octo_tiny,
+)
 
 __all__ = [
     "ACTConfig",
@@ -102,4 +112,12 @@ __all__ = [
     "OpenVLAVisionConfig",
     "build_openvla_siglip_only_tiny",
     "build_openvla_tiny",
+    "OctoConfig",
+    "OctoDiffusionConfig",
+    "OctoModel",
+    "OctoObservationConfig",
+    "OctoOutput",
+    "OctoTaskConfig",
+    "OctoTransformerConfig",
+    "build_octo_tiny",
 ]

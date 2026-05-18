@@ -63,8 +63,8 @@ $$
 
 where:
 
-* `\mu_B` and `\sigma_B^2` are computed from the current mini-batch
-* `\gamma` and `\beta` are learnable per-channel parameters
+* $\mu_B$ and $\sigma_B^2$ are computed from the current mini-batch
+* $\gamma$ and $\beta$ are learnable per-channel parameters
 
 ---
 

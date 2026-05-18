@@ -62,13 +62,13 @@ $$
 where:
 
 * `d` is the hidden dimension
-* `\epsilon` is for numerical stability
-* `\gamma \in \mathbb{R}^d` is a learnable scale vector
+* $\epsilon$ is for numerical stability
+* $\gamma \in \mathbb{R}^d$ is a learnable scale vector
 
 Unlike LayerNorm, there is usually:
 
 * no mean subtraction
-* no `\beta` bias term
+* no $\beta$ bias term
 
 ---
 

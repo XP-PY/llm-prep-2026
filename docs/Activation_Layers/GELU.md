@@ -43,7 +43,7 @@ $$
 
 is the cumulative distribution function (CDF) of a standard Gaussian.
 
-So GELU multiplies the input `x` by a smooth gate `\Phi(x) \in (0,1)`.
+So GELU multiplies the input `x` by a smooth gate $\Phi(x) \in (0,1)$.
 
 That means:
 
@@ -210,13 +210,13 @@ GELU is smooth and curved around zero.
 
 Key behaviors:
 
-* for large positive `x`, `\Phi(x) \to 1`, so:
+* for large positive `x`, $\Phi(x) \to 1$, so:
 
 $$
 \operatorname{GELU}(x) \approx x
 $$
 
-* for large negative `x`, `\Phi(x) \to 0`, so:
+* for large negative `x`, $\Phi(x) \to 0$, so:
 
 $$
 \operatorname{GELU}(x) \approx 0

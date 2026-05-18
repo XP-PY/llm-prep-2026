@@ -59,17 +59,17 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
-| Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, MHA/MQA/GQA, RoPE, SwiGLU |
+| Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, GroupNorm, MHA/MQA/GQA, RoPE, SwiGLU |
 | Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP/FSDP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | Open X-Embodiment, ACT, Diffusion Policy, RT-1, RT-2, OpenVLA |
+| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
 - Activation basics: [Sigmoid](./docs/Activation_Layers/Sigmoid.md), [GELU](./docs/Activation_Layers/GELU.md)
-- Normalization basics: [LayerNorm](./docs/Norm/LayerNorm.md), [RMSNorm](./docs/Norm/RMSNorm.md), [BatchNorm](./docs/Norm/BatchNorm.md)
+- Normalization basics: [LayerNorm](./docs/Norm/LayerNorm.md), [RMSNorm](./docs/Norm/RMSNorm.md), [BatchNorm](./docs/Norm/BatchNorm.md), [GroupNorm](./docs/Norm/GroupNorm.md)
 - Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
 - Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
 
@@ -98,7 +98,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 ## 6. VLA & Robotics
 - Embodied dataset foundation: [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
-- Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md)
+- Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [Octo](./docs/VLAs/Octo.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md)
 
 ---
 
@@ -149,6 +149,7 @@ docs/
 |   `-- DeepSeekMoE.md
 |-- Norm/
 |   |-- BatchNorm.md
+|   |-- GroupNorm.md
 |   |-- RMSNorm.md
 |   `-- LayerNorm.md
 |-- Optimizer/
@@ -175,6 +176,7 @@ docs/
 |-- VLAs/
 |   |-- ACT.md
 |   |-- Diffusion_Policy.md
+|   |-- Octo.md
 |   |-- Open_X_Embodiment.md
 |   |-- RT_1.md
 |   |-- RT_2.md
