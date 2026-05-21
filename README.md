@@ -64,7 +64,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA |
+| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | LIBERO, Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
@@ -97,7 +97,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
 ## 6. VLA & Robotics
-- Embodied dataset foundation: [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
+- Embodied dataset foundations and benchmarks: [LIBERO](./docs/VLAs/LIBERO.md), [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
 - Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [Octo](./docs/VLAs/Octo.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md)
 
 ---
@@ -176,6 +176,7 @@ docs/
 |-- VLAs/
 |   |-- ACT.md
 |   |-- Diffusion_Policy.md
+|   |-- LIBERO.md
 |   |-- Octo.md
 |   |-- Open_X_Embodiment.md
 |   |-- RT_1.md
