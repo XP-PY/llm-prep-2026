@@ -93,7 +93,7 @@ $$
 \theta = [\theta_1, \theta_2, \dots, \theta_P]
 $$
 
-where rank `r` keeps only shard `\theta_r` outside computation.
+where rank `r` keeps only shard $\theta_r$ outside computation.
 
 The same sharding idea applies to:
 
