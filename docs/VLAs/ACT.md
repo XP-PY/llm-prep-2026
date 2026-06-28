@@ -1,6 +1,7 @@
 # [Learning Fine-Grained Bimanual Manipulation with Low-Cost Hardware](https://arxiv.org/abs/2304.13705)
 
 ## Convenient Links
+
 * [Paper (arXiv)](https://arxiv.org/abs/2304.13705)
 * [Project Page](https://tonyzhaozh.github.io/aloha/)
 * [RT-1 note in this repo](./RT_1.md)
@@ -358,18 +359,18 @@ Important shape details:
 
 The main hyperparameters reported in the appendix are:
 
-| Hyperparameter | Value |
-|:---|:---:|
-| Learning rate | `1e-5` |
-| Batch size | `8` |
-| Encoder layers | `4` |
-| Decoder layers | `7` |
-| Hidden dimension | `512` |
+| Hyperparameter        |  Value  |
+| :-------------------- | :------: |
+| Learning rate         | `1e-5` |
+| Batch size            |  `8`  |
+| Encoder layers        |  `4`  |
+| Decoder layers        |  `7`  |
+| Hidden dimension      | `512` |
 | Feedforward dimension | `3200` |
-| Attention heads | `8` |
-| Chunk size `k` | `100` |
-| Beta | `10` |
-| Dropout | `0.1` |
+| Attention heads       |  `8`  |
+| Chunk size`k`       | `100` |
+| Beta                  |  `10`  |
+| Dropout               | `0.1` |
 
 The model has about **80M parameters**, trains from scratch for each task, takes about **5 hours** on a single 11GB RTX 2080 Ti, and runs inference in about **0.01 seconds** on the same GPU.
 
@@ -449,14 +450,14 @@ The paper evaluates on:
 
 The real-world tasks are:
 
-| Task | Main difficulty |
-|:---|:---|
-| Slide Ziploc | grasp and slide a small bag zipper |
-| Slot Battery | place and push a battery into a remote |
-| Open Cup | tip, grasp, lift, and pry open a translucent cup |
-| Thread Velcro | insert one end of a cable tie into a small loop |
-| Prep Tape | cut tape, hand over mid-air, and hang it on a box |
-| Put On Shoe | coordinate both arms to put a shoe on a fixed foot |
+| Task          | Main difficulty                                    |
+| :------------ | :------------------------------------------------- |
+| Slide Ziploc  | grasp and slide a small bag zipper                 |
+| Slot Battery  | place and push a battery into a remote             |
+| Open Cup      | tip, grasp, lift, and pry open a translucent cup   |
+| Thread Velcro | insert one end of a cable tie into a small loop    |
+| Prep Tape     | cut tape, hand over mid-air, and hang it on a box  |
+| Put On Shoe   | coordinate both arms to put a shoe on a fixed foot |
 
 Data collection details:
 
@@ -482,18 +483,18 @@ The main results are strong because the baselines usually make progress only on 
 
 For the key final subtasks:
 
-| Task | ACT final success |
-|:---|:---:|
-| Cube Transfer, scripted sim | `86%` |
-| Cube Transfer, human sim | `50%` |
-| Bimanual Insertion, scripted sim | `32%` |
-| Bimanual Insertion, human sim | `20%` |
-| Slide Ziploc | `88%` |
-| Slot Battery | `96%` |
-| Open Cup | `84%` |
-| Thread Velcro | `20%` |
-| Prep Tape | `64%` |
-| Put On Shoe | `92%` |
+| Task                             | ACT final success |
+| :------------------------------- | :---------------: |
+| Cube Transfer, scripted sim      |      `86%`      |
+| Cube Transfer, human sim         |      `50%`      |
+| Bimanual Insertion, scripted sim |      `32%`      |
+| Bimanual Insertion, human sim    |      `20%`      |
+| Slide Ziploc                     |      `88%`      |
+| Slot Battery                     |      `96%`      |
+| Open Cup                         |      `84%`      |
+| Thread Velcro                    |      `20%`      |
+| Prep Tape                        |      `64%`      |
+| Put On Shoe                      |      `92%`      |
 
 The paper reports that ACT improves over the best previous method by large margins on the simulated tasks:
 
@@ -624,14 +625,14 @@ The authors suggest that better perception, pretraining, and more data are promi
 
 ## 17. ACT vs RT-1 / RT-2 / OpenVLA
 
-| Aspect | ACT | RT-1 | RT-2 / OpenVLA |
-|:---|:---|:---|:---|
-| Main goal | fine-grained bimanual manipulation | multi-task language-conditioned control | generalist VLA behavior |
-| Input | 4 RGB cameras + joints | language + image history | language + image |
-| Output | continuous joint targets | discretized action heads | action tokens |
-| Training | per-task imitation learning | large multi-task BC | VLM/VLA fine-tuning |
-| Key idea | action chunks + temporal ensemble | FiLM + TokenLearner + Transformer | action-as-text / VLM transfer |
-| Hardware focus | central contribution | less central | less central |
+| Aspect         | ACT                                | RT-1                                    | RT-2 / OpenVLA                |
+| :------------- | :--------------------------------- | :-------------------------------------- | :---------------------------- |
+| Main goal      | fine-grained bimanual manipulation | multi-task language-conditioned control | generalist VLA behavior       |
+| Input          | 4 RGB cameras + joints             | language + image history                | language + image              |
+| Output         | continuous joint targets           | discretized action heads                | action tokens                 |
+| Training       | per-task imitation learning        | large multi-task BC                     | VLM/VLA fine-tuning           |
+| Key idea       | action chunks + temporal ensemble  | FiLM + TokenLearner + Transformer       | action-as-text / VLM transfer |
+| Hardware focus | central contribution               | less central                            | less central                  |
 
 The important distinction is:
 

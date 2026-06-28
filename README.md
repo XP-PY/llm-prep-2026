@@ -64,7 +64,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | LIBERO, Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA, SmolVLA |
+| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | LIBERO, Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA, pi0, SmolVLA |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
@@ -98,7 +98,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 ## 6. VLA & Robotics
 - Embodied dataset foundations and benchmarks: [LIBERO](./docs/VLAs/LIBERO.md), [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
-- Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [Octo](./docs/VLAs/Octo.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md), [SmolVLA](./docs/VLAs/SmolVLA.md)
+- Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [Octo](./docs/VLAs/Octo.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md), [pi0](./docs/VLAs/Pi_0.md), [SmolVLA](./docs/VLAs/SmolVLA.md)
 
 ---
 
@@ -182,6 +182,7 @@ docs/
 |   |-- RT_1.md
 |   |-- RT_2.md
 |   |-- OpenVLA.md
+|   |-- Pi_0.md
 |   `-- SmolVLA.md
 `-- Resource/
     |-- Text_Color_Table.md

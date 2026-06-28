@@ -1,6 +1,7 @@
 # [SmolVLA: A Vision-Language-Action Model for Affordable and Efficient Robotics](https://arxiv.org/abs/2506.01844)
 
 ## Convenient Links
+
 * [Paper (arXiv)](https://arxiv.org/abs/2506.01844)
 * [Hugging Face Blog](https://huggingface.co/blog/smolvla)
 * [Model Card](https://huggingface.co/lerobot/smolvla_base)
@@ -234,11 +235,11 @@ SmolVLA's data story is one of the paper's main contributions.
 
 The pretraining set contains:
 
-| Source | Count |
-|:---|---:|
-| Community datasets | 481 |
-| Episodes | 22.9k |
-| Frames | 10.6M |
+| Source             | Count |
+| :----------------- | ----: |
+| Community datasets |   481 |
+| Episodes           | 22.9k |
+| Frames             | 10.6M |
 
 These datasets come from Hugging Face / LeRobot community contributions. Unlike carefully standardized academic robot datasets, they are messy:
 
@@ -286,24 +287,24 @@ This is a small but important engineering lesson: with small robot data, inconsi
 
 The main implementation details are:
 
-| Component | Setting |
-|:---|:---|
-| Main model size | about `450M` parameters |
-| Action expert size | about `100M` parameters |
-| VLM backbone | SmolVLM-2 |
-| VLM training | frozen |
-| Trainable module | action expert |
-| Pretraining steps | `200k` |
-| Global batch size | `256` |
-| Warmup | `100` steps |
-| LR schedule | cosine, `1e-4` to `2.5e-6` |
-| Optimizer | AdamW |
-| Adam betas | `beta1 = 0.9`, `beta2 = 0.95` |
-| Image size | `512 x 512` |
-| Action chunk size | `n = 50` |
-| Flow steps at inference | `10` |
-| Precision | bfloat16 |
-| Efficiency tools | `torch.compile`, Hugging Face `accelerate` |
+| Component               | Setting                                        |
+| :---------------------- | :--------------------------------------------- |
+| Main model size         | about`450M` parameters                       |
+| Action expert size      | about`100M` parameters                       |
+| VLM backbone            | SmolVLM-2                                      |
+| VLM training            | frozen                                         |
+| Trainable module        | action expert                                  |
+| Pretraining steps       | `200k`                                       |
+| Global batch size       | `256`                                        |
+| Warmup                  | `100` steps                                  |
+| LR schedule             | cosine,`1e-4` to `2.5e-6`                  |
+| Optimizer               | AdamW                                          |
+| Adam betas              | `beta1 = 0.9`, `beta2 = 0.95`              |
+| Image size              | `512 x 512`                                  |
+| Action chunk size       | `n = 50`                                     |
+| Flow steps at inference | `10`                                         |
+| Precision               | bfloat16                                       |
+| Efficiency tools        | `torch.compile`, Hugging Face `accelerate` |
 
 The paper reports that pretraining used **4 GPUs** for a large batch size, but the model is small enough to train on a single GPU. The total project consumed about **30k GPU hours**.
 
@@ -351,9 +352,9 @@ SmolVLA is evaluated in both simulation and real-world settings.
 
 The simulation benchmarks are:
 
-| Benchmark | Setup |
-|:---|:---|
-| LIBERO | 40 tasks: Spatial, Object, Goal, Long, 10 tasks each |
+| Benchmark  | Setup                                                      |
+| :--------- | :--------------------------------------------------------- |
+| LIBERO     | 40 tasks: Spatial, Object, Goal, Long, 10 tasks each       |
 | Meta-World | 50 tasks with easy, medium, hard, and very hard categories |
 
 For LIBERO:
@@ -380,11 +381,11 @@ The real-world robot arms are:
 
 The evaluated datasets are:
 
-| Dataset | Robot | Task |
-|:---|:---|:---|
-| `lerobot/svla_so100_pickplace` | SO100 | pick cube and place it in a box |
-| `lerobot/svla_so100_stacking` | SO100 | stack red cube on blue cube |
-| `lerobot/svla_so100_sorting` | SO100 | sort colored cubes into boxes |
+| Dataset                          | Robot | Task                                            |
+| :------------------------------- | :---- | :---------------------------------------------- |
+| `lerobot/svla_so100_pickplace` | SO100 | pick cube and place it in a box                 |
+| `lerobot/svla_so100_stacking`  | SO100 | stack red cube on blue cube                     |
+| `lerobot/svla_so100_sorting`   | SO100 | sort colored cubes into boxes                   |
 | `lerobot/svla_so101_pickplace` | SO101 | place a small Lego brick into a transparent box |
 
 Each real-world dataset has:
@@ -399,16 +400,16 @@ The SO101 evaluation is especially useful because SmolVLA is **not pretrained on
 
 ### 15.1 LIBERO
 
-| Policy | Robotics VLA Pretraining | Spatial | Object | Goal | Long | Avg |
-|:---|:---:|---:|---:|---:|---:|---:|
-| Diffusion Policy | No | 78.3 | 92.5 | 68.3 | 50.5 | 72.4 |
-| Octo 0.09B | Yes | 78.9 | 85.7 | 84.6 | 51.1 | 75.1 |
-| OpenVLA 7B | Yes | 84.7 | 88.4 | 79.2 | 53.7 | 76.5 |
-| pi0 Paligemma-3B | No | 87 | 63 | 89 | 48 | 71.8 |
-| pi0 3.3B | Yes | 90 | 86 | 95 | 73 | 86.0 |
-| SmolVLA 0.24B | No | 87 | 93 | 88 | 63 | 82.75 |
-| SmolVLA 0.45B | No | 90 | 96 | 92 | 71 | 87.3 |
-| SmolVLA 2.25B | No | 93 | 94 | 91 | 77 | 88.75 |
+| Policy           | Robotics VLA Pretraining | Spatial | Object | Goal | Long |   Avg |
+| :--------------- | :----------------------: | ------: | -----: | ---: | ---: | ----: |
+| Diffusion Policy |            No            |    78.3 |   92.5 | 68.3 | 50.5 |  72.4 |
+| Octo 0.09B       |           Yes           |    78.9 |   85.7 | 84.6 | 51.1 |  75.1 |
+| OpenVLA 7B       |           Yes           |    84.7 |   88.4 | 79.2 | 53.7 |  76.5 |
+| pi0 Paligemma-3B |            No            |      87 |     63 |   89 |   48 |  71.8 |
+| pi0 3.3B         |           Yes           |      90 |     86 |   95 |   73 |  86.0 |
+| SmolVLA 0.24B    |            No            |      87 |     93 |   88 |   63 | 82.75 |
+| SmolVLA 0.45B    |            No            |      90 |     96 |   92 |   71 |  87.3 |
+| SmolVLA 2.25B    |            No            |      93 |     94 |   91 |   77 | 88.75 |
 
 The key result is that **SmolVLA-0.45B reaches 87.3 average success**, slightly above the robotics-pretrained pi0 3.3B result and clearly above OpenVLA in this setup.
 
@@ -416,15 +417,15 @@ This does not mean SmolVLA is universally stronger than OpenVLA. It means that f
 
 ### 15.2 Meta-World
 
-| Policy | Robotics VLA Pretraining | Easy | Medium | Hard | Very Hard | Avg |
-|:---|:---:|---:|---:|---:|---:|---:|
-| Diffusion Policy | No | 23.1 | 10.7 | 1.9 | 6.1 | 10.5 |
-| TinyVLA | No | 77.6 | 21.5 | 11.4 | 15.8 | 31.6 |
-| pi0 Paligemma-3B | No | 80.4 | 40.9 | 36.7 | 44.0 | 50.5 |
-| pi0 3.5B | Yes | 71.8 | 48.2 | 41.7 | 30.0 | 47.9 |
-| SmolVLA 0.24B | No | 86.43 | 46.36 | 35 | 60 | 56.95 |
-| SmolVLA 0.45B | No | 82.5 | 41.8 | 45.0 | 60.0 | 57.3 |
-| SmolVLA 2.25B | No | 87.14 | 51.82 | 70 | 64 | 68.24 |
+| Policy           | Robotics VLA Pretraining |  Easy | Medium | Hard | Very Hard |   Avg |
+| :--------------- | :----------------------: | ----: | -----: | ---: | --------: | ----: |
+| Diffusion Policy |            No            |  23.1 |   10.7 |  1.9 |       6.1 |  10.5 |
+| TinyVLA          |            No            |  77.6 |   21.5 | 11.4 |      15.8 |  31.6 |
+| pi0 Paligemma-3B |            No            |  80.4 |   40.9 | 36.7 |      44.0 |  50.5 |
+| pi0 3.5B         |           Yes           |  71.8 |   48.2 | 41.7 |      30.0 |  47.9 |
+| SmolVLA 0.24B    |            No            | 86.43 |  46.36 |   35 |        60 | 56.95 |
+| SmolVLA 0.45B    |            No            |  82.5 |   41.8 | 45.0 |      60.0 |  57.3 |
+| SmolVLA 2.25B    |            No            | 87.14 |  51.82 |   70 |        64 | 68.24 |
 
 On Meta-World, the larger SmolVLA variant is strongest, but the 0.45B model still beats the listed pi0 and TinyVLA baselines on average.
 
@@ -432,11 +433,11 @@ On Meta-World, the larger SmolVLA variant is strongest, but the 0.45B model stil
 
 ### 16.1 SO100
 
-| Policy | Training | Pick-Place | Stacking | Sorting | Avg |
-|:---|:---|---:|---:|---:|---:|
-| ACT | single-task | 70 | 50 | 25 | 48.3 |
-| pi0 3.5B | multi-task | 100 | 40 | 45 | 61.7 |
-| SmolVLA 0.45B | multi-task | 75 | 90 | 70 | 78.3 |
+| Policy        | Training    | Pick-Place | Stacking | Sorting |  Avg |
+| :------------ | :---------- | ---------: | -------: | ------: | ---: |
+| ACT           | single-task |         70 |       50 |      25 | 48.3 |
+| pi0 3.5B      | multi-task  |        100 |       40 |      45 | 61.7 |
+| SmolVLA 0.45B | multi-task  |         75 |       90 |      70 | 78.3 |
 
 SmolVLA is not best on every task. pi0 is stronger on pick-place. But SmolVLA is much stronger on stacking and sorting, so its average is highest.
 
@@ -444,10 +445,10 @@ The sorting result is especially important because sorting is longer-horizon and
 
 ### 16.2 SO101
 
-| Policy | In Distribution | Out of Distribution |
-|:---|---:|---:|
-| ACT | 70 | 40 |
-| SmolVLA 0.45B | 90 | 50 |
+| Policy        | In Distribution | Out of Distribution |
+| :------------ | --------------: | ------------------: |
+| ACT           |              70 |                  40 |
+| SmolVLA 0.45B |              90 |                  50 |
 
 The SO101 task uses a different robot embodiment from the community SO100 pretraining set. SmolVLA still improves over ACT in both in-distribution and OOD object placements.
 
@@ -457,11 +458,11 @@ This supports the paper's claim that community pretraining plus fine-tuning can 
 
 The real-world SO100 ablation is one of the clearest results in the paper:
 
-| Policy | Community Pretraining | Training | Pick-Place | Stacking | Sorting | Avg |
-|:---|:---:|:---|---:|---:|---:|---:|
-| SmolVLA 0.45B | No | single-task | 55 | 45 | 20 | 40 |
-| SmolVLA 0.45B | No | multi-task | 80 | 40 | 35 | 51.7 |
-| SmolVLA 0.45B | Yes | multi-task | 75 | 90 | 70 | 78.3 |
+| Policy        | Community Pretraining | Training    | Pick-Place | Stacking | Sorting |  Avg |
+| :------------ | :-------------------: | :---------- | ---------: | -------: | ------: | ---: |
+| SmolVLA 0.45B |          No          | single-task |         55 |       45 |      20 |   40 |
+| SmolVLA 0.45B |          No          | multi-task  |         80 |       40 |      35 | 51.7 |
+| SmolVLA 0.45B |          Yes          | multi-task  |         75 |       90 |      70 | 78.3 |
 
 Two takeaways:
 
@@ -476,26 +477,26 @@ This is the central empirical argument for the paper's community-data strategy.
 
 The paper compares synchronous and asynchronous inference on real SO100 tasks.
 
-| Inference | Pick-Place | Stacking | Sorting | Avg |
-|:---|---:|---:|---:|---:|
-| Sync | 75 | 90 | 70 | 78.3 |
-| Async | 80 | 90 | 50 | 73.3 |
+| Inference | Pick-Place | Stacking | Sorting |  Avg |
+| :-------- | ---------: | -------: | ------: | ---: |
+| Sync      |         75 |       90 |      70 | 78.3 |
+| Async     |         80 |       90 |      50 | 73.3 |
 
 Success remains broadly comparable, with a drop on sorting.
 
 The speed gains are more striking:
 
-| Inference | Total Time | Avg Time | Std |
-|:---|---:|---:|---:|
-| Sync | 137.5s | 13.75s | 2.42 |
-| Async | 97.0s | 9.70s | 2.95 |
+| Inference | Total Time | Avg Time |  Std |
+| :-------- | ---------: | -------: | ---: |
+| Sync      |     137.5s |   13.75s | 2.42 |
+| Async     |      97.0s |    9.70s | 2.95 |
 
 In a fixed-time pick-place test:
 
-| Inference | Total Cubes | Avg | Std |
-|:---|---:|---:|---:|
-| Sync | 9 | 1.8 | 0.45 |
-| Async | 19 | 3.8 | 1.3 |
+| Inference | Total Cubes | Avg |  Std |
+| :-------- | ----------: | --: | ---: |
+| Sync      |           9 | 1.8 | 0.45 |
+| Async     |          19 | 3.8 |  1.3 |
 
 So async inference gives:
 
@@ -510,29 +511,29 @@ All ablations are run on LIBERO unless otherwise stated.
 
 ### 19.1 Cross-Attention and Self-Attention
 
-| Attention | Spatial | Object | Goal | Long | Avg |
-|:---|---:|---:|---:|---:|---:|
-| CA | 87 | 92 | 83 | 54 | 79.0 |
-| SA | 80 | 94 | 84 | 40 | 74.5 |
-| CA + SA | 86 | 99 | 90 | 67 | 85.5 |
+| Attention | Spatial | Object | Goal | Long |  Avg |
+| :-------- | ------: | -----: | ---: | ---: | ---: |
+| CA        |      87 |     92 |   83 |   54 | 79.0 |
+| SA        |      80 |     94 |   84 |   40 | 74.5 |
+| CA + SA   |      86 |     99 |   90 |   67 | 85.5 |
 
 Interleaving CA and SA is clearly best. CA grounds the chunk in observation features, while SA helps action tokens coordinate over time.
 
 ### 19.2 Causal Attention Beats Bidirectional Attention
 
-| Action Attention Mask | Spatial | Object | Goal | Long | Avg |
-|:---|---:|---:|---:|---:|---:|
-| Bidirectional | 79 | 86 | 82 | 23 | 67.5 |
-| Causal | 80 | 94 | 84 | 40 | 74.5 |
+| Action Attention Mask | Spatial | Object | Goal | Long |  Avg |
+| :-------------------- | ------: | -----: | ---: | ---: | ---: |
+| Bidirectional         |      79 |     86 |   82 |   23 | 67.5 |
+| Causal                |      80 |     94 |   84 |   40 | 74.5 |
 
 This is a useful detail. Letting future action tokens interact bidirectionally can hurt, likely because it creates training-time dependencies that do not match the generation process cleanly.
 
 ### 19.3 Flow Matching Beats Regression
 
-| Objective | Spatial | Object | Goal | Long | Avg |
-|:---|---:|---:|---:|---:|---:|
-| Flow matching | 89 | 94 | 85 | 53 | 80.25 |
-| Regression | 92 | 85 | 86 | 38 | 75.25 |
+| Objective     | Spatial | Object | Goal | Long |   Avg |
+| :------------ | ------: | -----: | ---: | ---: | ----: |
+| Flow matching |      89 |     94 |   85 |   53 | 80.25 |
+| Regression    |      92 |     85 |   86 |   38 | 75.25 |
 
 Regression is not terrible, but flow matching is stronger, especially on the long-horizon split.
 
@@ -540,13 +541,13 @@ This lines up with [Diffusion Policy](./Diffusion_Policy.md): continuous robot a
 
 ### 19.4 Chunk Size Matters
 
-| Chunk Size | Spatial | Object | Goal | Long | Avg |
-|---:|---:|---:|---:|---:|---:|
-| 1 | 45 | 77 | 54 | 24 | 50.0 |
-| 10 | 90 | 94 | 94 | 58 | 84.0 |
-| 30 | 85 | 94 | 87 | 48 | 78.5 |
-| 50 | 89 | 94 | 85 | 53 | 80.3 |
-| 100 | 83 | 88 | 85 | 42 | 74.5 |
+| Chunk Size | Spatial | Object | Goal | Long |  Avg |
+| ---------: | ------: | -----: | ---: | ---: | ---: |
+|          1 |      45 |     77 |   54 |   24 | 50.0 |
+|         10 |      90 |     94 |   94 |   58 | 84.0 |
+|         30 |      85 |     94 |   87 |   48 | 78.5 |
+|         50 |      89 |     94 |   85 |   53 | 80.3 |
+|        100 |      83 |     88 |   85 |   42 | 74.5 |
 
 Very small chunks behave too much like one-step prediction. Very large chunks reduce reactivity.
 
@@ -554,12 +555,12 @@ The best range is around `10-50` actions.
 
 ### 19.5 Updating Observations More Often Helps
 
-| Executed Actions Before Update | Spatial | Object | Goal | Long | Avg |
-|---:|---:|---:|---:|---:|---:|
-| 1 | 89 | 94 | 85 | 53 | 80.3 |
-| 10 | 89 | 94 | 91 | 57 | 82.8 |
-| 30 | 76 | 91 | 74 | 42 | 70.8 |
-| 50 | 54 | 70 | 58 | 25 | 51.8 |
+| Executed Actions Before Update | Spatial | Object | Goal | Long |  Avg |
+| -----------------------------: | ------: | -----: | ---: | ---: | ---: |
+|                              1 |      89 |     94 |   85 |   53 | 80.3 |
+|                             10 |      89 |     94 |   91 |   57 | 82.8 |
+|                             30 |      76 |     91 |   74 |   42 | 70.8 |
+|                             50 |      54 |     70 |   58 |   25 | 51.8 |
 
 This table explains why asynchronous inference matters. The model can predict long chunks, but executing too much of a chunk before refreshing observations hurts closed-loop robustness.
 
@@ -586,13 +587,13 @@ The broader lesson is that VLA performance is not only about model scale. Data a
 
 Compared with [OpenVLA](./OpenVLA.md):
 
-| Aspect | OpenVLA | SmolVLA |
-|:---|:---|:---|
-| Main size | 7B | 0.45B main model |
-| Backbone | Prismatic VLM | SmolVLM-2 |
-| Action representation | discrete action tokens | continuous flow-matching action chunks |
-| Robot data | large Open X-Embodiment subset | smaller community LeRobot datasets |
-| Main emphasis | open generalist VLA training and adaptation | affordable training and deployment |
+| Aspect                | OpenVLA                                     | SmolVLA                                |
+| :-------------------- | :------------------------------------------ | :------------------------------------- |
+| Main size             | 7B                                          | 0.45B main model                       |
+| Backbone              | Prismatic VLM                               | SmolVLM-2                              |
+| Action representation | discrete action tokens                      | continuous flow-matching action chunks |
+| Robot data            | large Open X-Embodiment subset              | smaller community LeRobot datasets     |
+| Main emphasis         | open generalist VLA training and adaptation | affordable training and deployment     |
 
 Compared with [Octo](./Octo.md):
 
