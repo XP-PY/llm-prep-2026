@@ -2,16 +2,16 @@
 
 ## Convenient Links
 
-* [Paper (arXiv)](https://arxiv.org/abs/2506.01844)
-* [Hugging Face Blog](https://huggingface.co/blog/smolvla)
-* [Model Card](https://huggingface.co/lerobot/smolvla_base)
-* [LeRobot SmolVLA Docs](https://huggingface.co/docs/lerobot/smolvla)
-* [LeRobot Code](https://github.com/huggingface/lerobot)
-* [OpenVLA note in this repo](./OpenVLA.md)
-* [Octo note in this repo](./Octo.md)
-* [ACT note in this repo](./ACT.md)
-* [Diffusion Policy note in this repo](./Diffusion_Policy.md)
-* [LIBERO note in this repo](./LIBERO.md)
+* [ ] [Paper (arXiv)](https://arxiv.org/abs/2506.01844)
+* [ ] [Hugging Face Blog](https://huggingface.co/blog/smolvla)
+* [ ] [Model Card](https://huggingface.co/lerobot/smolvla_base)
+* [ ] [LeRobot SmolVLA Docs](https://huggingface.co/docs/lerobot/smolvla)
+* [ ] [LeRobot Code](https://github.com/huggingface/lerobot)
+* [ ] [OpenVLA note in this repo](./OpenVLA.md)
+* [ ] [Octo note in this repo](./Octo.md)
+* [ ] [ACT note in this repo](./ACT.md)
+* [ ] [Diffusion Policy note in this repo](./Diffusion_Policy.md)
+* [ ] [LIBERO note in this repo](./LIBERO.md)
 
 ## 1. One-Sentence Summary
 

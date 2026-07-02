@@ -3,6 +3,7 @@
 |:---:|:---:|
 | [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
 | [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
+| [SmolVLM](./docs/Large_Models/SmolVLM.md) | ***Small Vision-Language Model:*** SigLIP + SmolLM2, pixel-shuffle visual token compression, image splitting, video SFT, edge/WebGPU-friendly inference |
 | [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Vision-Language Model (on Decoder-only LLM):*** vision encoder (SigLIP) + [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
 | [Gemma 4](./docs/Large_Models/Gemma_4.md) | ***Multimodal Open Model Family:*** Hybrid local/global attention + Per-Layer Embeddings (PLE) + variable-resolution vision token budgets + Dense / MoE deployment scaling |
 | [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
@@ -140,7 +141,8 @@ docs/
 |   |-- DeepSeek_VL2.md
 |   |-- Gemma_3.md
 |   |-- Gemma_4.md
-|   `-- SigLIP.md
+|   |-- SigLIP.md
+|   `-- SmolVLM.md
 |-- Math/
 |   |-- Memory_Estimation.md
 |   |-- SVD.md

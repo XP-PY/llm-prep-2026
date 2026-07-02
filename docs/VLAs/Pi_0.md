@@ -135,11 +135,11 @@ robotics action expert
 
 The parameter count is:
 
-| Component          | Size              |
-| :----------------- | :---------------- |
-| PaliGemma backbone | about `3B` params |
-| Action expert      | about `300M`      |
-| Full pi0 model     | about `3.3B`      |
+| Component          | Size               |
+| :----------------- | :----------------- |
+| PaliGemma backbone | about`3B` params |
+| Action expert      | about`300M`      |
+| Full pi0 model     | about`3.3B`      |
 
 The action expert is initialized from scratch. The VLM backbone is initialized from PaliGemma, which gives the model a pretrained visual-language interface before it ever sees robot actions.
 
@@ -167,10 +167,10 @@ The important architectural choice is that these robot-specific tokens are not s
 
 pi0 is implemented as one transformer-style model with two sets of weights:
 
-| Token type                  | Routed to                  |
-| :-------------------------- | :------------------------- |
-| Images and language prompt  | pretrained VLM backbone    |
-| Robot state and action data | robotics action expert     |
+| Token type                  | Routed to               |
+| :-------------------------- | :---------------------- |
+| Images and language prompt  | pretrained VLM backbone |
+| Robot state and action data | robotics action expert  |
 
 The experts interact through attention, but the action expert has its own weights for robot-specific computation.
 
@@ -288,24 +288,24 @@ $$
 
 The paper uses:
 
-| Setting           | Value  |
-| :---------------- | :----- |
-| Flow steps        | `10`   |
-| Step size         | `0.1`  |
-| Action horizon    | `50`   |
-| Typical frequency | up to `50 Hz` |
+| Setting           | Value          |
+| :---------------- | :------------- |
+| Flow steps        | `10`         |
+| Step size         | `0.1`        |
+| Action horizon    | `50`         |
+| Typical frequency | up to`50 Hz` |
 
 This is why the model can run as a real-time robot policy despite using an iterative generative process.
 
 The paper reports inference timing on an NVIDIA RTX 4090:
 
-| Model part                    | Time    |
-| :---------------------------- | ------: |
-| Image encoders                | `14 ms` |
-| Observation forward pass      | `32 ms` |
-| 10 action forward passes      | `27 ms` |
-| Total on-board inference      | `73 ms` |
-| Total off-board inference     | `86 ms` |
+| Model part                |      Time |
+| :------------------------ | --------: |
+| Image encoders            | `14 ms` |
+| Observation forward pass  | `32 ms` |
+| 10 action forward passes  | `27 ms` |
+| Total on-board inference  | `73 ms` |
+| Total off-board inference | `86 ms` |
 
 The model caches observation keys and values, so the repeated flow steps mainly recompute the action-token suffix.
 
@@ -315,10 +315,10 @@ Because pi0 predicts an action chunk, the robot does not need to run full infere
 
 The paper executes chunks open-loop and replans periodically:
 
-| Robot family       | Control rate | Replanning cadence |
-| :----------------- | :----------- | :----------------- |
-| UR5e / Franka      | `20 Hz`      | every `0.8 s`, after `16` actions |
-| Other robots       | `50 Hz`      | every `0.5 s`, after `25` actions |
+| Robot family  | Control rate | Replanning cadence                   |
+| :------------ | :----------- | :----------------------------------- |
+| UR5e / Franka | `20 Hz`    | every`0.8 s`, after `16` actions |
+| Other robots  | `50 Hz`    | every`0.5 s`, after `25` actions |
 
 The authors tried temporal ensembling early on, following ACT-style action chunking, but found that it hurt policy performance, so the final setup executes action chunks without aggregation.
 
@@ -333,16 +333,16 @@ The pretraining mixture combines:
 
 The headline numbers are:
 
-| Data / setup                         | Quantity |
-| :----------------------------------- | -------: |
-| Total robot data                     | over `10,000` hours |
-| PI robot configurations              | `7` |
-| PI tasks                             | `68` |
-| PI robot timesteps                   | `903M` |
-| Single-arm PI timesteps              | `106M` |
-| Dual-arm PI timesteps                | `797M` |
-| Open-source share of training mixture | `9.1%` |
-| OXE robot coverage                   | `22` robots |
+| Data / setup                          |             Quantity |
+| :------------------------------------ | -------------------: |
+| Total robot data                      | over`10,000` hours |
+| PI robot configurations               |                `7` |
+| PI tasks                              |               `68` |
+| PI robot timesteps                    |             `903M` |
+| Single-arm PI timesteps               |             `106M` |
+| Dual-arm PI timesteps                 |             `797M` |
+| Open-source share of training mixture |             `9.1%` |
+| OXE robot coverage                    |        `22` robots |
 
 The paper emphasizes that "task" is broad here. For example, "bussing" is not just one pick-place pair. It includes putting many kinds of dishes, cups, utensils, and trash items into the correct receptacles.
 
@@ -350,15 +350,15 @@ The paper emphasizes that "task" is broad here. For example, "bussing" is not ju
 
 The model is trained jointly on multiple robot types:
 
-| Robot setup                         | Notes |
-| :---------------------------------- | :---- |
-| UR5e                                | single arm, wrist and over-the-shoulder cameras |
-| Bimanual UR5e                       | two UR5e arms, three cameras |
-| Franka                              | single Franka arm, two cameras |
-| Bimanual Trossen                    | ALOHA-style two-arm setup |
-| Bimanual ARX / AgileX               | two 6-DoF arms, wrist and base cameras |
-| Mobile Trossen / Mobile ARX         | bimanual mobile manipulator |
-| Mobile Fibocom                      | bimanual robot on a holonomic base |
+| Robot setup                 | Notes                                           |
+| :-------------------------- | :---------------------------------------------- |
+| UR5e                        | single arm, wrist and over-the-shoulder cameras |
+| Bimanual UR5e               | two UR5e arms, three cameras                    |
+| Franka                      | single Franka arm, two cameras                  |
+| Bimanual Trossen            | ALOHA-style two-arm setup                       |
+| Bimanual ARX / AgileX       | two 6-DoF arms, wrist and base cameras          |
+| Mobile Trossen / Mobile ARX | bimanual mobile manipulator                     |
+| Mobile Fibocom              | bimanual robot on a holonomic base              |
 
 To make one model work across these embodiments, the paper standardizes state and action tensors:
 
@@ -449,13 +449,13 @@ The first evaluation uses the base pretrained model without post-training.
 
 Tasks include:
 
-| Task                | Robot setup       | Skill tested |
-| :------------------ | :---------------- | :----------- |
-| Shirt folding       | bimanual ARX      | deformable object manipulation |
-| Bussing easy        | UR5e              | object sorting and semantic recognition |
-| Bussing hard        | UR5e              | clutter, occlusion, unseen objects |
-| Grocery bagging     | UR5e              | multi-object packing |
-| Toast out of toaster | bimanual Trossen | precise bimanual manipulation |
+| Task                 | Robot setup      | Skill tested                            |
+| :------------------- | :--------------- | :-------------------------------------- |
+| Shirt folding        | bimanual ARX     | deformable object manipulation          |
+| Bussing easy         | UR5e             | object sorting and semantic recognition |
+| Bussing hard         | UR5e             | clutter, occlusion, unseen objects      |
+| Grocery bagging      | UR5e             | multi-object packing                    |
+| Toast out of toaster | bimanual Trossen | precise bimanual manipulation           |
 
 The baselines include:
 
@@ -477,12 +477,12 @@ The authors attribute OpenVLA's weakness in this setting largely to its autoregr
 
 The language evaluation compares:
 
-| Condition       | Description |
-| :-------------- | :---------- |
-| `pi0-flat`      | receives only the high-level task command |
-| `pi0-human`     | receives intermediate commands from a human |
-| `pi0-HL`        | receives intermediate commands from a high-level VLM |
-| `pi0-small-flat` / `pi0-small-human` | non-VLM baseline variants |
+| Condition                                | Description                                          |
+| :--------------------------------------- | :--------------------------------------------------- |
+| `pi0-flat`                             | receives only the high-level task command            |
+| `pi0-human`                            | receives intermediate commands from a human          |
+| `pi0-HL`                               | receives intermediate commands from a high-level VLM |
+| `pi0-small-flat` / `pi0-small-human` | non-VLM baseline variants                            |
 
 Tasks include:
 
@@ -498,13 +498,13 @@ This supports the paper's claim that VLM pretraining matters not only for image 
 
 The paper fine-tunes pi0 on tasks that differ from pretraining data:
 
-| Task                    | Robot      | Difficulty framing |
-| :---------------------- | :--------- | :----------------- |
-| Stack bowls             | UR5e       | similar to pretraining |
-| Towel folding           | bimanual ARX | similar to shirt folding |
-| Tupperware in microwave | bimanual ARX | new appliance, related manipulation |
-| Paper towel replacement | bimanual UR5e | hard, new objects and motions |
-| Items in drawer         | Franka     | hard, limited similar pretraining data |
+| Task                    | Robot         | Difficulty framing                     |
+| :---------------------- | :------------ | :------------------------------------- |
+| Stack bowls             | UR5e          | similar to pretraining                 |
+| Towel folding           | bimanual ARX  | similar to shirt folding               |
+| Tupperware in microwave | bimanual ARX  | new appliance, related manipulation    |
+| Paper towel replacement | bimanual UR5e | hard, new objects and motions          |
+| Items in drawer         | Franka        | hard, limited similar pretraining data |
 
 The comparisons include:
 
@@ -525,15 +525,15 @@ The paper notes that on some tasks, prior methods trained from scratch are the s
 
 The final evaluation studies long, difficult tasks:
 
-| Task             | Main challenge |
-| :--------------- | :------------- |
-| Laundry folding  | deformable clothing from random crumpled states |
-| Mobile laundry   | laundry folding with mobile base control |
-| Dryer unloading  | navigation, opening dryer, transferring clothes |
-| Table bussing    | clutter, semantic sorting, unseen objects |
-| Box building     | deformable cardboard, bimanual bracing and folding |
-| To-go box        | packing food and closing a flexible container |
-| Packing eggs     | delicate grasping, placement, and carton closing |
+| Task            | Main challenge                                     |
+| :-------------- | :------------------------------------------------- |
+| Laundry folding | deformable clothing from random crumpled states    |
+| Mobile laundry  | laundry folding with mobile base control           |
+| Dryer unloading | navigation, opening dryer, transferring clothes    |
+| Table bussing   | clutter, semantic sorting, unseen objects          |
+| Box building    | deformable cardboard, bimanual bracing and folding |
+| To-go box       | packing food and closing a flexible container      |
+| Packing eggs    | delicate grasping, placement, and carton closing   |
 
 These tasks combine:
 
@@ -590,13 +590,13 @@ pi0's contribution is to combine them at robot-foundation-model scale.
 
 ## 21. Comparison to Nearby VLA Models
 
-| Model      | Backbone idea | Action representation | Main emphasis |
-| :--------- | :------------ | :-------------------- | :------------ |
-| RT-2       | large VLM co-fine-tuned on robot and web data | discrete action tokens | semantic transfer from web-scale VLMs |
-| OpenVLA    | open Prismatic VLM fine-tuned on Open X-Embodiment | discrete action tokens | open-source generalist VLA |
-| Octo       | transformer over flexible robot tokens | diffusion action head | open generalist robot policy and adaptation |
-| SmolVLA    | compact frozen VLM plus flow action expert | continuous flow action chunks | affordable, efficient VLA training |
-| pi0        | PaliGemma plus action expert | continuous flow action chunks | dexterous cross-embodiment robot foundation model |
+| Model   | Backbone idea                                      | Action representation         | Main emphasis                                     |
+| :------ | :------------------------------------------------- | :---------------------------- | :------------------------------------------------ |
+| RT-2    | large VLM co-fine-tuned on robot and web data      | discrete action tokens        | semantic transfer from web-scale VLMs             |
+| OpenVLA | open Prismatic VLM fine-tuned on Open X-Embodiment | discrete action tokens        | open-source generalist VLA                        |
+| Octo    | transformer over flexible robot tokens             | diffusion action head         | open generalist robot policy and adaptation       |
+| SmolVLA | compact frozen VLM plus flow action expert         | continuous flow action chunks | affordable, efficient VLA training                |
+| pi0     | PaliGemma plus action expert                       | continuous flow action chunks | dexterous cross-embodiment robot foundation model |
 
 The key difference from OpenVLA and RT-2 is the continuous action generator.
 
@@ -623,22 +623,23 @@ The authors specifically leave open whether this style of universal robot pretra
 The main engineering lessons are:
 
 1. **Continuous action heads matter**
+
    * dexterous control is a poor fit for pure text-token prediction
-
 2. **Action chunks matter**
+
    * predicting a short trajectory is more practical than predicting one action at a time for high-frequency control
-
 3. **VLM pretraining matters**
-   * it improves language following and semantic grounding
 
+   * it improves language following and semantic grounding
 4. **Pretraining and post-training solve different problems**
+
    * pretraining gives robustness and breadth
    * post-training gives fluent task execution
-
 5. **Cross-embodiment learning needs boring interfaces**
-   * padding action vectors and masking missing cameras are simple, but necessary
 
+   * padding action vectors and masking missing cameras are simple, but necessary
 6. **Generalist policies still need data curation**
+
    * more robot data helps, but task balance and data quality are central
 
 ## 24. Mental Model
