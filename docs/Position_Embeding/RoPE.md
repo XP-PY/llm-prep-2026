@@ -1,12 +1,11 @@
 # Rotary Position Embeddings (RoPE)
 
 ## Principle: Why RoPE Dominates Modern LLMs
-Absolute positional encodings (original Transformer sinusoidal or learned) add a fixed vector per position → <span style='color : blue'>poor extrapolation beyond training length</span>.
+Absolute positional encodings (original Transformer sinusoidal or learned) add a fixed vector per position → poor extrapolation beyond training length.
 
-Relative encodings (e.g., T5 bias, ALiBi) add biases based on distance → <span style='color : blue'>better extrapolation but can distort attention patterns</span>.
+Relative encodings (e.g., T5 bias, ALiBi) add biases based on distance → better extrapolation but can distort attention patterns.
 
-**RoPE** elegantly encodes <span style='color : blue'>**relative positions**</span> by rotating query/key vectors in 2D planes. The inner product becomes a function of $|m-n|$ only 
-→ <span style='color : blue'>perfect relative bias, length extrapolation and no extra parameters</span>.
+**RoPE** elegantly encodes **relative positions** by rotating query/key vectors in 2D planes. The inner product becomes a function of $|m-n|$ only → perfect relative bias, length extrapolation and no extra parameters.
 
 Real-world impact:
 * LLaMA-3 uses RoPE for 128k context.
@@ -138,7 +137,7 @@ $$
 ### **Step 8: Why This is Perfect Relative Position Encoding?**
 
 #### **Mathematically**
-The attention score $q_m^T R((n-m)\Theta) k_n$ <span style='color : blue'>**depends only on the relative position**</span> $m-n$, not on absolute positions $m$ or $n$.
+The attention score $q_m^T R((n-m)\Theta) k_n$ **depends only on the relative position** $m-n$, not on absolute positions $m$ or $n$.
 
 #### **Physical Interpretation**
 If we view vectors as rotations in 2D planes:
@@ -207,4 +206,143 @@ $$\text{xPos}(m) = \exp(\gamma (m - L/2)) \cdot \text{RoPE}(m)$$
 Relative form preserves RoPE's rotation while shrinking distant contributions → stable extrapolation to 10x+ lengths.
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part1_positional_encodings.ipynb)
+```python
+class RotaryPositionEmbedding(nn.Module):
+    """
+    Rotary Position Embedding (RoPE) implementation.
+    
+    RoPE encodes positional information by rotating query and key vectors
+    in 2D planes, making attention scores depend only on relative positions.
+    
+    Original Paper: "RoFormer: Enhanced Transformer with Rotary Position Embedding"
+    
+    Attributes:
+        dim (int): Dimension of the input features
+        base (int): Base for frequency calculation (default: 10000)
+        max_seq_len (int): Maximum sequence length for precomputing frequencies
+    """
+    def __init__(self, dim: int, base: int = 10000, max_seq_len: int = 512):
+        """
+        Initialize Rotary Position Embedding.
+        
+        Args:
+            dim: Dimension of input features (must be even)
+            base: Base for frequency calculation
+            max_seq_len: Maximum sequence length
+        """
+        super().__init__()
+        assert dim % 2 == 0, f"Dimension must be even, got {dim}"
+
+        self.dim = dim
+        self.base = base
+        self.max_seq_len = max_seq_len
+
+        # Precompute frequencies and rotation angles
+        self._precompute_frequencies()
+        
+    def _precompute_frequencies(self):
+        """Precompute frequencies for all positions and dimensions."""
+        # Calculate frequencies for each dimension pair
+        # θ_j = base^(-2j/d) for j = 0, 1, ..., d/2-1
+        j = torch.arange(0, self.dim, 2, dtype=torch.float32)
+        theta = 1.0 / (self.base ** (j / self.dim))
+
+        # Precompute sin and cos for all positions
+        positions = torch.arange(0, self.max_seq_len, dtype=torch.float32)
+
+        # Create position-frequency matrix: pos * theta
+        # Shape: (max_seq_len, dim/2)
+        m_theta = positions.unsqueeze(1) * theta.unsqueeze(0)
+
+        # Precompute cos and sin values
+        # Shape: (max_seq_len, dim)
+        cos_cached = torch.cos(m_theta).repeat_interleave(2, dim=1)
+        sin_cached = torch.sin(m_theta).repeat_interleave(2, dim=1)
+
+        # Register as buffers (not trainable parameters)
+        self.register_buffer('cos_cached', cos_cached, persistent=False)
+        self.register_buffer('sin_cached', sin_cached, persistent=False)
+
+    def _rotate_half(self, x: torch.Tensor) -> torch.Tensor:
+        """
+        Rotate half of the dimensions for RoPE implementation.
+        
+        For a tensor shaped (..., d), this function rearranges it as:
+        from [x_{2i}, x_{2i+1}] to [-x_{2i+1}, x_{2i}]
+        to implement complex rotation.
+        
+        Args:
+            x: Input tensor of shape (..., d)
+            
+        Returns:
+            Rotated tensor of same shape
+        """
+        d = x.shape[-1]
+        x_reshaped = x.view(*x.shape[:-1], d//2, 2)
+        x1 = x_reshaped[..., 0]     # x_{2i}
+        x2 = x_reshaped[..., 1]     # x_{2i+1}
+        rotated = torch.stack([-x2, x1], dim=-1)
+        return rotated.view(*x.shape)
+    
+    def apply_rotary_pos_emb(
+        self, 
+        x: torch.Tensor, 
+        positions: Optional[torch.Tensor] = None
+    ) -> torch.Tensor:
+        """
+        Apply rotary position embedding to input tensor.
+        
+        The transformation is: x' = x * cos(pos*theta) + rotate_half(x) * sin(pos*theta)
+        
+        Args:
+            x: Input tensor of shape (batch_size, seq_len, num_heads, head_dim)
+            positions: Position indices for each token in sequence.
+                      If None, use sequential positions [0, 1, ..., seq_len-1]
+                      
+        Returns:
+            Tensor with rotary position encoding applied
+        """
+        batch_size, seq_len, num_heads, head_dim = x.shape
+
+        # Get position indices
+        if positions is None:
+            positions = torch.arange(0, seq_len, device=x.device)
+        else:
+            # Ensure positions are within bounds
+            positions = positions.clamp(0, self.max_seq_len-1)
+
+        # Reshape for broadcasting: (1, seq_len, 1, dim)
+        cos = self.cos_cached[positions].unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, dim)
+        sin = self.sin_cached[positions].unsqueeze(0).unsqueeze(2)  # (1, seq_len, 1, dim)
+        
+        # Expand to match input tensor shape (batch_size, seq_len, num_heads, dim)
+        cos = cos.expand(batch_size, -1, num_heads, -1)
+        sin = sin.expand(batch_size, -1, num_heads, -1)
+
+        # Apply RoPE formula: x_rotated = x * cos + rotate_half(x) * sin
+        x_rotated = x * cos + self._rotate_half(x) * sin
+        
+        return x_rotated
+    
+    def forward(
+        self, 
+        q: torch.Tensor, 
+        k: torch.Tensor, 
+        positions: Optional[torch.Tensor] = None
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Apply rotary position embedding to query and key tensors.
+        
+        Args:
+            q: Query tensor of shape (batch_size, seq_len, num_heads, head_dim)
+            k: Key tensor of shape (batch_size, seq_len, num_heads, head_dim)
+            positions: Position indices for each token
+            
+        Returns:
+            Tuple of (q_rotated, k_rotated) with same shapes as input
+        """
+        q_rotated = self.apply_rotary_pos_emb(q, positions)
+        k_rotated = self.apply_rotary_pos_emb(k, positions)
+        
+        return q_rotated, k_rotated
+```

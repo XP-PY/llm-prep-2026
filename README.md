@@ -60,7 +60,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
-| Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, GroupNorm, MHA/MQA/GQA, RoPE, SwiGLU |
+| Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, learning rate schedulers, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, GroupNorm, MHA/MQA/GQA, RoPE, SwiGLU |
 | Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP/FSDP |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
@@ -68,11 +68,11 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | LIBERO, Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA, pi0, SmolVLA |
 
 ## 1. Foundations
-- Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md)
+- Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md), [Learning Rate Schedulers](./docs/Scheduler/Scheduler_Basics.md)
 - Activation basics: [Sigmoid](./docs/Activation_Layers/Sigmoid.md), [GELU](./docs/Activation_Layers/GELU.md)
 - Normalization basics: [LayerNorm](./docs/Norm/LayerNorm.md), [RMSNorm](./docs/Norm/RMSNorm.md), [BatchNorm](./docs/Norm/BatchNorm.md), [GroupNorm](./docs/Norm/GroupNorm.md)
 - Attention mechanisms: [SVD + Attention](./docs/Attention_Machanisms/SVD_Attention.md), [MHA](./docs/Attention_Machanisms/MHA.md), [MQA](./docs/Attention_Machanisms/MQA.md), [GQA](./docs/Attention_Machanisms/GQA.md)
-- Position and FFN blocks: [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
+- Position and FFN blocks: [Sinusoidal Position Embedding](./docs/Position_Embeding/Sinusoidal_Position_Embedding.md), [RoPE](./docs/Position_Embeding/RoPE.md), [SwiGLU](./docs/Activation_Layers/SwiGLU.md)
 
 ## 2. Architecture & Scaling
 - Efficient attention: [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md), [MLA](./docs/Attention_Machanisms/MLA.md)
@@ -167,14 +167,20 @@ docs/
 |   |-- PP.md
 |   `-- TP.md
 |-- Position_Embeding/
-|   `-- RoPE.md
+|   |-- RoPE.md
+|   `-- Sinusoidal_Position_Embedding.md
 |-- Preference_Alignment/
 |   |-- DPO.md
 |   |-- GRPO.md
 |   |-- PPO.md
 |   |-- RLHF.md
 |   `-- SFT.md
-|-- Loss/
+|-- Scheduler/
+|   |-- Cyclical_and_Restart.md
+|   |-- LLM_Training_Recipes.md
+|   |-- Metric_Adaptive.md
+|   |-- Scheduler_Basics.md
+|   `-- Warmup_and_Decay.md
 |-- VLAs/
 |   |-- ACT.md
 |   |-- Diffusion_Policy.md
