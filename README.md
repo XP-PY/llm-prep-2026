@@ -36,6 +36,7 @@ flowchart TD
     C --> C1[FlashAttention / MLA]
     C --> C2[DeepSeekMoE]
     C --> C3[TP / PP / EP / FSDP]
+    C --> C4[Gradient Checkpointing / Mixed Precision]
 
     D --> D1[LoRA / QLoRA / DoRA]
     D --> D2[Specialized LoRA Variants]
@@ -61,7 +62,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Domain | Focus | Core Topics |
 |:---|:---|:---|
 | Foundations | Math, optimization, losses, normalization, and Transformer building blocks | SVD, dtypes, AdamW, learning rate schedulers, Sigmoid, GELU, LayerNorm, RMSNorm, BatchNorm, GroupNorm, MHA/MQA/GQA, RoPE, SwiGLU |
-| Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP/FSDP |
+| Architecture & Scaling | Efficient training and large-scale model design | FlashAttention, MLA, DeepSeekMoE, TP/PP/EP/FSDP, Gradient Checkpointing, Mixed Precision Training |
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
@@ -77,6 +78,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 ## 2. Architecture & Scaling
 - Efficient attention: [FlashAttention](./docs/Attention_Machanisms/FlashAttention.md), [MLA](./docs/Attention_Machanisms/MLA.md)
 - Sparse architecture: [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md)
+- Training memory and numerics: [Gradient Checkpointing](./docs/Training_Optimization/Gradient_Checkpointing.md), [Mixed Precision Training](./docs/Training_Optimization/Mixed_Precision_Training.md)
 - Distributed training: [TP](./docs/Parallelism/TP.md), [PP](./docs/Parallelism/PP.md), [EP](./docs/Parallelism/EP.md), [FSDP](./docs/Parallelism/FSDP.md)
 
 ## 3. Adaptation & Alignment
@@ -181,6 +183,9 @@ docs/
 |   |-- Metric_Adaptive.md
 |   |-- Scheduler_Basics.md
 |   `-- Warmup_and_Decay.md
+|-- Training_Optimization/
+|   |-- Gradient_Checkpointing.md
+|   `-- Mixed_Precision_Training.md
 |-- VLAs/
 |   |-- ACT.md
 |   |-- Diffusion_Policy.md
