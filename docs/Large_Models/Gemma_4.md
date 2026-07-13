@@ -28,7 +28,7 @@ The release is also important operationally: Gemma 4 is distributed under **Apac
 
 ## 2. Model Family
 
-![Gemma 4 family](../Resource/pics/Gemma_4_family.png)
+![Gemma 4 family](../../assets/Gemma_4_family.png)
 
 Gemma 4 comes in four main sizes:
 
@@ -70,7 +70,7 @@ At a high level, Gemma 4 keeps the Gemma family style, but upgrades multiple par
 
 ## 4. Core Architecture
 
-![Gemma 4 architecture](../Resource/pics/Gemma_4_architecture.png)
+![Gemma 4 architecture](../../assets/Gemma_4_architecture.png)
 
 Gemma 4 is best understood as a **multimodal decoder-centric model family**:
 
@@ -238,7 +238,7 @@ This is less about the backbone math and more about **productized model behavior
 
 ## 5. Vision Architecture
 
-![Gemma 4 vision token budget](../Resource/pics/Gemma_4_vision_budget.png)
+![Gemma 4 vision token budget](../../assets/Gemma_4_vision_budget.png)
 
 Gemma 4's vision stack is one of the biggest differences from earlier Gemma releases.
 

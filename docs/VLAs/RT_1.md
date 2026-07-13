@@ -51,7 +51,7 @@ The paper frames the problem as sequential decision making, but the actual learn
 
 ## 4. High-Level Pipeline
 
-![RT-1 high-level overview](../Resource/pics/RT_1_overview.png)
+![RT-1 high-level overview](../../assets/RT_1_overview.png)
 
 *Figure adapted from the paper: RT-1 overview, including architecture, training scale, and evaluation themes.*
 
@@ -77,7 +77,7 @@ This size is modest by LLM standards, but the paper's main point is not raw para
 
 ## 5. Architecture Details
 
-![RT-1 architecture](../Resource/pics/RT_1_architecture.png)
+![RT-1 architecture](../../assets/RT_1_architecture.png)
 
 *Figure adapted from the paper: detailed RT-1 architecture.*
 
@@ -236,7 +236,7 @@ The paper repeatedly emphasizes that **data breadth** is not a side detail. It i
 
 ## 8. Evaluation Setup
 
-![RT-1 evaluation scenarios](../Resource/pics/RT_1_eval_scenarios.png)
+![RT-1 evaluation scenarios](../../assets/RT_1_eval_scenarios.png)
 
 *Figure adapted from the paper: distractor robustness, background shift, and realistic kitchen scenarios.*
 

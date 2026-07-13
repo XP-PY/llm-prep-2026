@@ -9,7 +9,7 @@
     * [DeepSeek-V2-Chat (RL)](https://huggingface.co/deepseek-ai/DeepSeek-V2-Chat)
 
 # Paper Overview & Key Highlights
-![Model_Architecture](../Resource/pics/DeepSeek-V2.png)
+![Model_Architecture](../../assets/DeepSeek-V2.png)
 
 * **Title/Author:** DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model (DeepSeek-AI, June 2024).
 * **Model Scale:** 236B total parameters, <span style="color: blue">21B activated per token</span> (sparse MoE), 128K context length.

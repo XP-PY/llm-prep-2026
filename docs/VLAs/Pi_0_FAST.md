@@ -4,7 +4,7 @@
 
 * [Paper (arXiv)](https://arxiv.org/abs/2501.09747)
 * [Project Page](https://pi.website/research/fast)
-* [FAST+ Tokenizer](https://huggingface.co/physical-intelligence/fast)
+* [🤗 Hugging Face](https://huggingface.co/physical-intelligence/fast)
 * [pi0 note in this repo](./Pi_0.md)
 * [OpenVLA note in this repo](./OpenVLA.md)
 * [Diffusion Policy note in this repo](./Diffusion_Policy.md)
@@ -161,6 +161,8 @@ raw action chunk
 -> compress integer sequence with BPE
 -> output action tokens
 ```
+
+![Pi_0_FAST](../../assets/Pi_0_FAST.png)
 
 This is inspired by compression methods such as JPEG:
 
@@ -375,6 +377,19 @@ tokenizer = AutoProcessor.from_pretrained(
 )
 
 tokens = tokenizer(action_chunk)
+```
+
+and can train a new FAST tokenizer on a given dataset of action chunks:
+
+```python
+from transformers import AutoProcessor
+
+tokenizer = AutoProcessor.from_pretrained(
+    "physical-intelligence/fast",
+    trust_remote_code=True,
+)
+
+new_tokenizer = tokenizer.fit(action_dataset)
 ```
 
 ## 12. FAST+ Training Mixture

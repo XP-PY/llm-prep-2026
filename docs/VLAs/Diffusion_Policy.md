@@ -37,7 +37,7 @@ The paper evaluates the method on `15` tasks from `4` manipulation benchmarks an
 
 ## 3. Policy Representation
 
-![Diffusion Policy policy representations](../Resource/pics/Diffusion_Policy_policy_representations.png)
+![Diffusion Policy policy representations](../../assets/Diffusion_Policy_policy_representations.png)
 
 *Figure adapted from the paper: explicit policies directly predict actions, implicit policies optimize an energy function, and Diffusion Policy follows a learned action-score / denoising field.*
 
@@ -168,7 +168,7 @@ Here $\epsilon_\theta(O_t, A_t^k, k)$ is the policy network. It sees the current
 
 ## 6. Overall Pipeline
 
-![Diffusion Policy overview](../Resource/pics/Diffusion_Policy_overview.png)
+![Diffusion Policy overview](../../assets/Diffusion_Policy_overview.png)
 
 *Figure adapted from the paper: observations condition the denoising network, and the model iteratively denoises a future action sequence.*
 
@@ -236,13 +236,13 @@ The trade-off is:
 
 The paper finds that an action horizon around `8` steps works well for many tested tasks.
 
-![Diffusion Policy action horizon and latency](../Resource/pics/Diffusion_Policy_action_horizon_latency.png)
+![Diffusion Policy action horizon and latency](../../assets/Diffusion_Policy_action_horizon_latency.png)
 
 *Figure adapted from the paper: action horizon has a consistency-responsiveness trade-off; receding-horizon position control is also robust to several steps of latency.*
 
 ## 8. Why It Models Multimodal Actions Better
 
-![Diffusion Policy multimodal behavior](../Resource/pics/Diffusion_Policy_multimodal_behavior.png)
+![Diffusion Policy multimodal behavior](../../assets/Diffusion_Policy_multimodal_behavior.png)
 
 *Figure adapted from the paper: in Push-T, there are multiple valid ways to approach the object; Diffusion Policy samples different modes but commits to one mode within a rollout.*
 
@@ -483,7 +483,7 @@ Key findings:
 * End-to-end visual training is often more reliable than freezing a pretrained visual encoder.
 * On real-world Push-T, end-to-end visual Diffusion Policy is close to human-level performance and clearly outperforms IBC and LSTM-GMM.
 
-![Diffusion Policy real-world results](../Resource/pics/Diffusion_Policy_realworld_results.png)
+![Diffusion Policy real-world results](../../assets/Diffusion_Policy_realworld_results.png)
 
 *Figure adapted from the paper: real-world Push-T comparisons show Diffusion Policy producing more consistent end states than LSTM-GMM and IBC.*
 

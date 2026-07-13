@@ -11,7 +11,7 @@ DeepSeek-VL2 is an advanced open-source series of **[Mixture-of-Experts (MoE)](.
 - Open-source: Codes and models at https://github.com/deepseek-ai/DeepSeek-VL2.
 
 **Performance Context**  
-![DeepSeek-VL2_fig1](../Resource/pics/DeepSeek-VL2_fig1.png)
+![DeepSeek-VL2_fig1](../../assets/DeepSeek-VL2_fig1.png)
 Figure 1 in the paper shows DeepSeek-VL2 outperforming or matching open-source peers (e.g., InternVL2, Qwen2-VL, Molmo) on averaged benchmarks (MMBench, MMStar, MMMU, etc.) with fewer activated parameters.
 
 ## Convenient Links
@@ -30,7 +30,7 @@ DeepSeek-VL (2024) used a hybrid vision encoder (SigLIP low-res + SAM-B high-res
 - **New Capabilities**: Precise visual grounding, GUI perception.
 
 ## Model Architecture (Core Focus)
-![DeepSeek-VL2_fig2](../Resource/pics/DeepSeek-VL2_fig2.png)
+![DeepSeek-VL2_fig2](../../assets/DeepSeek-VL2_fig2.png)
 DeepSeek-VL2 follows a LLaVA-style decoder-only architecture:  
 **Vision Encoder** → **VL Adaptor** → **MoE LLM**.
 
@@ -49,7 +49,7 @@ DeepSeek-VL2 follows a LLaVA-style decoder-only architecture:
 - **Trade-offs**: Slight overhead for tile selection; managed by disabling for multi-image inputs.
 
 **Visual Flow (Figure 3 in paper)**: Global thumbnail + grid of local tiles, with special tokens for row/column separation.
-![DeepSeek-VL2_fig3](../Resource/pics/DeepSeek-VL2_fig3.png)
+![DeepSeek-VL2_fig3](../../assets/DeepSeek-VL2_fig3.png)
 
 
 ### 2. Vision-Language Adaptor

@@ -85,7 +85,7 @@ This diversity is exactly the point. Open X-Embodiment is trying to turn "hetero
 
 ## 5. High-Level Data Pipeline
 
-![Open X-Embodiment pipeline](../Resource/pics/Open_X_Embodiment_pipeline.svg)
+![Open X-Embodiment pipeline](../../assets/Open_X_Embodiment_pipeline.svg)
 
 *Figure created for this repo: Open X-Embodiment pools heterogeneous robot datasets, converts them into a shared RLDS-style structure, then uses a coarsely aligned observation/action interface to train RT-X style models and later open VLA systems.*
 

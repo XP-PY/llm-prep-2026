@@ -49,7 +49,7 @@ So you can think of V3.2 as:
 Instead of attending to **all previous tokens** $O(L^2)$, each query token attends to **top-k selected tokens** $O(L·k)$, where $k ≪ L$. 
 
 <div align="center">
-  <img src="../Resource/pics/DeepSeek-VL32_Attention_Architecture.png" alt="Attention architecture of DeepSeek-V3.2">
+  <img src="../../assets/DeepSeek-VL32_Attention_Architecture.png" alt="Attention architecture of DeepSeek-V3.2">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 1: Attention architecture of DeepSeek-V3.2.</strong>
   </p>
@@ -90,7 +90,7 @@ They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../Atten
 * Fig 2 clarifies MLA’s **MHA vs MQA** modes. 
 
 <div align="center">
-  <img src="../Resource/pics/DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png" alt="Illustration of the MHA and MQA modes of MLA">
+  <img src="../../assets/DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png" alt="Illustration of the MHA and MQA modes of MLA">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 2: Illustration of the MHA and MQA modes of MLA.</strong>
   </p>
@@ -162,7 +162,7 @@ Key training detail:
 Fig 3 shows **cost per million tokens vs token position** on H800 clusters (assumed cost: $2/GPU-hour). DeepSeek-V3.2 is cheaper than V3.1-Terminus for long-context prefilling and decoding. 
 
 <div align="center">
-  <img src="../Resource/pics/DeepSeek-VL32_Inference-cost.png" alt="Inference costs">
+  <img src="../../assets/DeepSeek-VL32_Inference-cost.png" alt="Inference costs">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 3: Inference costs.</strong>
   </p>

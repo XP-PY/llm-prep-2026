@@ -55,7 +55,7 @@ then you can get a **generalist robot policy** that is both:
 
 ## 4. High-Level Pipeline
 
-![OpenVLA overview](../Resource/pics/OpenVLA_overview.png)
+![OpenVLA overview](../../assets/OpenVLA_overview.png)
 
 *Figure adapted from the paper: OpenVLA connects large-scale robot data, an open 7B VLA, and practical closed-loop control plus efficient fine-tuning.*
 
@@ -82,7 +82,7 @@ This openness is part of the research contribution, not just a packaging decisio
 
 ## 5. Architecture
 
-![OpenVLA architecture](../Resource/pics/OpenVLA_architecture.png)
+![OpenVLA architecture](../../assets/OpenVLA_architecture.png)
 
 *Figure adapted from the paper: OpenVLA uses a fused DINOv2 + SigLIP vision encoder, an MLP projector, and a Llama 2 7B language backbone.*
 
@@ -356,7 +356,7 @@ This makes OpenVLA notable not only as a paper result, but also as a **usable so
 
 ### 11.1 Out-of-the-Box Generalist Performance
 
-![OpenVLA BridgeData V2 results](../Resource/pics/OpenVLA_bridge_results.png)
+![OpenVLA BridgeData V2 results](../../assets/OpenVLA_bridge_results.png)
 
 *Figure adapted from the paper: on BridgeData V2 WidowX evaluations, OpenVLA leads overall and beats RT-2-X in most categories except semantic generalization.*
 
@@ -432,7 +432,7 @@ Across both platforms, the paper's message is:
 
 ### 11.2 Data-Efficient Adaptation to New Robot Setups
 
-![OpenVLA fine-tuning results](../Resource/pics/OpenVLA_finetune_results.png)
+![OpenVLA fine-tuning results](../../assets/OpenVLA_finetune_results.png)
 
 *Figure adapted from the paper: OpenVLA is especially strong when fine-tuned on diverse multi-instruction tasks, not just narrow single-skill settings.*
 
@@ -522,7 +522,7 @@ So these results should be interpreted as strong evidence for feasibility, not a
 
 ### 11.4 Quantized Inference
 
-![OpenVLA quantization](../Resource/pics/OpenVLA_quantization.png)
+![OpenVLA quantization](../../assets/OpenVLA_quantization.png)
 
 *Figure adapted from the paper: 4-bit quantization preserves policy quality while cutting memory substantially; 8-bit degradation is mainly a latency issue, not necessarily a modeling issue.*
 

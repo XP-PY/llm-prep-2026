@@ -150,7 +150,7 @@ They start from an **intermediate checkpoint** of DeepSeek-LLM (not from scratch
 ---
 
 ## 5. Training Strategy (3 Stages)
-![DeepSeek-VL](../Resource/pics/DeepSeek-VL.png)
+![DeepSeek-VL](../../assets/DeepSeek-VL.png)
 | Stage | What is Trained | Frozen Parts | Key Ideas & Findings |
 |-------|-----------------|--------------|---------------------|
 | 1 – Adaptor Warmup | Only VL adaptor | Vision encoders + LLM | Use ~3.75M caption + OCR pairs. Scaling data here **does not help** (projector capacity limited). |

@@ -52,7 +52,7 @@ Its most reusable algorithmic idea is **predicting action chunks and temporally 
 
 ## 4. High-Level System
 
-![ACT ALOHA overview](../Resource/pics/ACT_aloha_overview.png)
+![ACT ALOHA overview](../../assets/ACT_aloha_overview.png)
 
 *Figure adapted from the paper: ALOHA is a low-cost bimanual teleoperation system, and ACT learns real manipulation skills from demonstrations collected with it.*
 
@@ -78,7 +78,7 @@ The system combines:
 
 ## 5. Hardware: ALOHA
 
-![ACT hardware setup](../Resource/pics/ACT_hardware_setup.png)
+![ACT hardware setup](../../assets/ACT_hardware_setup.png)
 
 *Figure adapted from the paper: ALOHA uses two ViperX follower arms, two smaller WidowX leader arms, four webcams, and custom 3D-printed grippers.*
 
@@ -165,7 +165,7 @@ That is, it predicts a **future chunk of `k` actions** from the current observat
 
 ## 7. Core Idea 1: Action Chunking
 
-![ACT action chunking and temporal ensemble](../Resource/pics/ACT_action_chunking_temporal_ensemble.png)
+![ACT action chunking and temporal ensemble](../../assets/ACT_action_chunking_temporal_ensemble.png)
 
 *Figure adapted from the paper: ACT predicts chunks of future actions and combines overlapping predictions with temporal ensembling.*
 
@@ -324,7 +324,7 @@ The paper reports that L1 gives more precise action sequence modeling than L2 in
 
 ## 10. ACT Architecture
 
-![ACT architecture](../Resource/pics/ACT_architecture.png)
+![ACT architecture](../../assets/ACT_architecture.png)
 
 *Figure adapted from the paper: ACT is trained as a CVAE; the encoder is used only during training, and the decoder becomes the deployed policy.*
 
@@ -439,7 +439,7 @@ for timestep t:
 
 ## 12. Tasks and Data Collection
 
-![ACT real-world tasks](../Resource/pics/ACT_real_world_tasks.png)
+![ACT real-world tasks](../../assets/ACT_real_world_tasks.png)
 
 *Figure adapted from the paper: the six real-world ALOHA tasks require precise bimanual coordination and visual feedback.*
 
@@ -473,7 +473,7 @@ The paper emphasizes that human demonstrations are stochastic even when collecte
 
 ## 13. Main Results
 
-![ACT result tables](../Resource/pics/ACT_results_tables.png)
+![ACT result tables](../../assets/ACT_results_tables.png)
 
 *Figure adapted from the paper: ACT strongly outperforms BC-ConvMLP, BeT, RT-1-style baselines, and VINN on fine-grained tasks.*
 
@@ -518,7 +518,7 @@ Thread Velcro remains the hardest successful task because perception is difficul
 
 ## 14. Ablations
 
-![ACT ablations](../Resource/pics/ACT_ablations.png)
+![ACT ablations](../../assets/ACT_ablations.png)
 
 *Figure adapted from the paper: action chunking, temporal ensembling, CVAE training, and high-frequency teleoperation all contribute to ACT's performance.*
 

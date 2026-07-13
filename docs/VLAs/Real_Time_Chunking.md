@@ -223,7 +223,7 @@ RTC treats the next chunk as an inpainting problem.
 
 The current chunk contains actions that overlap in time with the new chunk. Some of those actions are already guaranteed to execute because the new chunk will arrive too late to replace them.
 
-![RTC](../Resource/pics/RTC.png)
+![RTC](../../assets/RTC.png)
 
 RTC therefore:
 

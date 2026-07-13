@@ -105,104 +105,103 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 ---
 
-# File Structure of /docs
+# File Structure
 ```text
-docs/
-|-- Agent_Systems/
-|   |-- Agent_Basics.md
-|   |-- MCP_Protocol.md
-|   |-- Memory_Systems.md
-|   |-- OpenAI_API_Interface_Format.md
-|   |-- RAG_Systems.md
-|   |-- Skill_Systems.md
-|   `-- Tool_Registry_and_Function_Calling.md
-|-- Activation_Layers/
-|   |-- GELU.md
-|   |-- Sigmoid.md
-|   `-- SwiGLU.md
-|-- Attention_Machanisms/
-|   |-- FlashAttention.md
-|   |-- GQA.md
-|   |-- MHA.md
-|   |-- MLA.md
-|   |-- MQA.md
-|   `-- SVD_Attention.md
-|-- Inference_Optimization/
-|   |-- continuous_batching.md
-|   |-- hallucination_mitigation.md
-|   |-- quantization_inference.md
-|   |-- speculative_decoding.md
-|   `-- tensorrt_multilora.md
-|-- Large_Models/
-|   |-- CLIP.md
-|   |-- DeepSeek_R1.md
-|   |-- DeepSeek_V2.md
-|   |-- DeepSeek_V3.md
-|   |-- DeepSeek_V32.md
-|   |-- DeepSeek_VL.md
-|   |-- DeepSeek_VL2.md
-|   |-- Gemma_3.md
-|   |-- Gemma_4.md
-|   |-- SigLIP.md
-|   `-- SmolVLM.md
-|-- Math/
-|   |-- Memory_Estimation.md
-|   |-- SVD.md
-|   `-- dtypes.md
-|-- MoE/
-|   `-- DeepSeekMoE.md
-|-- Norm/
-|   |-- BatchNorm.md
-|   |-- GroupNorm.md
-|   |-- RMSNorm.md
-|   `-- LayerNorm.md
-|-- Optimizer/
-|   `-- AdamW.md
-|-- PEFT/
-|   |-- DoRA.md
-|   |-- LoRA.md
-|   |-- QLoRA.md
-|   `-- Specialized_LoRA.md
-|-- Parallelism/
-|   |-- EP.md
-|   |-- FSDP.md
-|   |-- PP.md
-|   `-- TP.md
-|-- Position_Embeding/
-|   |-- RoPE.md
-|   `-- Sinusoidal_Position_Embedding.md
-|-- Preference_Alignment/
-|   |-- DPO.md
-|   |-- GRPO.md
-|   |-- PPO.md
-|   |-- RLHF.md
-|   `-- SFT.md
-|-- Scheduler/
-|   |-- Cyclical_and_Restart.md
-|   |-- LLM_Training_Recipes.md
-|   |-- Metric_Adaptive.md
-|   |-- Scheduler_Basics.md
-|   `-- Warmup_and_Decay.md
-|-- Training_Optimization/
-|   |-- Gradient_Checkpointing.md
-|   `-- Mixed_Precision_Training.md
-|-- VLAs/
-|   |-- ACT.md
-|   |-- Diffusion_Policy.md
-|   |-- LIBERO.md
-|   |-- Octo.md
-|   |-- Open_X_Embodiment.md
-|   |-- RT_1.md
-|   |-- RT_2.md
-|   |-- OpenVLA.md
-|   |-- Pi_0.md
-|   |-- Pi_0_FAST.md
-|   |-- Real_Time_Chunking.md
-|   `-- SmolVLA.md
-`-- Resource/
-    |-- Text_Color_Table.md
-    `-- pics/
-        `-- ...
+.
+|-- assets/
+|   `-- ...
+`-- docs/
+    |-- Agent_Systems/
+    |   |-- Agent_Basics.md
+    |   |-- MCP_Protocol.md
+    |   |-- Memory_Systems.md
+    |   |-- OpenAI_API_Interface_Format.md
+    |   |-- RAG_Systems.md
+    |   |-- Skill_Systems.md
+    |   `-- Tool_Registry_and_Function_Calling.md
+    |-- Activation_Layers/
+    |   |-- GELU.md
+    |   |-- Sigmoid.md
+    |   `-- SwiGLU.md
+    |-- Attention_Machanisms/
+    |   |-- FlashAttention.md
+    |   |-- GQA.md
+    |   |-- MHA.md
+    |   |-- MLA.md
+    |   |-- MQA.md
+    |   `-- SVD_Attention.md
+    |-- Inference_Optimization/
+    |   |-- continuous_batching.md
+    |   |-- hallucination_mitigation.md
+    |   |-- quantization_inference.md
+    |   |-- speculative_decoding.md
+    |   `-- tensorrt_multilora.md
+    |-- Large_Models/
+    |   |-- CLIP.md
+    |   |-- DeepSeek_R1.md
+    |   |-- DeepSeek_V2.md
+    |   |-- DeepSeek_V3.md
+    |   |-- DeepSeek_V32.md
+    |   |-- DeepSeek_VL.md
+    |   |-- DeepSeek_VL2.md
+    |   |-- Gemma_3.md
+    |   |-- Gemma_4.md
+    |   |-- SigLIP.md
+    |   `-- SmolVLM.md
+    |-- Math/
+    |   |-- Memory_Estimation.md
+    |   |-- SVD.md
+    |   `-- dtypes.md
+    |-- MoE/
+    |   `-- DeepSeekMoE.md
+    |-- Norm/
+    |   |-- BatchNorm.md
+    |   |-- GroupNorm.md
+    |   |-- RMSNorm.md
+    |   `-- LayerNorm.md
+    |-- Optimizer/
+    |   `-- AdamW.md
+    |-- PEFT/
+    |   |-- DoRA.md
+    |   |-- LoRA.md
+    |   |-- QLoRA.md
+    |   `-- Specialized_LoRA.md
+    |-- Parallelism/
+    |   |-- EP.md
+    |   |-- FSDP.md
+    |   |-- PP.md
+    |   `-- TP.md
+    |-- Position_Embeding/
+    |   |-- RoPE.md
+    |   `-- Sinusoidal_Position_Embedding.md
+    |-- Preference_Alignment/
+    |   |-- DPO.md
+    |   |-- GRPO.md
+    |   |-- PPO.md
+    |   |-- RLHF.md
+    |   `-- SFT.md
+    |-- Scheduler/
+    |   |-- Cyclical_and_Restart.md
+    |   |-- LLM_Training_Recipes.md
+    |   |-- Metric_Adaptive.md
+    |   |-- Scheduler_Basics.md
+    |   `-- Warmup_and_Decay.md
+    |-- Training_Optimization/
+    |   |-- Gradient_Checkpointing.md
+    |   `-- Mixed_Precision_Training.md
+    `-- VLAs/
+        |-- ACT.md
+        |-- Diffusion_Policy.md
+        |-- LIBERO.md
+        |-- Octo.md
+        |-- Open_X_Embodiment.md
+        |-- RT_1.md
+        |-- RT_2.md
+        |-- OpenVLA.md
+        |-- Pi_0.md
+        |-- Pi_0_FAST.md
+        |-- Real_Time_Chunking.md
+        `-- SmolVLA.md
 ```
 
 ---
