@@ -7,7 +7,7 @@
 * as an activation function
 * as a probability mapping
 * inside binary cross-entropy
-* inside pairwise matching losses such as [SigLIP](../Large_Models/SigLIP.md)
+* inside pairwise matching losses such as [SigLIP](../Model_Zoo/Vision_Language_Models/SigLIP.md)
 
 The clean mental model is:
 

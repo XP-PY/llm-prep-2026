@@ -20,7 +20,7 @@ The clean mental model is:
 
 > EP distributes different MoE experts across different GPUs, then routes tokens to the GPUs that own the selected experts.
 
-This is one of the key techniques behind large open MoE systems such as Mixtral and [DeepSeek-V2](../Large_Models/DeepSeek_V2.md).
+This is one of the key techniques behind large open MoE systems such as Mixtral and [DeepSeek-V2](../Model_Zoo/Language_Models/DeepSeek_V2.md).
 
 ---
 
