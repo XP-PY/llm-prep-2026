@@ -1,5 +1,7 @@
 # Gemma 4
 
+> **Brief:** **Multimodal open model family:** Hybrid local/global attention, Per-Layer Embeddings (PLE), variable-resolution vision token budgets, and dense/MoE deployment scaling.
+
 > Note: as of 2026-05-09, I did not find a public Gemma 4 arXiv technical report. This note is based on official release materials, model cards, and implementation docs from Google DeepMind / Google and the official Google model cards on Hugging Face.
 
 ## Convenient Links
@@ -28,7 +30,7 @@ The release is also important operationally: Gemma 4 is distributed under **Apac
 
 ## 2. Model Family
 
-![Gemma 4 family](../../assets/Gemma_4_family.png)
+![Gemma 4 family](../../../assets/Gemma_4_family.png)
 
 Gemma 4 comes in four main sizes:
 
@@ -70,7 +72,7 @@ At a high level, Gemma 4 keeps the Gemma family style, but upgrades multiple par
 
 ## 4. Core Architecture
 
-![Gemma 4 architecture](../../assets/Gemma_4_architecture.png)
+![Gemma 4 architecture](../../../assets/Gemma_4_architecture.png)
 
 Gemma 4 is best understood as a **multimodal decoder-centric model family**:
 
@@ -238,7 +240,7 @@ This is less about the backbone math and more about **productized model behavior
 
 ## 5. Vision Architecture
 
-![Gemma 4 vision token budget](../../assets/Gemma_4_vision_budget.png)
+![Gemma 4 vision token budget](../../../assets/Gemma_4_vision_budget.png)
 
 Gemma 4's vision stack is one of the biggest differences from earlier Gemma releases.
 

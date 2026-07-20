@@ -1,5 +1,7 @@
 # [DeepSeek-R1](https://arxiv.org/abs/2501.12948)
 
+> **Brief:** **Reasoning MoE based on DeepSeek-V3-Base:** R1-Zero shows that pure RL can induce long-chain-of-thought reasoning; R1 adds cold-start SFT and multi-stage RL to improve readability, language consistency, and general assistant behavior.
+
 ## Convenient Links
 * [Github](https://github.com/deepseek-ai/DeepSeek-R1)
 * Hugging Face:
@@ -60,7 +62,7 @@ This is why R1 became a landmark model in the "reasoning via RL" direction.
 
 ### 3.1 Core idea
 
-DeepSeek-R1-Zero applies **[GRPO](../Preference_Alignment/GRPO.md)** directly to the base model without an SFT warm-start.
+DeepSeek-R1-Zero applies **[GRPO](../../Preference_Alignment/GRPO.md)** directly to the base model without an SFT warm-start.
 
 The official Nature paper says the reward is based only on:
 

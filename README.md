@@ -1,20 +1,3 @@
-# Large Models Learning
-| Model | Key Points |
-|:---:|:---:|
-| [CLIP](./docs/Large_Models/CLIP.md) | ***Vision-Language Model:*** Contrastive Pre-training, zero-shot transfer, image-text encoder fusion |
-| [SigLIP](./docs/Large_Models/SigLIP.md) | ***Vision-Language Model:*** Sigmoid Pairwise Loss, improved training efficiency over CLIP |
-| [SmolVLM](./docs/Large_Models/SmolVLM.md) | ***Small Vision-Language Model:*** SigLIP + SmolLM2, pixel-shuffle visual token compression, image splitting, video SFT, edge/WebGPU-friendly inference |
-| [Gemma 3](./docs/Large_Models/Gemma_3.md) | ***Vision-Language Model (on Decoder-only LLM):*** vision encoder (SigLIP) + [GQA](./docs/Attention_Machanisms/GQA.md) + 5:1 Local/Global Attention Interleaving |
-| [Gemma 4](./docs/Large_Models/Gemma_4.md) | ***Multimodal Open Model Family:*** Hybrid local/global attention + Per-Layer Embeddings (PLE) + variable-resolution vision token budgets + Dense / MoE deployment scaling |
-| [DeepSeek-VL](./docs/Large_Models/DeepSeek_VL.md) | ***Vision-Language Model (on Decoder-only LLM):*** Hybrid vision encoder (SigLIP semantic + SAM-B high-res details) → fixed-token high-res processing, gradual modality-balanced pretraining to preserve language strength |
-| [DeepSeek-VL2](./docs/Large_Models/DeepSeek_VL2.md) | ***Vision-Language Model (MoE Decoder-only LLM):*** Single SigLIP dynamic tiling (global thumbnail + local tiles) → arbitrary high-res/aspect ratios with controlled tokens, DeepSeekMoE backbone with MLA |
-| [DeepSeek-V2](./docs/Large_Models/DeepSeek_V2.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) |
-| [DeepSeek-V3](./docs/Large_Models/DeepSeek_V3.md) | ***Decoder-only Transformer:*** [MLA](./docs/Attention_Machanisms/MLA.md) + [DeepSeekMoE](./docs/MoE/DeepSeekMoE.md) with **auxiliary-loss-free** + Multi-token prediction (MTP) |
-| [DeepSeek-V3.2](./docs/Large_Models/DeepSeek_V32.md) | ***Decoder-only Transformer (Long-Context + Agentic RL):*** **DeepSeek Sparse Attention (DSA)** (Lightning Indexer → Top-k KV selection; O(L·k) core attention for 128K) + MLA; **MQA-mode** integration for efficient sparse KV sharing + **scaled post-training RL (GRPO)** (>10% pretrain compute) + large-scale **agent/tool-use task synthesis** (verified environments) |
-| [DeepSeek-R1](./docs/Large_Models/DeepSeek_R1.md) | ***Reasoning MoE on DeepSeek-V3-Base:*** **R1-Zero** shows pure RL can induce long-CoT reasoning; **R1** adds cold-start SFT + multi-stage RL to improve readability, language consistency, and general assistant behavior |
-
----
-
 # LLM Knowledge System
 A topic-based map of this repo. This section is organized by knowledge domains rather than learning phases.
 
@@ -66,7 +49,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| VLA & Robotics | Vision-language-action policies, embodied datasets, and robot control | LIBERO, Open X-Embodiment, ACT, Diffusion Policy, Octo, RT-1, RT-2, OpenVLA, pi0, pi0.5, pi0-FAST, Real-Time Chunking, SmolVLA |
+| Model Zoo | Language models, vision-language models, and robotics systems | DeepSeek, Gemma, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, and real-time policy inference |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md), [Learning Rate Schedulers](./docs/Scheduler/Scheduler_Basics.md)
@@ -99,9 +82,12 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - API interface format: [OpenAI API Interface Format](./docs/Agent_Systems/OpenAI_API_Interface_Format.md)
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
-## 6. VLA & Robotics
-- Embodied dataset foundations and benchmarks: [LIBERO](./docs/VLAs/LIBERO.md), [Open X-Embodiment](./docs/VLAs/Open_X_Embodiment.md)
-- Vision-language-action and robot policy papers: [ACT / ALOHA](./docs/VLAs/ACT.md), [Diffusion Policy](./docs/VLAs/Diffusion_Policy.md), [Octo](./docs/VLAs/Octo.md), [RT-1](./docs/VLAs/RT_1.md), [RT-2](./docs/VLAs/RT_2.md), [OpenVLA](./docs/VLAs/OpenVLA.md), [pi0](./docs/VLAs/Pi_0.md), [pi0.5](./docs/VLAs/Pi_0_5.md), [pi0-FAST](./docs/VLAs/Pi_0_FAST.md), [Real-Time Chunking](./docs/VLAs/RTC.md), [SmolVLA](./docs/VLAs/SmolVLA.md)
+## 6. Model Zoo
+- Language models: [DeepSeek-V2](./docs/Model_Zoo/Language_Models/DeepSeek_V2.md), [DeepSeek-V3](./docs/Model_Zoo/Language_Models/DeepSeek_V3.md), [DeepSeek-V3.2](./docs/Model_Zoo/Language_Models/DeepSeek_V32.md), [DeepSeek-R1](./docs/Model_Zoo/Language_Models/DeepSeek_R1.md)
+- Vision-language models: [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
+- Robotics datasets: [LIBERO](./docs/Model_Zoo/Robotics/Datasets/LIBERO.md), [Open X-Embodiment](./docs/Model_Zoo/Robotics/Datasets/Open_X_Embodiment.md)
+- Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md)
+- Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
 
 ---
 
@@ -136,22 +122,41 @@ The diagram gives a high-level overview; the sections below act as the detailed 
     |   |-- quantization_inference.md
     |   |-- speculative_decoding.md
     |   `-- tensorrt_multilora.md
-    |-- Large_Models/
-    |   |-- CLIP.md
-    |   |-- DeepSeek_R1.md
-    |   |-- DeepSeek_V2.md
-    |   |-- DeepSeek_V3.md
-    |   |-- DeepSeek_V32.md
-    |   |-- DeepSeek_VL.md
-    |   |-- DeepSeek_VL2.md
-    |   |-- Gemma_3.md
-    |   |-- Gemma_4.md
-    |   |-- SigLIP.md
-    |   `-- SmolVLM.md
     |-- Math/
     |   |-- Memory_Estimation.md
     |   |-- SVD.md
     |   `-- dtypes.md
+    |-- Model_Zoo/
+    |   |-- Language_Models/
+    |   |   |-- DeepSeek_R1.md
+    |   |   |-- DeepSeek_V2.md
+    |   |   |-- DeepSeek_V3.md
+    |   |   `-- DeepSeek_V32.md
+    |   |-- Robotics/
+    |   |   |-- Datasets/
+    |   |   |   |-- LIBERO.md
+    |   |   |   `-- Open_X_Embodiment.md
+    |   |   |-- Inference/
+    |   |   |   `-- RTC.md
+    |   |   `-- Policies/
+    |   |       |-- ACT.md
+    |   |       |-- Diffusion_Policy.md
+    |   |       |-- Octo.md
+    |   |       |-- OpenVLA.md
+    |   |       |-- Pi_0.md
+    |   |       |-- Pi_0_5.md
+    |   |       |-- Pi_0_FAST.md
+    |   |       |-- RT_1.md
+    |   |       |-- RT_2.md
+    |   |       `-- SmolVLA.md
+    |   `-- Vision_Language_Models/
+    |       |-- CLIP.md
+    |       |-- DeepSeek_VL.md
+    |       |-- DeepSeek_VL2.md
+    |       |-- Gemma_3.md
+    |       |-- Gemma_4.md
+    |       |-- SigLIP.md
+    |       `-- SmolVLM.md
     |-- MoE/
     |   `-- DeepSeekMoE.md
     |-- Norm/
@@ -186,28 +191,16 @@ The diagram gives a high-level overview; the sections below act as the detailed 
     |   |-- Metric_Adaptive.md
     |   |-- Scheduler_Basics.md
     |   `-- Warmup_and_Decay.md
-    |-- Training_Optimization/
+    `-- Training_Optimization/
     |   |-- Gradient_Checkpointing.md
     |   `-- Mixed_Precision_Training.md
-    `-- VLAs/
-        |-- ACT.md
-        |-- Diffusion_Policy.md
-        |-- LIBERO.md
-        |-- Octo.md
-        |-- Open_X_Embodiment.md
-        |-- RT_1.md
-        |-- RT_2.md
-        |-- OpenVLA.md
-        |-- Pi_0.md
-        |-- Pi_0_5.md
-        |-- Pi_0_FAST.md
-        |-- RTC.md
-        `-- SmolVLA.md
 ```
 
 ---
 
 # Learning Resource Recommendation
-- [Datawhale/happy-llm](https://github.com/datawhalechina/happy-llm)
-- [Datawhale/hello-agents](https://github.com/datawhalechina/Hello-Agents)
-- [Datawhale/all-in-rag](https://github.com/datawhalechina/all-in-rag)
+- [Datawhale / happy-llm](https://github.com/datawhalechina/happy-llm)
+- [Datawhale / hello-agents](https://github.com/datawhalechina/Hello-Agents)
+- [Datawhale / all-in-rag](https://github.com/datawhalechina/all-in-rag)
+- [Hugging Face / LeRobot](https://huggingface.co/docs/lerobot/main/en/index)
+- [Physical Intelligence / Home](https://www.pi.website/)

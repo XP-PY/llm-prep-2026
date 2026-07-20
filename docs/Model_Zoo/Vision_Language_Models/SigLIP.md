@@ -1,5 +1,7 @@
 # [SigLIP](https://arxiv.org/abs/2303.15343)
 
+> **Brief:** **Vision-language model:** Sigmoid pairwise loss with improved training efficiency over CLIP.
+
 **SigLIP** (Sigmoid Loss for Language Image Pre-Training) is a family of vision-language models developed by Google DeepMind in 2023. It builds directly on the contrastive image-text pre-training paradigm introduced by CLIP (2021) but replaces the standard softmax-based contrastive loss with a **pairwise sigmoid loss**. This seemingly small change yields significant practical advantages in training efficiency, scalability, and performance, especially at smaller batch sizes or with limited compute.
 
 ## 1. Core Idea & Motivation

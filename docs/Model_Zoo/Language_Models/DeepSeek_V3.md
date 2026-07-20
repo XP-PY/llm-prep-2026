@@ -1,5 +1,7 @@
 # [DeepSeek-V3](https://arxiv.org/abs/2412.19437v1)
 
+> **Brief:** **Decoder-only Transformer:** [MLA](../../Attention_Machanisms/MLA.md) with [DeepSeekMoE](../../MoE/DeepSeekMoE.md), auxiliary-loss-free load balancing, and multi-token prediction (MTP).
+
 ## Convenient Links
 * [Github](https://github.com/deepseek-ai/DeepSeek-V3)
 * Hugging face:
@@ -63,7 +65,7 @@ This is the heart of V3. It reuses V2's validated components but refines them fo
 
 **2.1.2 DeepSeekMoE with Auxiliary-Loss-Free Load Balancing**
 - Standard MoE issue: Routers can collapse (all tokens to few experts) → auxiliary loss traditionally used to penalize imbalance.
-![MoE](../../assets/DeepSeek-V3_MoE.png)
+![MoE](../../../assets/DeepSeek-V3_MoE.png)
 - V3 innovation: **Remove auxiliary loss entirely**.
   - Achieved via careful initialization, routing design, and architectural priors.
   - Natural balancing emerges → clearer expert specialization (see Appendix C visualizations).
@@ -72,10 +74,10 @@ This is the heart of V3. It reuses V2's validated components but refines them fo
   - Contributes to zero loss spikes.
   - Slightly better performance than aux-loss version.
 - Trade-off: Requires precise engineering; not plug-and-play like older MoE.
-![ALF](../../assets/DeepSeek-V3_ALF.png)
+![ALF](../../../assets/DeepSeek-V3_ALF.png)
 
 **2.2 Multi-Token Prediction (MTP)**
-![MTP](../../assets/DeepSeek-V3_MTP.png)
+![MTP](../../../assets/DeepSeek-V3_MTP.png)
 - Standard: Predict only next token.
 - MTP: Lightweight auxiliary heads predict multiple future tokens (e.g., 4–8) from intermediate layers.
 - Discarded at inference → zero extra cost.
@@ -91,7 +93,7 @@ This is the heart of V3. It reuses V2's validated components but refines them fo
   - Optimized all-to-all (MoE routing bottleneck).
   - Memory-saving tricks.
 - **FP8 Mixed Precision** (huge cost saver):
-  - Forward/backward in [FP8](../Math/dtypes.md), master weights in BF16.
+  - Forward/backward in [FP8](../../Math/dtypes.md), master weights in BF16.
   - Custom quantization handles outliers.
   - Result: ~2× memory/throughput gain, negligible quality loss (Appendix B).
 - **Inference**: Fast prefilling + decoding via MLA.

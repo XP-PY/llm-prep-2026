@@ -8,7 +8,7 @@
 * [pi0 note in this repo](./Pi_0.md)
 * [OpenVLA note in this repo](./OpenVLA.md)
 * [Diffusion Policy note in this repo](./Diffusion_Policy.md)
-* [Real-Time Chunking note in this repo](./RTC.md)
+* [Real-Time Chunking note in this repo](../Inference/RTC.md)
 
 ## 1. One-Sentence Summary
 
@@ -162,7 +162,7 @@ raw action chunk
 -> output action tokens
 ```
 
-![Pi_0_FAST](../../assets/Pi_0_FAST.png)
+![Pi_0_FAST](../../../../assets/Pi_0_FAST.png)
 
 This is inspired by compression methods such as JPEG:
 

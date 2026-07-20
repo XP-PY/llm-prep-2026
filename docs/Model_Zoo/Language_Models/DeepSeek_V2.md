@@ -1,5 +1,7 @@
 # [DeepSeek-V2](https://arxiv.org/abs/2405.04434)
 
+> **Brief:** **Decoder-only Transformer:** [MLA](../../Attention_Machanisms/MLA.md) with [DeepSeekMoE](../../MoE/DeepSeekMoE.md).
+
 # Convenient Links
 * [Github](https://github.com/deepseek-ai/DeepSeek-V2)
 * Hugging face:
@@ -9,7 +11,7 @@
     * [DeepSeek-V2-Chat (RL)](https://huggingface.co/deepseek-ai/DeepSeek-V2-Chat)
 
 # Paper Overview & Key Highlights
-![Model_Architecture](../../assets/DeepSeek-V2.png)
+![Model_Architecture](../../../assets/DeepSeek-V2.png)
 
 * **Title/Author:** DeepSeek-V2: A Strong, Economical, and Efficient Mixture-of-Experts Language Model (DeepSeek-AI, June 2024).
 * **Model Scale:** 236B total parameters, <span style="color: blue">21B activated per token</span> (sparse MoE), 128K context length.
@@ -27,9 +29,9 @@
 * **Decoder-only Transformer** with two modifications:
     * **Attention layers:** MLA (instead of MHA).
     * **FFN layers:** DeepSeekMoE (instead of dense FFN).
-* **[MLA](../Attention_Machanisms/MLA.md):**
+* **[MLA](../../Attention_Machanisms/MLA.md):**
     * **Role:** Efficient inference via KV compression + decoupled RoPE.
-* **[DeepSeekMoE](../MoE/DeepSeekMoE.md):**
+* **[DeepSeekMoE](../../MoE/DeepSeekMoE.md):**
     * **Role:** Economical training via sparse routed experts + shared backbone.
 
 # Pre-Training (Section 3)
@@ -38,7 +40,7 @@
     * Jump from DeepSeek-LLM's 2T → more capacity fill for larger MoE.
 * **Setups:**
     * Hyperparams tuned for MoE stability.
-    * [Expert parallelism (EP)](../Parallelism/EP.md) for routed experts.
+    * [Expert parallelism (EP)](../../Parallelism/EP.md) for routed experts.
     * Long context extension to 128K (MLA enables).
 * **Evaluations:**
     * **Base model:** Top open-source (MMLU leader with few active params).

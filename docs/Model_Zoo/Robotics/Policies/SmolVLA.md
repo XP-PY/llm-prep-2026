@@ -11,7 +11,7 @@
 * [ ] [Octo note in this repo](./Octo.md)
 * [ ] [ACT note in this repo](./ACT.md)
 * [ ] [Diffusion Policy note in this repo](./Diffusion_Policy.md)
-* [ ] [LIBERO note in this repo](./LIBERO.md)
+* [ ] [LIBERO note in this repo](../Datasets/LIBERO.md)
 
 ## 1. One-Sentence Summary
 
@@ -610,7 +610,7 @@ Compared with [Diffusion Policy](./Diffusion_Policy.md):
 * Diffusion Policy is a general action-diffusion recipe for visuomotor control.
 * SmolVLA uses a flow-matching action expert inside a VLA stack.
 
-Compared with [LIBERO](./LIBERO.md):
+Compared with [LIBERO](../Datasets/LIBERO.md):
 
 * LIBERO is a benchmark for controlled lifelong manipulation transfer.
 * SmolVLA uses LIBERO as one of its main simulation evaluations and ablation testbeds.

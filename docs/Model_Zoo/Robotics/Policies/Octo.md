@@ -4,7 +4,7 @@
 * [Paper (arXiv)](https://arxiv.org/abs/2405.12213)
 * [Project Page](https://octo-models.github.io/)
 * [Official Code](https://github.com/octo-models/octo)
-* [Open X-Embodiment note in this repo](./Open_X_Embodiment.md)
+* [Open X-Embodiment note in this repo](../Datasets/Open_X_Embodiment.md)
 * [Diffusion Policy note in this repo](./Diffusion_Policy.md)
 * [RT-1 note in this repo](./RT_1.md)
 * [OpenVLA note in this repo](./OpenVLA.md)
@@ -36,7 +36,7 @@ The paper matters because it focuses on **usable generalist robot policies**, no
 * open-source checkpoints and training code
 * practical finetuning on consumer GPUs
 
-![Octo overview](../../assets/Octo_overview.png)
+![Octo overview](../../../../assets/Octo_overview.png)
 
 *Figure adapted from the paper: Octo is designed as a flexible generalist robot policy that can handle multiple task definitions, observation spaces, and action spaces.*
 
@@ -86,7 +86,7 @@ is a future action sequence.
 
 ## 4. High-Level Architecture
 
-![Octo architecture](../../assets/Octo_architecture.png)
+![Octo architecture](../../../../assets/Octo_architecture.png)
 
 *Figure adapted from the paper: task tokens and observation tokens are processed by a transformer; learned readout tokens feed lightweight action heads.*
 
@@ -323,7 +323,7 @@ The released model uses a 3-layer MLP diffusion action head with residual connec
 
 ## 9. Training Data
 
-![Octo dataset mixture](../../assets/Octo_dataset_mixture.png)
+![Octo dataset mixture](../../../../assets/Octo_dataset_mixture.png)
 
 *Figure adapted from the paper: Octo trains on a curated mixture of 25 Open X-Embodiment datasets.*
 
@@ -385,7 +385,7 @@ The paper also uses hindsight goal relabeling: a future state from the trajector
 
 ## 11. Evaluation Setup
 
-![Octo evaluation tasks](../../assets/Octo_evaluation_tasks.png)
+![Octo evaluation tasks](../../../../assets/Octo_evaluation_tasks.png)
 
 *Figure adapted from the paper: Octo is evaluated on 9 real robot setups across 4 institutions.*
 
@@ -413,7 +413,7 @@ The robot setups include:
 
 ### 12.1 Zero-Shot Multi-Robot Control
 
-![Octo zero-shot evaluation](../../assets/Octo_zero_shot.png)
+![Octo zero-shot evaluation](../../../../assets/Octo_zero_shot.png)
 
 *Figure adapted from the paper: Octo outperforms RT-1-X on the tested zero-shot setups and performs similarly to RT-2-X where compared.*
 
@@ -427,7 +427,7 @@ The paper reports:
 
 ### 12.2 Finetuning to New Domains
 
-![Octo finetuning table](../../assets/Octo_finetune_table.png)
+![Octo finetuning table](../../../../assets/Octo_finetune_table.png)
 
 *Figure adapted from the paper: Octo finetuning outperforms training from scratch and VC-1 visual representation transfer across six downstream domains.*
 
@@ -443,7 +443,7 @@ This is one of the most important results in the paper. Octo is not only a zero-
 
 ### 12.3 Design Ablations
 
-![Octo ablation table](../../assets/Octo_ablation_table.png)
+![Octo ablation table](../../../../assets/Octo_ablation_table.png)
 
 *Figure adapted from the paper: wider data mixtures, diffusion action heads, and transformer-first ViT-style architecture matter.*
 
@@ -458,7 +458,7 @@ The ablations show:
 
 ### 12.4 Model Scaling
 
-![Octo model scaling](../../assets/Octo_scaling.png)
+![Octo model scaling](../../../../assets/Octo_scaling.png)
 
 *Figure adapted from the paper: larger Octo models improve zero-shot performance on UR5 and WidowX tasks.*
 

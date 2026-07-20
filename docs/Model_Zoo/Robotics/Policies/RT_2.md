@@ -153,7 +153,7 @@ This matters because it helps the model preserve the semantic concepts learned d
 
 ## 5. High-Level Pipeline
 
-![RT-2 overview](../../assets/RT_2_overview.png)
+![RT-2 overview](../../../../assets/RT_2_overview.png)
 
 *Figure adapted from the paper: RT-2 casts robot actions into text tokens and trains them jointly with Internet-scale VLM data.*
 
@@ -315,7 +315,7 @@ This is one reason the paper was influential: it does not stop at "does imitatio
 
 ### 8.1 Overall Generalization Results
 
-![RT-2 overall performance](../../assets/RT_2_overall_performance.png)
+![RT-2 overall performance](../../../../assets/RT_2_overall_performance.png)
 
 *Figure adapted from the paper: RT-2 stays competitive on seen tasks and gains a large advantage on unseen generalization.*
 
@@ -343,7 +343,7 @@ This supports the paper's main thesis:
 
 ### 8.2 Emergent Capabilities
 
-![RT-2 emergent examples](../../assets/RT_2_emergent_examples.png)
+![RT-2 emergent examples](../../../../assets/RT_2_emergent_examples.png)
 
 *Figure adapted from the paper: RT-2 shows symbol understanding, semantic grounding, and simple reasoning behaviors that were not explicitly present in the robot data.*
 
@@ -401,7 +401,7 @@ This matters because it shows the method is not restricted to one robot benchmar
 
 ### 8.5 Chain-of-Thought Variant
 
-![RT-2 chain-of-thought reasoning](../../assets/RT_2_cot_reasoning.png)
+![RT-2 chain-of-thought reasoning](../../../../assets/RT_2_cot_reasoning.png)
 
 *Figure adapted from the paper: a chain-of-thought variant lets RT-2 emit a natural-language plan before the action tokens.*
 

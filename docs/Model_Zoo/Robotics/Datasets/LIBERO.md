@@ -6,8 +6,8 @@
 * [Official Code](https://github.com/Lifelong-Robot-Learning/LIBERO)
 * [Official Documentation](https://lifelong-robot-learning.github.io/LIBERO/html/)
 * [Open X-Embodiment note in this repo](./Open_X_Embodiment.md)
-* [Diffusion Policy note in this repo](./Diffusion_Policy.md)
-* [OpenVLA note in this repo](./OpenVLA.md)
+* [Diffusion Policy note in this repo](../Policies/Diffusion_Policy.md)
+* [OpenVLA note in this repo](../Policies/OpenVLA.md)
 
 ## 1. One-Sentence Summary
 
@@ -508,12 +508,12 @@ Compared with [Open X-Embodiment](./Open_X_Embodiment.md):
 * Open X-Embodiment is a large real-world cross-embodiment data pool.
 * LIBERO is a controlled simulated benchmark for lifelong transfer and forgetting.
 
-Compared with [Diffusion Policy](./Diffusion_Policy.md):
+Compared with [Diffusion Policy](../Policies/Diffusion_Policy.md):
 
 * Diffusion Policy focuses on action-generation structure.
 * LIBERO focuses on task-suite design and lifelong-learning evaluation.
 
-Compared with [OpenVLA](./OpenVLA.md):
+Compared with [OpenVLA](../Policies/OpenVLA.md):
 
 * OpenVLA asks how to train and adapt an open VLA.
 * LIBERO asks how to measure controlled knowledge transfer in language-conditioned robot manipulation.

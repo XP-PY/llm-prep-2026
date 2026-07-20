@@ -4,8 +4,8 @@
 * [Paper (arXiv)](https://arxiv.org/abs/2310.08864)
 * [Project Page](https://robotics-transformer-x.github.io/)
 * [GitHub Repository](https://github.com/google-deepmind/open_x_embodiment)
-* [RT-2 note in this repo](./RT_2.md)
-* [OpenVLA note in this repo](./OpenVLA.md)
+* [RT-2 note in this repo](../Policies/RT_2.md)
+* [OpenVLA note in this repo](../Policies/OpenVLA.md)
 
 ## 1. One-Sentence Summary
 
@@ -85,7 +85,7 @@ This diversity is exactly the point. Open X-Embodiment is trying to turn "hetero
 
 ## 5. High-Level Data Pipeline
 
-![Open X-Embodiment pipeline](../../assets/Open_X_Embodiment_pipeline.svg)
+![Open X-Embodiment pipeline](../../../../assets/Open_X_Embodiment_pipeline.svg)
 
 *Figure created for this repo: Open X-Embodiment pools heterogeneous robot datasets, converts them into a shared RLDS-style structure, then uses a coarsely aligned observation/action interface to train RT-X style models and later open VLA systems.*
 

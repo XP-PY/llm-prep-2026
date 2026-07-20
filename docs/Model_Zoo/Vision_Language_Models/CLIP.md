@@ -1,5 +1,7 @@
 # [CLIP: Contrastive Language-Image Pre-training](https://arxiv.org/abs/2103.00020)
 
+> **Brief:** **Vision-language model:** Contrastive pre-training, zero-shot transfer, and image-text encoder fusion.
+
 ## 1. Overview & Motivation
 - **Core Idea**: Learn visual representations directly from natural language supervision (internet image-text pairs) instead of fixed-class labeled datasets like ImageNet.
 - **Why it matters**: Traditional supervised models are limited to pre-defined categories and require task-specific fine-tuning. CLIP enables **zero-shot transfer** – the model can classify or retrieve images for new concepts just by providing text descriptions.
@@ -80,7 +82,7 @@ $$
 
 ### Why CLIP uses a logit scale parameter
 
-![CLIP logit scale intuition](../../assets/CLIP_logit_scale_effect.svg)
+![CLIP logit scale intuition](../../../assets/CLIP_logit_scale_effect.svg)
 
 After L2 normalization, image-text similarities are cosine scores, so they are bounded and often numerically small. If we directly apply softmax to these raw scores, the distribution can be too flat:
 

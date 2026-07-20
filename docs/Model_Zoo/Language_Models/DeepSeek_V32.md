@@ -1,5 +1,7 @@
 # [DeepSeek-V3.2](https://arxiv.org/abs/2512.02556)
 
+> **Brief:** **Long-context and agentic decoder-only Transformer:** DeepSeek Sparse Attention (Lightning Indexer + top-k KV selection), MLA with MQA-mode KV sharing, scaled GRPO post-training, and large-scale agent/tool-use task synthesis.
+
 **DeepSeek-V3.2** aims to **close the gap between open and frontier closed LLMs** by improving **(a) long-context efficiency**, **(b) post-training RL scalability**, and **(c) agent/tool-use generalization**—without sacrificing performance. 
 
 <!-- When we go deeper, the most important low-level questions will be:
@@ -49,7 +51,7 @@ So you can think of V3.2 as:
 Instead of attending to **all previous tokens** $O(L^2)$, each query token attends to **top-k selected tokens** $O(L·k)$, where $k ≪ L$. 
 
 <div align="center">
-  <img src="../../assets/DeepSeek-VL32_Attention_Architecture.png" alt="Attention architecture of DeepSeek-V3.2">
+  <img src="../../../assets/DeepSeek-VL32_Attention_Architecture.png" alt="Attention architecture of DeepSeek-V3.2">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 1: Attention architecture of DeepSeek-V3.2.</strong>
   </p>
@@ -80,7 +82,7 @@ $$
 
 ### 3.3 How DSA is implemented inside MLA
 
-They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../Attention_Machanisms/MLA.md) setup from [earlier DeepSeek work](./DeepSeek_V2.md)) but specifically in a way that is kernel-efficient: they use **[MQA mode](../Attention_Machanisms/MQA.md)** so that each latent KV is shared across query heads. 
+They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../../Attention_Machanisms/MLA.md) setup from [earlier DeepSeek work](./DeepSeek_V2.md)) but specifically in a way that is kernel-efficient: they use **[MQA mode](../../Attention_Machanisms/MQA.md)** so that each latent KV is shared across query heads. 
 
 * The paper highlights a kernel-level constraint: **KV entries retrieved for sparse attention should be shareable across multiple query heads** for efficiency. so they choose MQA-mode MLA. 
   > If KV were per-head (classic full MHA), sparse retrieval would mean:
@@ -90,7 +92,7 @@ They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../Atten
 * Fig 2 clarifies MLA’s **MHA vs MQA** modes. 
 
 <div align="center">
-  <img src="../../assets/DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png" alt="Illustration of the MHA and MQA modes of MLA">
+  <img src="../../../assets/DeepSeek-VL32_MHA-and-MQA-modes-of-MLA.png" alt="Illustration of the MHA and MQA modes of MLA">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 2: Illustration of the MHA and MQA modes of MLA.</strong>
   </p>
@@ -162,7 +164,7 @@ Key training detail:
 Fig 3 shows **cost per million tokens vs token position** on H800 clusters (assumed cost: $2/GPU-hour). DeepSeek-V3.2 is cheaper than V3.1-Terminus for long-context prefilling and decoding. 
 
 <div align="center">
-  <img src="../../assets/DeepSeek-VL32_Inference-cost.png" alt="Inference costs">
+  <img src="../../../assets/DeepSeek-VL32_Inference-cost.png" alt="Inference costs">
   <p style="text-align: center; font-size: smaller;">
     <strong>Fig 3: Inference costs.</strong>
   </p>
@@ -224,7 +226,7 @@ So the specialist stage is not the final serving model. It is more like a **data
 
 ### 6.3 The mixed RL stage
 
-After distillation, they run **[GRPO](../Preference_Alignment/GRPO.md)** on a mixed task distribution instead of doing completely separate RL phases for each ability.
+After distillation, they run **[GRPO](../../Preference_Alignment/GRPO.md)** on a mixed task distribution instead of doing completely separate RL phases for each ability.
 
 The paper's motivation is to reduce **catastrophic forgetting**. If reasoning RL, agent RL, and alignment RL are done too separately, one stage may damage abilities built in another stage.
 

@@ -1,12 +1,14 @@
 # [SmolVLM: Redefining Small and Efficient Multimodal Models](https://arxiv.org/abs/2504.05299)
 
+> **Brief:** **Small vision-language model:** SigLIP + SmolLM2, pixel-shuffle visual token compression, image splitting, video SFT, and edge/WebGPU-friendly inference.
+
 ## Convenient Links
 
 * [Paper (arXiv)](https://arxiv.org/abs/2504.05299)
 * [Hugging Face Blog](https://huggingface.co/blog/smolvlm2)
 * [SmolVLM2 Model Collection](https://huggingface.co/collections/HuggingFaceTB/smolvlm2-smallest-video-lm-ever)
 * [SmolVLM WebGPU Demo](https://huggingface.co/spaces/HuggingFaceTB/SmolVLM2)
-* [SmolVLA note in this repo](../VLAs/SmolVLA.md)
+* [SmolVLA note in this repo](../Robotics/Policies/SmolVLA.md)
 * [SigLIP note in this repo](./SigLIP.md)
 * [Gemma 3 note in this repo](./Gemma_3.md)
 * [DeepSeek-VL note in this repo](./DeepSeek_VL.md)
