@@ -49,7 +49,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| Model Zoo | Language models, vision-language models, and robotics systems | DeepSeek, Gemma, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, and real-time policy inference |
+| Model Zoo | Language models, vision models, vision-language models, and robotics systems | DeepSeek, Gemma, DINOv2, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, and real-time policy inference |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md), [Learning Rate Schedulers](./docs/Scheduler/Scheduler_Basics.md)
@@ -84,7 +84,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 
 ## 6. Model Zoo
 - Language models: [DeepSeek-V2](./docs/Model_Zoo/Language_Models/DeepSeek_V2.md), [DeepSeek-V3](./docs/Model_Zoo/Language_Models/DeepSeek_V3.md), [DeepSeek-V3.2](./docs/Model_Zoo/Language_Models/DeepSeek_V32.md), [DeepSeek-R1](./docs/Model_Zoo/Language_Models/DeepSeek_R1.md)
-- Vision-language models: [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
+- Vision and vision-language models: [DINOv2](./docs/Model_Zoo/Vision_Language_Models/DINOv2.md), [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
 - Robotics datasets: [LIBERO](./docs/Model_Zoo/Robotics/Datasets/LIBERO.md), [Open X-Embodiment](./docs/Model_Zoo/Robotics/Datasets/Open_X_Embodiment.md)
 - Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Hi_Robot.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md)
 - Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
@@ -154,6 +154,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
     |       |-- CLIP.md
     |       |-- DeepSeek_VL.md
     |       |-- DeepSeek_VL2.md
+    |       |-- DINOv2.md
     |       |-- Gemma_3.md
     |       |-- Gemma_4.md
     |       |-- SigLIP.md
@@ -193,8 +194,8 @@ The diagram gives a high-level overview; the sections below act as the detailed 
     |   |-- Scheduler_Basics.md
     |   `-- Warmup_and_Decay.md
     `-- Training_Optimization/
-    |   |-- Gradient_Checkpointing.md
-    |   `-- Mixed_Precision_Training.md
+        |-- Gradient_Checkpointing.md
+        `-- Mixed_Precision_Training.md
 ```
 
 ---
