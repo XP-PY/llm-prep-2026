@@ -153,14 +153,14 @@ At runtime, the predicted vector field is integrated for a few steps to transfor
 
 ## 5. Joint Training Objective
 
-The complete data mixture may contain:
+The complete mixture contains examples with different target modalities. A sample may provide:
 
-* robot examples with action targets;
-* VLM examples with text targets;
-* examples with both language and action targets;
-* robot-planning or next-step language annotations.
+* an ordinary text target;
+* a FAST-tokenized action target;
+* a continuous action target;
+* any compatible combination of these targets.
 
-Let $M_j^{\mathrm{tok}}$ select text or FAST-token targets and let $M^{\mathrm{act}}$ indicate that a continuous action is available. A simplified form of the paper's joint objective is
+The paper handles all of them with one objective:
 
 $$
 \mathcal{L}_{\mathrm{CO\text{-}VLA}}
@@ -168,23 +168,164 @@ $$
 \mathbb{E}
 \left[
 -\sum_j
-M_j^{\mathrm{tok}}
+M_j^\ell
 \log p_\theta(y_{j+1}\mid x_{\le j})
 +
-\alpha M^{\mathrm{act}}\mathcal{L}_{\mathrm{flow}}
+\alpha M^{\mathrm{act}}
+\left\|
+\omega-a_{1:H}
+-f_\theta^a(a_{1:H}^{\tau,\omega},o_t)
+\right\|_2^2
 \right].
 $$
 
-The output tokens $y$ include both:
+There are two loss switches:
+
+| Mask | Granularity | Meaning |
+| :--- | :---------- | :------ |
+| $M_j^\ell$ | token position $j$ | apply autoregressive cross-entropy at this output position |
+| $M^{\mathrm{act}}$ | whole example | apply continuous flow matching to this example |
+
+Despite the superscript $\ell$, $M_j^\ell$ does not select only natural-language words. The autoregressive sequence $y$ may contain:
 
 * normal language tokens;
 * discrete FAST action tokens.
 
-This shared next-token interface makes heterogeneous co-training straightforward. Examples without robot actions simply set $M^{\mathrm{act}}=0$.
+It is therefore helpful to read $M_j^\ell$ as an **autoregressive token-loss mask**.
+
+### 5.1 VLM-only example
+
+Consider image captioning:
+
+```text
+Image:   a red cup beside a plate
+Prompt:  "Describe the image."
+Target:  "A red cup is beside a white plate."
+```
+
+Conceptually:
+
+```text
+Position: [IMAGE] [PROMPT] [TARGET CAPTION]
+M^ell:       0       0           1
+M^act:       0
+```
+
+Only caption positions contribute token loss. There is no action trajectory, so the flow loss is disabled. VQA and object-localization examples follow the same pattern: answer or coordinate tokens have $M_j^\ell=1$, while $M^{\mathrm{act}}=0$.
+
+### 5.2 Robot planning without low-level actions
+
+A semantic robot example may provide a plan but no motor trajectory:
+
+```text
+Observation: cup on table; sink visible
+Task:        "Put the cup in the sink."
+Target plan: "Approach the cup, grasp it, move to the sink, release."
+```
+
+Its masks are:
+
+```text
+Position: [IMAGE] [TASK] [TARGET PLAN]
+M^ell:       0      0          1
+M^act:       0
+```
+
+This trains robot-relevant language reasoning without inventing a continuous-action label.
+
+### 5.3 Robot action example
+
+An action demonstration contains images, an instruction, robot state, and a continuous action chunk:
+
+```text
+Input:
+    images + "put the spoon in the utensil bin" + robot state
+
+Action target:
+    a_1:H = 50 continuous robot commands
+```
+
+The same action chunk activates both branches:
+
+```text
+a_1:H -> FAST(a_1:H) -> autoregressive target tokens
+a_1:H -> add noise    -> continuous flow target
+```
+
+The masks are:
+
+```text
+Position: [IMAGE] [INSTRUCTION] [STATE] [FAST TOKENS]
+M^ell:       0          0          0          1
+M^act:       1
+```
+
+The instruction is an input condition, not an output target, so its positions have $M_j^\ell=0$. FAST-token loss updates the VLM backbone, while the continuous loss updates the action expert.
+
+### 5.4 Combined language-and-action example
+
+A robot trajectory can additionally be annotated with what the robot should do next:
+
+```text
+Observation:      robot holds the left side of a shirt
+Task:             "Fold the shirt."
+Target language:  "Move the right gripper to the right sleeve and grasp it."
+Action target:    50 continuous arm and gripper commands
+```
+
+Conceptually, both target regions are enabled:
+
+```text
+Position: [IMAGE] [TASK] [NEXT-STEP TEXT] [FAST TOKENS]
+M^ell:       0      0           1              1
+M^act:       1
+```
+
+This one sample trains:
+
+* next-step semantic prediction;
+* FAST action prediction;
+* continuous flow matching.
+
+### 5.5 Mixed minibatch
+
+The masks let one minibatch contain heterogeneous examples:
+
+| Example | Text target | FAST target | Continuous target | Enabled losses |
+| :------ | :---------: | :---------: | :---------------: | :------------- |
+| Caption or VQA | yes | no | no | text cross-entropy |
+| Robot plan | yes | no | no | planning-token cross-entropy |
+| Robot action | no | yes | yes | FAST cross-entropy + flow |
+| Robot language + action | yes | yes | yes | text + FAST cross-entropy + flow |
+
+Each sample contributes only labels that actually exist. The trainer does not need fake actions for VLM examples, fake language answers for action-only demonstrations, or a separate model for each data source.
+
+### 5.6 Loss masks are not the attention mask
+
+Do not confuse $M_j^\ell$ and $M^{\mathrm{act}}$ with the transformer attention mask $A$:
+
+| Mask | Question answered |
+| :--- | :---------------- |
+| Loss masks $M_j^\ell,M^{\mathrm{act}}$ | Which prediction errors count toward the objective? |
+| Attention mask $A$ | Which tokens may exchange information during the forward pass? |
+
+The loss masks mix supervision modalities. The attention mask prevents information leakage between FAST and continuous representations of the same clean action.
 
 ## 6. Knowledge Insulation
 
-Joint FAST and flow training alone is **not** the complete method. Without insulation, the flow loss can still update the pretrained backbone:
+Knowledge insulation separates two directions that are easy to conflate:
+
+```text
+Forward information:
+VLM backbone ----------------> action expert
+
+Backward gradient:
+VLM backbone <-----------X--- flow-matching loss
+```
+
+The action expert must read image, language, state, and robot-aware features from the VLM. However, its flow loss must not modify the VLM through that connection.
+
+Joint FAST and flow training alone is therefore **not** the complete method. Without insulation:
 
 $$
 \frac{\partial \mathcal{L}_{\mathrm{flow}}}
@@ -192,41 +333,43 @@ $$
 \ne 0.
 $$
 
-Knowledge insulation changes the action expert's context input from
+Define the stop-gradient operator by
 
 $$
-h_b=f_{\theta_b}(o_t)
+\operatorname{sg}(z)=z
 $$
 
-to
+in the forward pass, but
 
 $$
-\bar{h}_b=\operatorname{sg}(h_b),
+\frac{\partial\operatorname{sg}(z)}{\partial z}=0
 $$
 
-where $\operatorname{sg}$ is the stop-gradient operator. Conceptually:
+in the backward pass. Conceptually, the action expert receives:
 
 $$
 \hat{v}
 =
 f_{\theta_a}^{a}
-\left(a^{\tau,\omega},\operatorname{sg}(h_b)\right).
+\left(
+a^{\tau,\omega},
+\operatorname{sg}\!\left(f_{\theta_b}(o_t)\right)
+\right).
 $$
 
-The resulting gradient routing is
+The forward values are numerically unchanged, but the gradient routing becomes
 
 $$
-\frac{\partial \mathcal{L}_{\mathrm{FAST}}}{\partial\theta_b}
-\ne 0,
+\nabla_{\theta_b}\mathcal{L}
+=
+\nabla_{\theta_b}\mathcal{L}_{\mathrm{AR}},
 \qquad
-\frac{\partial \mathcal{L}_{\mathrm{flow}}}{\partial\theta_b}
-=0,
-\qquad
-\frac{\partial \mathcal{L}_{\mathrm{flow}}}{\partial\theta_a}
-\ne 0.
+\nabla_{\theta_a}\mathcal{L}
+=
+\alpha\nabla_{\theta_a}\mathcal{L}_{\mathrm{flow}},
 $$
 
-Therefore:
+where $\mathcal{L}_{\mathrm{AR}}$ includes ordinary text and FAST-token losses. Thus:
 
 ```text
 FAST/text losses -> update VLM backbone
@@ -236,59 +379,252 @@ flow loss        -X-> VLM backbone
 
 The backbone is **not frozen**. It continues learning from robot FAST tokens and VLM targets. Only the potentially disruptive gradient from the newly initialized action expert is blocked.
 
-Because the two losses now train effectively separated parameter groups, the paper sets
+### 6.1 Why FAST prediction is required
+
+Blocking the flow gradient is sensible only if the backbone receives another robot-action learning signal. Without FAST:
+
+```text
+VLM backbone -> trained only on generic image/text targets
+action expert -> trained on robot actions
+```
+
+The expert would be forced to control the robot from generic VLM features that were never adapted to precise motor behavior. This is close to freezing the backbone, which performs poorly in the paper.
+
+FAST supplies the missing path:
+
+```text
+robot trajectory
+-> FAST tokens
+-> autoregressive loss
+-> robot-adapted VLM backbone
+```
+
+The expert can then learn how to read those action-relevant features without sending its own gradient back into them.
+
+### 6.2 Why $\alpha=1$ becomes reasonable
+
+Without insulation, both losses update $\theta_b$:
+
+$$
+\nabla_{\theta_b}\mathcal{L}
+=
+\nabla_{\theta_b}\mathcal{L}_{\mathrm{AR}}
++
+\alpha\nabla_{\theta_b}\mathcal{L}_{\mathrm{flow}}.
+$$
+
+The two gradients may differ in scale or point in conflicting directions, so $\alpha$ also controls how strongly the randomly initialized expert interferes with the pretrained backbone.
+
+After insulation, the losses mainly update separate parameter sets. The paper therefore sets
 
 $$
 \alpha=1.
 $$
 
+This does not make $\alpha$ mathematically irrelevant: it still scales the action-expert gradient. It no longer balances two competing losses on the VLM backbone.
+
 ## 7. Stop-Gradient Inside Attention
 
-The gradient barrier must be applied where the action expert reads VLM features.
+The conceptual `detach(backbone_features)` operation must be implemented inside every cross-expert attention layer.
 
 Let:
 
-* $X_b$ be backbone-token activations;
-* $X_a$ be action-expert-token activations;
-* $P_{bb}$ be backbone-to-backbone attention;
-* $P_{ab}$ be action-to-backbone attention;
-* $P_{aa}$ be action-to-action attention.
+* $X_b\in\mathbb{R}^{n_b\times d_b}$ be backbone-token activations, including image, language, state, and training-time FAST tokens;
+* $X_a\in\mathbb{R}^{n_a\times d_a}$ be noisy continuous-action token activations.
 
-The attention structure is
+For ordinary attention:
+
+$$
+P
+=
+\operatorname{softmax}
+\left(
+\frac{Q(X)K(X)^\top}{\sqrt{d_k}}+A
+\right),
+\qquad
+E=PV(X).
+$$
+
+Each row is a query token. Each column is a key/value source token. The output for query $i$ is
+
+$$
+e_i=\sum_jP_{ij}v_j.
+$$
+
+### 7.1 Reading the four attention blocks
+
+Splitting query rows and source columns by expert gives:
 
 $$
 P =
+\begin{pmatrix}
+P_{bb} & P_{ba} \\
+P_{ab} & P_{aa}
+\end{pmatrix}
+=
 \begin{pmatrix}
 P_{bb} & 0 \\
 P_{ab} & P_{aa}
 \end{pmatrix}.
 $$
 
-The upper-right zero means backbone tokens do not read action-expert tokens. Action tokens may read the backbone and one another.
+The first index is the **query**, and the second is the **source**:
 
-For the cross-expert attention logits, the backbone keys are detached:
+| Block | Query reads from source | Allowed? |
+| :---- | :---------------------- | :------: |
+| $P_{bb}$ | backbone from backbone | yes |
+| $P_{ba}$ | backbone from action expert | no |
+| $P_{ab}$ | action expert from backbone | yes |
+| $P_{aa}$ | action expert from action expert | yes |
+
+The easy-to-miss case is $P_{ab}$:
+
+> An action token is the query and reads a backbone token as its key/value source.
+
+It means information flows from backbone features into the action expert, not the reverse. For each action-query row, $P_{ab}$ and $P_{aa}$ are normalized together:
 
 $$
-P_{ab}
-\propto
+\sum_jP_{ab}[i,j]+\sum_kP_{aa}[i,k]=1.
+$$
+
+They are two blocks of one softmax distribution, not two independently normalized attention operations.
+
+### 7.2 Equation (5): detach backbone keys
+
+The paper implements the attention probabilities as
+
+$$
+P
+=
 \operatorname{softmax}
 \left(
-Q_a(X_a)\,
-\operatorname{sg}\!\left(K_b(X_b)\right)^\top
+\begin{pmatrix}
+Q_b(X_b)K_b(X_b)^\top & 0 \\
+Q_a(X_a)\operatorname{sg}\!\left(K_b(X_b)\right)^\top
+&
+Q_a(X_a)K_a(X_a)^\top
+\end{pmatrix}
++A
 \right).
 $$
 
-The corresponding value path is also detached:
+The four score blocks mean:
+
+* **top-left:** normal backbone self-attention;
+* **top-right:** backbone queries are forbidden from reading action-expert keys;
+* **bottom-left:** action queries read detached backbone keys;
+* **bottom-right:** normal action-expert self-attention.
+
+Strictly, the top-right score is made ineffective by $A_{ba}=-\infty$, which produces $P_{ba}=0$ after softmax. A literal zero score alone would not produce zero probability.
+
+For one cross-expert score:
+
+$$
+s_{ab}
+=
+q_a^\top\operatorname{sg}(k_b).
+$$
+
+In the forward pass it has the same value as $q_a^\top k_b$. During backpropagation:
+
+$$
+\frac{\partial s_{ab}}{\partial q_a}
+=
+\operatorname{sg}(k_b)
+\ne0,
+\qquad
+\frac{\partial s_{ab}}{\partial k_b}=0.
+$$
+
+The action query can learn which backbone features to attend to, but flow loss cannot update the backbone key projection or earlier backbone layers through this route.
+
+### 7.3 Equation (6): detach backbone values
+
+The probability-weighted values are
+
+$$
+E
+=
+\begin{pmatrix}
+E_b \\
+E_a
+\end{pmatrix}
+=
+\begin{pmatrix}
+P_{bb}V_b(X_b) \\
+P_{ab}\operatorname{sg}\!\left(V_b(X_b)\right)
++
+P_{aa}V_a(X_a)
+\end{pmatrix}.
+$$
+
+The backbone output is ordinary self-attention:
+
+$$
+E_b=P_{bb}V_b(X_b).
+$$
+
+An action output combines two sources:
 
 $$
 E_a
 =
+\underbrace{
 P_{ab}\operatorname{sg}\!\left(V_b(X_b)\right)
+}_{\text{detached VLM context}}
 +
-P_{aa}V_a(X_a).
+\underbrace{
+P_{aa}V_a(X_a)
+}_{\text{action-token context}}.
 $$
 
-The forward pass is unchanged: the action expert still receives visual-language context. Only backward flow into the VLM is removed.
+The action expert can use object, instruction, state, and robot-aware features normally. The detach prevents flow loss from changing the backbone values that carry this information.
+
+### 7.4 Why keys and values must both be detached
+
+There are two independent backward routes:
+
+| Route | Without detach | Blocked by |
+| :---- | :------------- | :--------- |
+| attention-weight route | $\mathcal{L}_{\mathrm{flow}}\to P_{ab}\to K_b(X_b)\to\theta_b$ | Equation (5) key detach |
+| value-content route | $\mathcal{L}_{\mathrm{flow}}\to E_a\to V_b(X_b)\to\theta_b$ | Equation (6) value detach |
+
+Detaching only keys would leave the value route open. Detaching only values would leave the attention-probability route open. Both are needed to guarantee
+
+$$
+\frac{\partial\mathcal{L}_{\mathrm{flow}}}{\partial\theta_b}=0.
+$$
+
+The action expert still learns through $Q_a$, $K_a$, $V_a$, its hidden states, and its input/output projections. For example, flow loss may teach an action query to attend more strongly to the backbone token for `spoon`; it cannot rewrite the backbone's representation of `spoon`.
+
+### 7.5 PyTorch-style interpretation
+
+```python
+# Backbone projections
+qb, kb, vb = Q_backbone(xb), K_backbone(xb), V_backbone(xb)
+
+# Action-expert projections
+qa, ka, va = Q_action(xa), K_action(xa), V_action(xa)
+
+# Backbone queries read only backbone tokens.
+scores_bb = qb @ kb.T
+
+# Action queries read backbone keys, but cannot update them.
+scores_ab = qa @ kb.detach().T
+scores_aa = qa @ ka.T
+
+# P_ab and P_aa come from one joint softmax per action query.
+p_ab, p_aa = split(softmax(concat(scores_ab, scores_aa)))
+
+e_b = softmax(scores_bb) @ vb
+e_a = p_ab @ vb.detach() + p_aa @ va
+```
+
+This is schematic: the real implementation also applies scaling, batching, multiple heads, masks, residual connections, and output projections.
+
+### 7.6 Notation note
+
+After Equation (6), the paper writes $\operatorname{attn}(X)=PE$. But Equation (6) has already defined $E_b$ and $E_a$ as probability-weighted value sums. Read literally, multiplying by $P$ again would apply attention probabilities twice. The intended outputs appear to be the combined $(E_b,E_a)$, followed by the usual output projection. This notation issue does not change the stop-gradient argument.
 
 ## 8. Attention Mask and Leakage Prevention
 
@@ -313,7 +649,9 @@ The paper enforces:
 * FAST and continuous action tokens do **not** attend to one another;
 * no VLM token attends to action-expert tokens.
 
-The FAST and flow targets encode the same clean action. If one branch could read the other, it could copy target information instead of learning control from the observation and instruction.
+The block matrix in Section 7 describes backbone/action-expert connectivity at a high level. The mask $A$ adds a finer restriction inside $P_{ab}$: continuous action queries may read the observation prefix, but not FAST-token columns.
+
+The FAST and flow targets encode the same clean action. If either branch could read the other, it could copy target information instead of independently inferring the action from the shared image, language, and state prefix.
 
 ## 9. Training and Inference
 
@@ -336,7 +674,7 @@ VLM data
 
 Unlike pi0.5's original two-stage recipe, the knowledge-insulated model does not need to finish FAST-only pretraining before adding the continuous expert. Both can be trained together safely because their gradient paths are separated.
 
-The paper uses pi0's flow-time distribution, biased toward low flow times, rather than uniform sampling. It sets $s=0.999$ with Beta parameters $\alpha=1.5$ and $\beta=1$.
+The paper uses pi0's flow-time distribution, biased toward low flow times, rather than uniform sampling. It sets $s=0.999$ with Beta shape parameters $\alpha=1.5$ and $\beta=1$. This $\alpha$ is unrelated to the flow-loss multiplier $\alpha=1$ in Section 6.2; the paper reuses the symbol for two different quantities.
 
 ### 9.2 Runtime
 
