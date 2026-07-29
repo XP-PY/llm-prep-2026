@@ -2,13 +2,13 @@
 
 > **Brief:** **Self-supervised vision foundation model:** DINOv2 combines DINO image-level learning, iBOT masked-patch learning, KoLeo feature regularization, and curated image-only pretraining to produce strong frozen global and dense visual features.
 
-**DINOv2** (*Learning Robust Visual Features without Supervision*, Oquab et al., 2024) is an image-only Vision Transformer family trained without labels or captions. It is stored with the vision-language model notes because it is commonly used as the **vision encoder** inside multimodal systems, but DINOv2 itself is **not a vision-language model**: it has no text encoder and does not align images with language.
+**DINOv2** (*Learning Robust Visual Features without Supervision*, Oquab et al., 2024) is an image-only Vision Transformer family trained without labels or captions.
 
 ## Convenient Links
 
 - [Paper](https://arxiv.org/abs/2304.07193)
 - [Official code and pretrained models](https://github.com/facebookresearch/dinov2)
-- Related notes: [CLIP](./CLIP.md), [SigLIP](./SigLIP.md)
+- Related notes: [CLIP](../Vision_Language_Models/CLIP.md), [SigLIP](../Vision_Language_Models/SigLIP.md)
 
 ## 1. Core Goal
 
