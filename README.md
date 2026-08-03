@@ -50,6 +50,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
 | Model Zoo | Language models, vision models, vision-language models, and robotics systems | DeepSeek, Gemma, DINOv2, DINOv3, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, and real-time policy inference |
+| Book Notes | Chapter-by-chapter foundations with compact definitions, equations, and examples | Modern Robotics; Reinforcement Learning: An Introduction |
 
 ## 1. Foundations
 - Math and numerical basics: [SVD](./docs/Math/SVD.md), [dtypes](./docs/Math/dtypes.md), [Memory Estimation](./docs/Math/Memory_Estimation.md), [AdamW](./docs/Optimizer/AdamW.md), [Learning Rate Schedulers](./docs/Scheduler/Scheduler_Basics.md)
@@ -90,6 +91,10 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Hi_Robot.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
 - Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
 
+## 7. Book Notes
+- Robotics: [Modern Robotics: Mechanics, Planning, and Control](./docs/Books/Robotics/Modern_Robotics.md)
+- Reinforcement learning: [Reinforcement Learning: An Introduction](./docs/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md)
+
 ---
 
 # File Structure
@@ -117,6 +122,11 @@ The diagram gives a high-level overview; the sections below act as the detailed 
     |   |-- MLA.md
     |   |-- MQA.md
     |   `-- SVD_Attention.md
+    |-- Books/
+    |   |-- Reinforcement_Learning/
+    |   |   `-- Reinforcement_Learning_An_Introduction.md
+    |   `-- Robotics/
+    |       `-- Modern_Robotics.md
     |-- Inference_Optimization/
     |   |-- continuous_batching.md
     |   |-- hallucination_mitigation.md
