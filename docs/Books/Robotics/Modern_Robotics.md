@@ -10,7 +10,7 @@
 |:--:|:--|:--:|
 | 1 | Preview | Not started |
 | 2 | [Configuration Space](#chapter-2-configuration-space) | Complete |
-| 3 | Rigid-Body Motions | Not started |
+| 3 | [Rigid-Body Motions](#chapter-3-rigid-body-motions) | Complete |
 | 4 | Forward Kinematics | Not started |
 | 5 | Velocity Kinematics and Statics | Not started |
 | 6 | Inverse Kinematics | Not started |
@@ -34,6 +34,20 @@
 | 2.6 | [Common Confusions](#26-common-confusions) |
 | 2.7 | [Formula Sheet](#27-formula-sheet) |
 | 2.8 | [Understanding Checklist](#28-understanding-checklist) |
+
+## Chapter 3 Catalog
+
+| Section | Topic |
+|:--|:--|
+| 3.1 | [Frames and the Planar Preview](#31-frames-and-the-planar-preview) |
+| 3.2 | [Rotations and Angular Velocities](#32-rotations-and-angular-velocities) |
+| 3.3 | [Rigid-Body Motions and Twists](#33-rigid-body-motions-and-twists) |
+| 3.4 | [Wrenches](#34-wrenches) |
+| 3.5 | [$SO(3)$ and $SE(3)$ in Parallel](#35-so3-and-se3-in-parallel) |
+| 3.6 | [Common Confusions](#36-common-confusions) |
+| 3.7 | [Formula Sheet](#37-formula-sheet) |
+| 3.8 | [Software Map](#38-software-map) |
+| 3.9 | [Understanding Checklist](#39-understanding-checklist) |
 
 ---
 
@@ -414,3 +428,691 @@ After this chapter, you should be able to:
 - distinguish C-space, task space, and workspace.
 
 The next chapter builds on this foundation by representing rigid-body position and orientation and by describing motions on those spaces.
+
+---
+
+## Chapter 3: Rigid-Body Motions
+
+Chapter 2 established that a spatial rigid body has six DOF but that its configuration space is not Euclidean. This chapter develops representations that respect that geometry:
+
+- $R\in SO(3)$ represents orientation;
+- $T\in SE(3)$ represents position and orientation;
+- angular velocities and twists represent tangent velocities;
+- matrix exponentials integrate constant velocities into finite motions;
+- matrix logarithms recover exponential coordinates from finite motions;
+- wrenches combine moments and forces.
+
+### 3.1 Frames and the Planar Preview
+
+#### A geometric object is not its coordinate vector
+
+A physical point or free vector exists independently of any coordinate system. Its numerical representation changes when the reference frame changes.
+
+For example, $p_a$ and $p_b$ can be different coordinate vectors for the same physical point $p$:
+
+$$
+p_a=R_{ab}p_b+p_{ab}.
+$$
+
+The subscripts encode the direction of the coordinate transformation:
+
+- $R_{ab}$ is the orientation of frame $\{b\}$ expressed in frame $\{a\}$;
+- $p_{ab}$ is the origin of $\{b\}$ expressed in $\{a\}$;
+- therefore $(R_{ab},p_{ab})$ converts coordinates from $\{b\}$ to $\{a\}$.
+
+#### Planar rigid motion
+
+For a planar body, the body-frame orientation and origin can be written
+
+$$
+P=
+\begin{bmatrix}
+\cos\theta&-\sin\theta\\
+\sin\theta&\cos\theta
+\end{bmatrix},
+\qquad
+p=
+\begin{bmatrix}
+p_x\\p_y
+\end{bmatrix}.
+$$
+
+If frame $\{c\}$ is described by $(Q,q)$ relative to $\{b\}$ and $\{b\}$ is described by $(P,p)$ relative to $\{s\}$, then
+
+$$
+R_{sc}=PQ,
+\qquad
+p_{sc}=Pq+p.
+$$
+
+This planar calculation previews homogeneous transformations: rotate the relative displacement into the parent frame, then add the parent-frame translation.
+
+### 3.2 Rotations and Angular Velocities
+
+#### Rotation matrices and $SO(3)$
+
+The columns of a rotation matrix are the unit axes of the rotated frame expressed in the reference frame:
+
+$$
+R_{sb}=
+\begin{bmatrix}
+\hat x_b&\hat y_b&\hat z_b
+\end{bmatrix}_{s}.
+$$
+
+Because these axes form a right-handed orthonormal frame,
+
+$$
+\boxed{
+SO(3)=\left\{R\in\mathbb R^{3\times3}
+\mid R^TR=I,\ \det R=1\right\}.
+}
+$$
+
+The orthogonality constraint gives
+
+$$
+R^{-1}=R^T.
+$$
+
+The determinant condition excludes reflections. A matrix satisfying $R^TR=I$ but $\det R=-1$ is orthogonal, but it is not a proper rotation.
+
+Rotation matrices form a group under multiplication: they are closed, multiplication is associative, the identity exists, and every rotation has an inverse. In 3D, multiplication is generally not commutative:
+
+$$
+R_1R_2\neq R_2R_1.
+$$
+
+#### Three meanings of a rotation matrix
+
+The same matrix can be interpreted in three ways, depending on context:
+
+| Use | Interpretation |
+|:--|:--|
+| Orientation | $R_{ab}$ describes frame $\{b\}$ relative to $\{a\}$ |
+| Change of coordinates | $p_a=R_{ab}p_b$ represents the same vector in $\{a\}$ |
+| Rotation operator | $p'=Rp$ physically rotates a vector while keeping its coordinate frame fixed |
+
+The algebra can look identical, so the frame labels and the physical question must determine the interpretation.
+
+#### Composition and subscript cancellation
+
+For three frames,
+
+$$
+R_{ac}=R_{ab}R_{bc},
+\qquad
+R_{ba}=R_{ab}^{-1}=R_{ab}^T.
+$$
+
+The adjacent $b$ subscripts cancel. This is a reliable dimensional-analysis rule for frame calculations.
+
+#### Fixed-frame versus body-frame rotation
+
+Let $R_{sb}$ describe the current body orientation and let $R=\operatorname{Rot}(\hat\omega,\theta)$ be an additional rotation.
+
+![Premultiplication rotates around a fixed-frame axis, while postmultiplication rotates around a body-frame axis](../../../assets/Modern_Robotics/ch03_fixed_vs_body_rotation.png)
+
+*Fixed-frame and body-frame rotations. Cropped from book Figure 3.9.*
+
+Then
+
+$$
+\boxed{
+R_{sb'}=RR_{sb}
+\quad\text{means that }\hat\omega\text{ is expressed in }\{s\},
+}
+$$
+
+whereas
+
+$$
+\boxed{
+R_{sb''}=R_{sb}R
+\quad\text{means that }\hat\omega\text{ is expressed in }\{b\}.
+}
+$$
+
+Memory rule: **premultiply for a space-frame operation; postmultiply for a body-frame operation.**
+
+#### Skew-symmetric matrix representation
+
+For $x=(x_1,x_2,x_3)^T$, define
+
+$$
+[x]=
+\begin{bmatrix}
+0&-x_3&x_2\\
+x_3&0&-x_1\\
+-x_2&x_1&0
+\end{bmatrix}
+\in so(3).
+$$
+
+It converts a cross product into matrix multiplication:
+
+$$
+[x]y=x\times y.
+$$
+
+Useful identities are
+
+$$
+[x]^T=-[x],
+\qquad
+[x]y=-[y]x,
+\qquad
+R[x]R^T=[Rx].
+$$
+
+Here $SO(3)$ is the nonlinear group of finite rotations, while $so(3)$ is the vector space of skew-symmetric matrices representing infinitesimal rotations.
+
+#### Angular velocity in space and body coordinates
+
+Let $R(t)=R_{sb}(t)$. The same physical angular velocity can be represented in the space frame or body frame:
+
+$$
+\omega_s=R_{sb}\omega_b.
+$$
+
+Its matrix forms are obtained from $R$ and $\dot R$:
+
+$$
+\boxed{
+[\omega_s]=\dot R R^{-1}=\dot R R^T,
+\qquad
+[\omega_b]=R^{-1}\dot R=R^T\dot R.
+}
+$$
+
+The multiplication order determines the frame. Equivalently,
+
+$$
+\dot R=[\omega_s]R=R[\omega_b].
+$$
+
+#### Exponential coordinates for rotation
+
+An axis-angle pair consists of a unit axis $\hat\omega$ and angle $\theta$. Its three exponential coordinates are $\hat\omega\theta$.
+
+Integrating the constant angular velocity $\hat\omega$ for time $\theta$ gives
+
+$$
+R=e^{[\hat\omega]\theta}.
+$$
+
+Rodrigues' formula evaluates this exponential without an infinite series:
+
+$$
+\boxed{
+e^{[\hat\omega]\theta}
+=I+\sin\theta[\hat\omega]
++(1-\cos\theta)[\hat\omega]^2.
+}
+$$
+
+The exponential map connects the tangent-space representation to a finite rotation:
+
+$$
+\exp:so(3)\rightarrow SO(3).
+$$
+
+#### Rotation matrix logarithm
+
+The inverse problem is to find $[\hat\omega]\theta=\log R$. For the generic case $0<\theta<\pi$,
+
+$$
+\theta=\cos^{-1}\left(\frac{\operatorname{tr}R-1}{2}\right),
+$$
+
+$$
+[\hat\omega]
+=\frac{R-R^T}{2\sin\theta}.
+$$
+
+Two singular cases need separate handling:
+
+- $R=I$: $\theta=0$, and the axis is arbitrary because no rotation occurred.
+- $\operatorname{tr}R=-1$: $\theta=\pi$, and the axis must be recovered from $R+I$ or equivalent component formulas.
+
+![SO(3) represented by an exponential-coordinate ball of radius pi](../../../assets/Modern_Robotics/ch03_so3_exponential_ball.png)
+
+*Exponential-coordinate view of $SO(3)$. Cropped from book Figure 3.13.*
+
+Restricting $\theta\in[0,\pi]$ represents $SO(3)$ as a solid ball of radius $\pi$. Antipodal points on the boundary describe the same $180^\circ$ rotation, which is why the logarithm is not unique there.
+
+### 3.3 Rigid-Body Motions and Twists
+
+#### Homogeneous transformations and $SE(3)$
+
+A spatial rigid-body configuration combines orientation and position:
+
+$$
+\boxed{
+T=
+\begin{bmatrix}
+R&p\\
+0&1
+\end{bmatrix}
+\in SE(3),
+\qquad
+R\in SO(3),\ p\in\mathbb R^3.
+}
+$$
+
+The inverse is
+
+$$
+T^{-1}=
+\begin{bmatrix}
+R^T&-R^Tp\\
+0&1
+\end{bmatrix}.
+$$
+
+The term $-R^Tp$ is important: reversing a pose requires both reversing the rotation and re-expressing the reversed translation.
+
+#### Homogeneous point coordinates
+
+Appending a $1$ to a point lets rotation and translation be written as one multiplication:
+
+$$
+\begin{bmatrix}
+x'\\1
+\end{bmatrix}
+=
+\begin{bmatrix}
+R&p\\0&1
+\end{bmatrix}
+\begin{bmatrix}
+x\\1
+\end{bmatrix}
+=
+\begin{bmatrix}
+Rx+p\\1
+\end{bmatrix}.
+$$
+
+A free direction vector uses a final coordinate of $0$, so translation does not affect it:
+
+$$
+T
+\begin{bmatrix}
+v\\0
+\end{bmatrix}
+=
+\begin{bmatrix}
+Rv\\0
+\end{bmatrix}.
+$$
+
+#### Frame composition
+
+Transformation matrices obey the same subscript rule as rotations:
+
+$$
+T_{ac}=T_{ab}T_{bc},
+\qquad
+T_{ba}=T_{ab}^{-1},
+$$
+
+and for a point,
+
+$$
+p_a=T_{ab}p_b.
+$$
+
+If $T=(R,p)$ is applied to a current pose $T_{sb}$, then
+
+$$
+T_{sb'}=TT_{sb}
+$$
+
+interprets $(R,p)$ in the space frame, whereas
+
+$$
+T_{sb''}=T_{sb}T
+$$
+
+interprets it in the body frame. As with rotations, the order changes the physical motion.
+
+#### Twists
+
+A **twist** combines angular and linear velocity:
+
+$$
+V=
+\begin{bmatrix}
+\omega\\v
+\end{bmatrix}
+\in\mathbb R^6,
+\qquad
+[V]=
+\begin{bmatrix}
+[\omega]&v\\
+0&0
+\end{bmatrix}
+\in se(3).
+$$
+
+For $T(t)=T_{sb}(t)$, the body and space twists are
+
+$$
+\boxed{
+[V_b]=T^{-1}\dot T,
+\qquad
+[V_s]=\dot T T^{-1}.
+}
+$$
+
+Their linear components have different geometric meanings:
+
+- $v_b=R^T\dot p$ is the velocity of the body-frame origin, expressed in $\{b\}$;
+- $v_s=\dot p-\omega_s\times p$ is the velocity of the point on the extended rigid body currently located at the space-frame origin, expressed in $\{s\}$.
+
+Therefore, in general,
+
+$$
+v_s\neq\dot p.
+$$
+
+This is one of the most important notation traps in the chapter.
+
+#### Adjoint transformation
+
+For $T=(R,p)$, define
+
+$$
+\boxed{
+[\operatorname{Ad}_T]
+=
+\begin{bmatrix}
+R&0\\
+{}[p]R&R
+\end{bmatrix}.
+}
+$$
+
+It changes the coordinate frame of a twist or screw axis:
+
+$$
+V_s=[\operatorname{Ad}_{T_{sb}}]V_b,
+\qquad
+V_b=[\operatorname{Ad}_{T_{bs}}]V_s.
+$$
+
+More generally,
+
+$$
+V_a=[\operatorname{Ad}_{T_{ab}}]V_b.
+$$
+
+The adjoint respects transformation composition:
+
+$$
+[\operatorname{Ad}_{T_1}]
+[\operatorname{Ad}_{T_2}]
+=[\operatorname{Ad}_{T_1T_2}],
+\qquad
+[\operatorname{Ad}_T]^{-1}
+=[\operatorname{Ad}_{T^{-1}}].
+$$
+
+#### Screw interpretation of a twist
+
+A screw axis is described geometrically by:
+
+- a point $q$ on the axis;
+- a unit direction $\hat s$;
+- a pitch $h$, equal to linear speed along the axis divided by angular speed.
+
+![A screw axis represented by a point, direction, and pitch](../../../assets/Modern_Robotics/ch03_screw_axis.png)
+
+*Geometry of a screw axis. Cropped from book Figure 3.19.*
+
+For finite pitch, the normalized screw axis is
+
+$$
+\boxed{
+S=
+\begin{bmatrix}
+\omega\\v
+\end{bmatrix}
+=
+\begin{bmatrix}
+\hat s\\
+-\hat s\times q+h\hat s
+\end{bmatrix},
+\qquad \|\omega\|=1.
+}
+$$
+
+The corresponding twist is
+
+$$
+V=S\dot\theta.
+$$
+
+Important special cases are:
+
+| Motion | Screw-axis parameters |
+|:--|:--|
+| Pure rotation about the axis | $h=0$, $v=-\omega\times q$ |
+| Rotation plus translation along the axis | finite $h$ |
+| Pure translation | $\omega=0$, $\|v\|=1$, conventionally $h=\infty$ |
+
+For a pure translation, $\dot\theta$ is a linear speed rather than an angular speed.
+
+#### Exponential coordinates of rigid motion
+
+The Chasles-Mozzi theorem states that every rigid-body displacement can be produced by motion along one fixed screw axis. Thus any $T\in SE(3)$ can be written
+
+$$
+T=e^{[S]\theta}.
+$$
+
+The six-vector $S\theta$ is the exponential-coordinate representation of the displacement.
+
+For $S=(\omega,v)$ with $\|\omega\|=1$,
+
+$$
+e^{[S]\theta}
+=
+\begin{bmatrix}
+e^{[\omega]\theta}&G(\theta)v\\
+0&1
+\end{bmatrix},
+$$
+
+where
+
+$$
+G(\theta)
+=I\theta
++(1-\cos\theta)[\omega]
++(\theta-\sin\theta)[\omega]^2.
+$$
+
+For pure translation,
+
+$$
+e^{[S]\theta}
+=
+\begin{bmatrix}
+I&v\theta\\
+0&1
+\end{bmatrix}.
+$$
+
+#### Matrix logarithm of a rigid motion
+
+Given $T=(R,p)$:
+
+1. If $R=I$ and $p\neq0$, the motion is a pure translation. Set $\omega=0$, $\theta=\|p\|$, and $v=p/\|p\|$. If $R=I$ and $p=0$, then $T=I$, $\theta=0$, and the screw axis is undefined.
+2. Otherwise, compute $[\omega]\theta=\log R$, then solve
+
+$$
+v=G^{-1}(\theta)p,
+$$
+
+with
+
+$$
+G^{-1}(\theta)
+=\frac{1}{\theta}I
+-\frac{1}{2}[\omega]
++\left(
+\frac{1}{\theta}
+-\frac{1}{2}\cot\frac{\theta}{2}
+\right)[\omega]^2.
+$$
+
+The result $[S]\theta=\log T$ is the constant twist matrix whose unit-time integration reaches $T$ from the identity.
+
+### 3.4 Wrenches
+
+A force $f$ applied at point $r$ creates the moment
+
+$$
+m=r\times f.
+$$
+
+A **wrench** combines moment and force:
+
+$$
+F=
+\begin{bmatrix}
+m\\f
+\end{bmatrix}
+\in\mathbb R^6.
+$$
+
+The instantaneous mechanical power associated with a twist-wrench pair is
+
+$$
+P=V^TF=\begin{bmatrix}
+\omega \\v
+\end{bmatrix}^T\begin{bmatrix}
+m\\f
+\end{bmatrix}=\omega^Tm+v^Tf.
+$$
+
+Power is independent of the coordinate frame. Since
+
+$$
+V_a=[\operatorname{Ad}_{T_{ab}}]V_b,
+$$
+
+power invariance requires the dual transformation
+
+$$
+\boxed{
+F_b=[\operatorname{Ad}_{T_{ab}}]^TF_a,
+\qquad
+F_a=[\operatorname{Ad}_{T_{ba}}]^TF_b.
+}
+$$
+
+Twists transform with the adjoint; wrenches transform with the transpose associated with the inverse direction. This pairing guarantees $V_a^TF_a=V_b^TF_b$.
+
+### 3.5 $SO(3)$ and $SE(3)$ in Parallel
+
+| Rotation concept | Rigid-motion counterpart |
+|:--|:--|
+| $R\in SO(3)$ | $T\in SE(3)$ |
+| $[\omega]\in so(3)$ | $[V]\in se(3)$ |
+| Rotation axis $\hat\omega$ | Screw axis $S$ |
+| Angular velocity $\omega=\hat\omega\dot\theta$ | Twist $V=S\dot\theta$ |
+| $[\omega_s]=\dot RR^{-1}$ | $[V_s]=\dot TT^{-1}$ |
+| $[\omega_b]=R^{-1}\dot R$ | $[V_b]=T^{-1}\dot T$ |
+| $R=e^{[\hat\omega]\theta}$ | $T=e^{[S]\theta}$ |
+| $[\hat\omega]\theta=\log R$ | $[S]\theta=\log T$ |
+| Coordinate change $\omega_a=R_{ab}\omega_b$ | Coordinate change $V_a=[\operatorname{Ad}_{T_{ab}}]V_b$ |
+
+This parallel is the chapter's main organizing idea. Learn one column and the other becomes easier to derive.
+
+### 3.6 Common Confusions
+
+#### "$R_{ab}$ rotates frame $\{a\}$ into frame $\{b\}$"
+
+This wording is ambiguous. A safer definition is: $R_{ab}$ contains the axes of $\{b\}$ expressed in $\{a\}$ and converts $b$-coordinates to $a$-coordinates.
+
+#### "Changing coordinates physically moves the vector"
+
+No. $p_a=R_{ab}p_b$ gives two numerical descriptions of the same geometric vector. By contrast, $p'=Rp$ can describe a physical rotation when both vectors use the same coordinate frame.
+
+#### "Pre- and postmultiplication are interchangeable"
+
+They are not, because 3D rotations and rigid transformations generally do not commute. Premultiplication applies an operation expressed in the space frame; postmultiplication applies one expressed in the body frame.
+
+#### "$SO(3)$ and $so(3)$ are the same space"
+
+$SO(3)$ contains finite rotation matrices and is not a vector space. $so(3)$ contains skew-symmetric tangent matrices and is a vector space. The exponential and logarithm connect them locally.
+
+#### "The space-twist linear component is the body-origin velocity"
+
+The body-origin velocity in space coordinates is $\dot p$. The space-twist component is $v_s=\dot p-\omega_s\times p$. The body-twist component $v_b=R^T\dot p$ is the body-origin velocity expressed in body coordinates.
+
+#### "A twist and a screw axis are identical"
+
+They use the same six-vector structure, but a screw axis is normalized. A general twist includes the motion rate: $V=S\dot\theta$.
+
+#### "Twists and wrenches transform in the same way"
+
+They are dual quantities. Twists use the adjoint; wrenches use the corresponding transpose in the opposite frame direction so that power remains invariant.
+
+### 3.7 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Rotation group | $SO(3)=\{R\mid R^TR=I,\det R=1\}$ |
+| Rotation inverse | $R^{-1}=R^T$ |
+| Frame composition | $R_{ac}=R_{ab}R_{bc}$, $T_{ac}=T_{ab}T_{bc}$ |
+| Cross-product matrix | $[x]y=x\times y$ |
+| Space angular velocity | $[\omega_s]=\dot RR^{-1}$ |
+| Body angular velocity | $[\omega_b]=R^{-1}\dot R$ |
+| Rodrigues formula | $e^{[\hat\omega]\theta}=I+\sin\theta[\hat\omega]+(1-\cos\theta)[\hat\omega]^2$ |
+| Homogeneous transform | $T=\begin{bmatrix}R&p\\0&1\end{bmatrix}$ |
+| Transform inverse | $T^{-1}=\begin{bmatrix}R^T&-R^Tp\\0&1\end{bmatrix}$ |
+| Twist matrix | $[V]=\begin{bmatrix}[\omega]&v\\0&0\end{bmatrix}$ |
+| Space/body twists | $[V_s]=\dot TT^{-1}$, $[V_b]=T^{-1}\dot T$ |
+| Adjoint | $[\operatorname{Ad}_T]=\begin{bmatrix}R&0\\{}[p]R&R\end{bmatrix}$ |
+| Twist frame change | $V_a=[\operatorname{Ad}_{T_{ab}}]V_b$ |
+| Screw axis | $S=(\hat s,-\hat s\times q+h\hat s)$ |
+| Rigid-motion exponential | $T=e^{[S]\theta}$ |
+| Wrench | $F=(m,f)$, with $m=r\times f$ |
+| Power | $P=V^TF$ |
+| Wrench frame change | $F_b=[\operatorname{Ad}_{T_{ab}}]^TF_a$ |
+
+### 3.8 Software Map
+
+The book's software mirrors the mathematical conversions:
+
+| Operation | Modern Robotics function |
+|:--|:--|
+| $\omega\leftrightarrow[\omega]$ | `VecToso3`, `so3ToVec` |
+| $[\omega]\theta\leftrightarrow R$ | `MatrixExp3`, `MatrixLog3` |
+| $(R,p)\leftrightarrow T$ | `RpToTrans`, `TransToRp` |
+| $T^{-1}$ | `TransInv` |
+| $V\leftrightarrow[V]$ | `VecTose3`, `se3ToVec` |
+| $[\operatorname{Ad}_T]$ | `Adjoint` |
+| $(q,\hat s,h)\rightarrow S$ | `ScrewToAxis` |
+| $[S]\theta\leftrightarrow T$ | `MatrixExp6`, `MatrixLog6` |
+
+The suffix `3` refers to rotations in $SO(3)$; the suffix `6` refers to rigid motions represented by six-dimensional twists.
+
+### 3.9 Understanding Checklist
+
+After this chapter, you should be able to:
+
+- read $R_{ab}$ and $T_{ab}$ unambiguously and compose frame chains by subscript cancellation;
+- verify whether a matrix belongs to $SO(3)$ or $SE(3)$;
+- distinguish representation, coordinate change, and physical displacement;
+- explain why premultiplication uses a space-frame operation and postmultiplication uses a body-frame operation;
+- convert between vectors and their $so(3)$ or $se(3)$ matrix forms;
+- derive space and body angular velocities or twists from $R(t)$ or $T(t)$;
+- use exponential coordinates to move between axis-angle or screw motion and finite transformations;
+- transform twists with the adjoint and wrenches with its dual transpose;
+- explain the power pairing $V^TF$.
+
+Chapter 4 uses these representations to express robot forward kinematics as products of matrix exponentials.
