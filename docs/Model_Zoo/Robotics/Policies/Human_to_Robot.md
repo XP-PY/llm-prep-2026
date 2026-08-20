@@ -45,30 +45,27 @@ Its answer is conditional:
 
 ## 3. What “Emergence” Means
 
-Let $D_{\mathrm{pre}}$ be the robot pretraining mixture, and let $D_R$ and $D_H$ be downstream robot and human data. Define the transfer gain as
+Here, **emergence** means that human demonstrations become useful only after pi0.5 has been pretrained on sufficiently diverse robot scenes, tasks, and embodiments.
+
+For each pretraining-diversity level $d$, the paper compares:
+
+* $S_R(d)$: fine-tuning with robot data only;
+* $S_{H+R}(d)$: fine-tuning with the same robot data plus human demonstrations.
+
+The human-to-robot transfer gain is
 
 $$
-\Delta_{\mathrm{H2R}}(D_{\mathrm{pre}})
-=
-J\!\left(\operatorname{FT}(\theta(D_{\mathrm{pre}}),D_R\cup D_H)\right)
--
-J\!\left(\operatorname{FT}(\theta(D_{\mathrm{pre}}),D_R)\right),
+G_{\mathrm{H2R}}(d)=S_{H+R}(d)-S_R(d).
 $$
 
-where $J$ is downstream robot performance.
+| Starting checkpoint | Observed transfer gain | Meaning |
+|:--|:--|:--|
+| Narrow robot pretraining | $G_{\mathrm{H2R}}\approx0$ | The model cannot use human data effectively |
+| Diverse robot pretraining | $G_{\mathrm{H2R}}>0$ | Human data improves robot performance |
 
-The central observation is
+For **Sort Eggs**, robot data teaches pick-and-place but not sorting by color. Human videos provide the sorting rule. Only the diversely pretrained VLA can combine that human-taught rule with its existing robot-control skill.
 
-$$
-\Delta_{\mathrm{H2R}}(D_{\mathrm{pre}}^{\mathrm{diverse}})
-\gg
-\Delta_{\mathrm{H2R}}(D_{\mathrm{pre}}^{\mathrm{narrow}}).
-$$
-
-Two qualifications matter:
-
-1. The controlled scaling variable is primarily **pretraining-data diversity**, not parameter count. All compared checkpoints use the pi0.5 architecture.
-2. “Emergence” describes a strongly nonlinear empirical trend in these experiments, not a proven universal threshold for every VLA or task.
+Thus, what emerges is **the ability to learn from the human embodiment**, not the task itself. The experiment scales pretraining-data diversity, not model parameter count, and does not show that human data can replace robot demonstrations.
 
 ## 4. Base Policy: pi0.5
 
