@@ -11,7 +11,7 @@
 | 1 | Preview | Not started |
 | 2 | [Configuration Space](#chapter-2-configuration-space) | Complete |
 | 3 | [Rigid-Body Motions](#chapter-3-rigid-body-motions) | Complete |
-| 4 | Forward Kinematics | Not started |
+| 4 | [Forward Kinematics](#chapter-4-forward-kinematics) | Complete |
 | 5 | Velocity Kinematics and Statics | Not started |
 | 6 | Inverse Kinematics | Not started |
 | 7 | Kinematics of Closed Chains | Not started |
@@ -48,6 +48,22 @@
 | 3.7 | [Formula Sheet](#37-formula-sheet) |
 | 3.8 | [Software Map](#38-software-map) |
 | 3.9 | [Understanding Checklist](#39-understanding-checklist) |
+
+## Chapter 4 Catalog
+
+| Section | Topic |
+|:--|:--|
+| 4.1 | [Forward Kinematics as a Map](#41-forward-kinematics-as-a-map) |
+| 4.2 | [Home Configuration and Joint Screw Axes](#42-home-configuration-and-joint-screw-axes) |
+| 4.3 | [Space-Form Product of Exponentials](#43-space-form-product-of-exponentials) |
+| 4.4 | [Worked Example: Planar 3R Chain](#44-worked-example-planar-3r-chain) |
+| 4.5 | [Body-Form Product of Exponentials](#45-body-form-product-of-exponentials) |
+| 4.6 | [Space and Body Forms Compared](#46-space-and-body-forms-compared) |
+| 4.7 | [Universal Robot Description Format](#47-universal-robot-description-format) |
+| 4.8 | [Common Confusions](#48-common-confusions) |
+| 4.9 | [Formula Sheet](#49-formula-sheet) |
+| 4.10 | [Software Map](#410-software-map) |
+| 4.11 | [Understanding Checklist](#411-understanding-checklist) |
 
 ---
 
@@ -1116,3 +1132,431 @@ After this chapter, you should be able to:
 - explain the power pairing $V^TF$.
 
 Chapter 4 uses these representations to express robot forward kinematics as products of matrix exponentials.
+
+---
+
+## Chapter 4: Forward Kinematics
+
+Forward kinematics computes the end-effector pose from known joint positions. The chapter's central result is that an open chain can be modeled by a home pose and one constant screw axis per joint.
+
+### 4.1 Forward Kinematics as a Map
+
+For an $n$-joint open chain, collect the joint variables into
+
+$$
+\theta=(\theta_1,\ldots,\theta_n).
+$$
+
+Forward kinematics is the map
+
+$$
+F:\mathcal C\rightarrow SE(3),
+\qquad
+\theta\mapsto T_{sb}(\theta),
+$$
+
+where $T_{sb}$ is the configuration of the end-effector frame $\{b\}$ expressed in the fixed space frame $\{s\}$.
+
+For an open chain, each valid $\theta$ determines one end-effector pose. The reverse need not be unique: several joint configurations may produce the same $T_{sb}$.
+
+#### Position-only and pose tasks
+
+The output space depends on what the task needs:
+
+| Required output | Typical task space |
+|:--|:--|
+| Planar end-point position | $\mathbb R^2$ |
+| Planar position and orientation | $SE(2)$ |
+| Spatial end-point position | $\mathbb R^3$ |
+| Spatial position and orientation | $SE(3)$ |
+
+The robot configuration still contains all joint variables even when the task uses only end-effector position.
+
+![Forward kinematics of a planar 3R chain](../../../assets/Modern_Robotics/ch04_planar_3r_forward_kinematics.png)
+
+*A planar 3R chain with link lengths $L_1,L_2,L_3$. Cropped from book Figure 4.1.*
+
+For the planar 3R chain,
+
+$$
+\begin{aligned}
+x &= L_1\cos\theta_1
+   +L_2\cos(\theta_1+\theta_2)
+   +L_3\cos(\theta_1+\theta_2+\theta_3),\\
+y &= L_1\sin\theta_1
+   +L_2\sin(\theta_1+\theta_2)
+   +L_3\sin(\theta_1+\theta_2+\theta_3),\\
+\phi&=\theta_1+\theta_2+\theta_3.
+\end{aligned}
+$$
+
+These trigonometric equations are manageable for a planar arm but become cumbersome for general spatial mechanisms. The product of exponentials gives a uniform construction instead.
+
+### 4.2 Home Configuration and Joint Screw Axes
+
+The PoE representation separates fixed robot geometry from changing joint values.
+
+#### Home configuration
+
+Choose a zero value for every joint and define
+
+$$
+\boxed{M=T_{sb}(0)}.
+$$
+
+$M\in SE(3)$ is the end-effector pose when $\theta=0$. The zero configuration is a modeling choice; it need not be the robot's physical power-on pose.
+
+#### Joint screw axis
+
+For each one-DOF joint, determine its positive motion at the home configuration and express it as
+
+$$
+S_i=
+\begin{bmatrix}
+\omega_i\\v_i
+\end{bmatrix}
+\in\mathbb R^6
+$$
+
+in the space frame $\{s\}$.
+
+For a **revolute joint**, choose:
+
+* a unit vector $\omega_i$ along the positive rotation axis;
+* any point $q_i$ on that axis, expressed in $\{s\}$.
+
+Then
+
+$$
+\boxed{
+S_i=
+\begin{bmatrix}
+\omega_i\\-\omega_i\times q_i
+\end{bmatrix}
+}.
+$$
+
+For a **prismatic joint**, if $v_i$ is a unit vector in the positive translation direction,
+
+$$
+\boxed{
+S_i=
+\begin{bmatrix}
+0\\v_i
+\end{bmatrix}
+}.
+$$
+
+Its matrix representation is
+
+$$
+[S_i]=
+\begin{bmatrix}
+[\omega_i]&v_i\\
+0&0
+\end{bmatrix}
+\in se(3).
+$$
+
+The rigid displacement produced by joint $i$ is $e^{[S_i]\theta_i}$. For a revolute joint, $\theta_i$ is an angle in radians; for a prismatic joint, it is a distance.
+
+### 4.3 Space-Form Product of Exponentials
+
+Suppose initially that only the most distal joint moves. Its motion left-multiplies the home pose:
+
+$$
+T_{sb}=e^{[S_n]\theta_n}M.
+$$
+
+Allowing the next joint toward the base to move gives
+
+$$
+T_{sb}=e^{[S_{n-1}]\theta_{n-1}}e^{[S_n]\theta_n}M.
+$$
+
+Continuing to the base yields the **space-form PoE formula**:
+
+$$
+\boxed{
+T_{sb}(\theta)
+=e^{[S_1]\theta_1}
+ e^{[S_2]\theta_2}
+ \cdots
+ e^{[S_n]\theta_n}M
+}.
+$$
+
+![Product-of-exponentials composition](../../../assets/Modern_Robotics/ch04_poe_composition.png)
+
+*Each joint exponential moves all links outward from that joint. Cropped from book Figure 4.2.*
+
+#### Required model data
+
+The space-form model needs only:
+
+1. the home pose $M$;
+2. the home-configuration screw axes $S_1,\ldots,S_n$ expressed in $\{s\}$;
+3. the joint values $\theta_1,\ldots,\theta_n$.
+
+No intermediate link frames are required.
+
+#### Evaluation order
+
+Because rigid transformations do not generally commute, the factors must stay in joint order. One implementation is
+
+```text
+T = identity
+for i = 1, ..., n:
+    T = T * exp([S_i] * theta_i)
+T = T * M
+```
+
+Although every $S_i$ is measured only once at the home configuration, the product correctly accounts for upstream joints moving downstream axes. The matrix composition performs that coordinate update implicitly.
+
+### 4.4 Worked Example: Planar 3R Chain
+
+At $\theta=0$, the arm in Figure 4.1 lies along the positive $x$-axis, so
+
+$$
+M=
+\begin{bmatrix}
+1&0&0&L_1+L_2+L_3\\
+0&1&0&0\\
+0&0&1&0\\
+0&0&0&1
+\end{bmatrix}.
+$$
+
+All three revolute axes point along $+z$. Points on the axes are
+
+$$
+q_1=(0,0,0),\qquad
+q_2=(L_1,0,0),\qquad
+q_3=(L_1+L_2,0,0).
+$$
+
+Using $v_i=-\omega_i\times q_i$ gives
+
+$$
+S_1=
+\begin{bmatrix}
+0\\0\\1\\0\\0\\0
+\end{bmatrix},\qquad
+S_2=
+\begin{bmatrix}
+0\\0\\1\\0\\-L_1\\0
+\end{bmatrix},\qquad
+S_3=
+\begin{bmatrix}
+0\\0\\1\\0\\-(L_1+L_2)\\0
+\end{bmatrix}.
+$$
+
+Therefore,
+
+$$
+\boxed{
+T_{s4}(\theta)
+=e^{[S_1]\theta_1}
+ e^{[S_2]\theta_2}
+ e^{[S_3]\theta_3}M
+}.
+$$
+
+Two quick checks catch many modeling errors:
+
+* Setting $\theta=0$ must return $T_{s4}=M$.
+* The final orientation must be a rotation by $\theta_1+\theta_2+\theta_3$.
+
+Expanding the translation part produces the $x$ and $y$ equations in Section 4.1. The PoE and trigonometric models describe the same geometry.
+
+### 4.5 Body-Form Product of Exponentials
+
+The same home joint axes can instead be expressed in the home end-effector frame $\{b\}$. Define
+
+$$
+\boxed{
+B_i=\operatorname{Ad}_{M^{-1}}S_i
+}
+$$
+
+or equivalently
+
+$$
+[B_i]=M^{-1}[S_i]M.
+$$
+
+Using the conjugation identity
+
+$$
+M e^{[B_i]\theta_i}
+=e^{[S_i]\theta_i}M,
+$$
+
+the space formula becomes the **body-form PoE formula**:
+
+$$
+\boxed{
+T_{sb}(\theta)
+=M e^{[B_1]\theta_1}
+ e^{[B_2]\theta_2}
+ \cdots
+ e^{[B_n]\theta_n}
+}.
+$$
+
+For the planar 3R arm, let $L=L_1+L_2+L_3$. The body screw axes are
+
+$$
+\begin{aligned}
+B_1&=(0,0,1,\;0,L,0)^T,\\
+B_2&=(0,0,1,\;0,L_2+L_3,0)^T,\\
+B_3&=(0,0,1,\;0,L_3,0)^T.
+\end{aligned}
+$$
+
+These are not new physical joints. They are the same home axes represented in different coordinates.
+
+### 4.6 Space and Body Forms Compared
+
+| Property | Space form | Body form |
+|:--|:--|:--|
+| Formula | $e^{[S_1]\theta_1}\cdots e^{[S_n]\theta_n}M$ | $M e^{[B_1]\theta_1}\cdots e^{[B_n]\theta_n}$ |
+| Axis coordinates | Fixed space frame at home | End-effector frame at home |
+| Conversion | $S_i=\operatorname{Ad}_M B_i$ | $B_i=\operatorname{Ad}_{M^{-1}}S_i$ |
+| Natural multiplication | Exponentials before $M$ | Exponentials after $M$ |
+| Output | Same $T_{sb}(\theta)$ | Same $T_{sb}(\theta)$ |
+
+The labels **space** and **body** describe how the constant home screw axes are represented. They do not mean that one formula gives a space twist and the other gives a body twist; both return the same finite end-effector pose.
+
+#### PoE versus Denavit-Hartenberg
+
+| Representation | Main idea | Tradeoff |
+|:--|:--|:--|
+| PoE | Home pose plus joint screws | Geometric and uniform for revolute/prismatic joints; not parameter-minimal |
+| D-H | Special frame on each link and four parameters per adjacent-frame transform | Uses a minimal structural parameterization but frame assignment is restrictive |
+
+For an $n$-joint spatial chain, the book counts $6n$ screw-axis numbers for PoE versus $3n$ structural D-H parameters, excluding the $n$ changing joint values. The six components of each screw are constrained, so this count does not imply six independent parameters per one-DOF joint.
+
+### 4.7 Universal Robot Description Format
+
+URDF is an XML format used by ROS and other robotics software to describe a robot as a tree of links connected by joints.
+
+![URDF link-joint tree](../../../assets/Modern_Robotics/ch04_urdf_tree.png)
+
+*Links are tree nodes and joints are edges. Cropped from book Figure 4.10.*
+
+#### Joint information
+
+A joint specifies:
+
+| Field | Meaning |
+|:--|:--|
+| `parent` / `child` | Links connected by the joint |
+| `type` | Revolute, continuous, prismatic, fixed, and so on |
+| `origin xyz` | Child joint-frame position relative to the parent at zero |
+| `origin rpy` | Child joint-frame orientation relative to the parent at zero |
+| `axis xyz` | Positive rotation or translation axis in the joint/child frame |
+
+The chapter uses fixed-axis roll-pitch-yaw: roll about the fixed $x$-axis, then pitch about fixed $y$, then yaw about fixed $z$.
+
+#### Link information
+
+A link may specify:
+
+* mass;
+* center-of-mass frame;
+* the six independent entries of its symmetric inertia matrix;
+* visual and collision geometry.
+
+Joint data determines kinematics. Link inertial data becomes necessary for dynamics.
+
+#### Relationship to forward kinematics
+
+URDF explicitly stores each parent-child zero transform and joint axis. Forward kinematics traverses the path from the base to a selected link and composes those transforms. The same description can be converted to PoE by computing:
+
+1. the selected end-effector home pose $M$;
+2. every joint axis expressed in one common space frame at home.
+
+URDF supports tree mechanisms with branches, but a tree cannot directly represent a closed kinematic loop.
+
+### 4.8 Common Confusions
+
+#### "The screw axes must be recomputed after each joint moves"
+
+Not in the PoE model. $S_i$ and $B_i$ are constant axes measured at the home configuration. The ordered matrix product accounts for the movement of downstream geometry.
+
+#### "$S_i$ is the current axis in the world frame"
+
+$S_i$ is the joint axis expressed in the space frame **at home**. After upstream joints move, the physical axis may have a different current space representation.
+
+#### "$B_i$ is measured in the current end-effector frame"
+
+$B_i$ is expressed in the end-effector frame **at home**. It is constant model data, not a value recomputed from the current pose.
+
+#### "$M$ should be the identity"
+
+Only if the chosen end-effector frame coincides with the space frame at home. Usually $M$ contains both a fixed translation and a fixed orientation.
+
+#### "The exponential factors can be reordered"
+
+Generally no:
+
+$$
+e^{[S_i]\theta_i}e^{[S_j]\theta_j}
+\neq
+e^{[S_j]\theta_j}e^{[S_i]\theta_i}.
+$$
+
+Joint order is part of the robot's kinematic structure.
+
+#### "Forward kinematics has a unique inverse"
+
+Forward kinematics is single-valued for an open chain, but it is not generally one-to-one. Different joint configurations can reach the same end-effector pose, and some desired poses are unreachable.
+
+#### "URDF `origin` is the current joint pose"
+
+The `origin` describes the fixed parent-child relationship at the joint's zero value. The joint motion is applied in addition to that zero transform.
+
+### 4.9 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Forward-kinematics map | $F(\theta)=T_{sb}(\theta)\in SE(3)$ |
+| Home pose | $M=T_{sb}(0)$ |
+| Revolute space screw | $S=(\omega,-\omega\times q)$, $\|\omega\|=1$ |
+| Prismatic space screw | $S=(0,v)$, $\|v\|=1$ |
+| Screw matrix | $[S]=\begin{bmatrix}[\omega]&v\\0&0\end{bmatrix}$ |
+| Joint displacement | $e^{[S_i]\theta_i}\in SE(3)$ |
+| Space PoE | $T_{sb}=e^{[S_1]\theta_1}\cdots e^{[S_n]\theta_n}M$ |
+| Body screw from space screw | $B_i=\operatorname{Ad}_{M^{-1}}S_i$ |
+| Space screw from body screw | $S_i=\operatorname{Ad}_M B_i$ |
+| Body PoE | $T_{sb}=M e^{[B_1]\theta_1}\cdots e^{[B_n]\theta_n}$ |
+
+### 4.10 Software Map
+
+| Operation | Modern Robotics function |
+|:--|:--|
+| Space-form forward kinematics | `FKinSpace(M, Slist, thetalist)` |
+| Body-form forward kinematics | `FKinBody(M, Blist, thetalist)` |
+| Screw vector to $se(3)$ matrix | `VecTose3` |
+| Joint exponential | `MatrixExp6(VecTose3(S * theta))` |
+| Adjoint coordinate conversion | `Adjoint` |
+
+In the book's software convention, `Slist` and `Blist` are $6\times n$ matrices whose $i$th columns are the corresponding joint screw axes. The entries of `thetalist` must follow the same joint order.
+
+### 4.11 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* define forward kinematics as a map from joint space to an end-effector task space;
+* identify the home pose $M$ from a robot's zero configuration;
+* construct revolute and prismatic screw axes with the correct positive direction;
+* write and evaluate the space-form PoE formula in the correct order;
+* convert space screw axes to body screw axes with $\operatorname{Ad}_{M^{-1}}$;
+* explain why the space and body formulas produce the same pose;
+* derive the planar 3R model and check it against elementary trigonometry;
+* distinguish PoE, D-H, and URDF representations;
+* identify the kinematic and inertial information stored in a URDF tree.
+
+Chapter 5 differentiates the PoE forward-kinematics map to obtain the manipulator Jacobian and relate joint velocities to end-effector twists.
