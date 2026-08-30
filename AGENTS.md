@@ -20,6 +20,35 @@ Write concise, instructional Markdown. Prefer short sections, direct explanation
 
 Keep terminology consistent with neighboring documents, especially for alignment, inference, and architecture topics.
 
+## Research Note Requirements
+
+### Paper Notes
+
+- Use the paper PDF specified by the user as the primary source. Do not substitute a web summary for the supplied paper.
+- Save the note in the appropriate model or topic directory. Current model-note locations include:
+  - robot policies: `docs/Model_Zoo/Robotics/Policies/`
+  - vision models: `docs/Model_Zoo/Vision_Models/`
+  - vision-language models: `docs/Model_Zoo/Vision_Language_Models/`
+- Match the structure, terminology, and level of detail of neighboring notes in the destination directory.
+- Begin with a brief description that identifies the model or method and its main contribution.
+- Explain the central method precisely. Use mathematical notation when it makes the architecture, objective, training process, or inference procedure clearer.
+- Cover the aspects requested for the specific paper, such as policy structure, datasets, training settings, inference, ablations, and evaluation results. Clearly distinguish pre-training, post-training, fine-tuning, and zero-shot evaluation where applicable.
+- Keep the explanation concise and avoid duplicated sections or extensive copying from the paper.
+- Add only figures that materially improve understanding. Crop them from the paper, store them under `assets/<Note_Name>/`, reference them with repository-relative paths, and add a short descriptive caption.
+- Update the relevant `README.md` index and file tree when adding, renaming, moving, or removing a paper note.
+
+### Book Notes
+
+- Base each note directly on the book PDF supplied by the user.
+- Build book notes incrementally, one requested chapter at a time. Append new chapters to the existing book note rather than creating one file per chapter.
+- Keep a navigable catalog or table of contents at the top of each book note and update it whenever a chapter is added.
+- Do not extensively copy the chapter. Explain its core material precisely, prioritizing important definitions, formulas, algorithms, and short clarifying examples.
+- Add figures from the book only when they are necessary for a clear explanation. Store extracted figures under the corresponding book asset directory and provide descriptive captions.
+- Maintain consistent notation across chapters and with the source book. Check that equations, Mermaid diagrams, code fences, anchors, and relative links render correctly.
+- Current book-note locations are:
+  - robotics: `docs/Books/Robotics/Modern_Robotics.md`
+  - reinforcement learning: `docs/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md`
+
 ## Testing Guidelines
 Testing here is mostly content validation:
 
