@@ -13,7 +13,7 @@
 | 3 | [Rigid-Body Motions](#chapter-3-rigid-body-motions) | Complete |
 | 4 | [Forward Kinematics](#chapter-4-forward-kinematics) | Complete |
 | 5 | [Velocity Kinematics and Statics](#chapter-5-velocity-kinematics-and-statics) | Complete |
-| 6 | Inverse Kinematics | Not started |
+| 6 | [Inverse Kinematics](#chapter-6-inverse-kinematics) | Complete |
 | 7 | Kinematics of Closed Chains | Not started |
 | 8 | Dynamics of Open Chains | Not started |
 | 9 | Trajectory Generation | Not started |
@@ -82,6 +82,24 @@
 | 5.11 | [Formula Sheet](#511-formula-sheet) |
 | 5.12 | [Software Map](#512-software-map) |
 | 5.13 | [Understanding Checklist](#513-understanding-checklist) |
+
+## Chapter 6 Catalog
+
+| Section | Topic |
+|:--|:--|
+| 6.1 | [The Inverse Kinematics Problem](#61-the-inverse-kinematics-problem) |
+| 6.2 | [Analytic Example: Planar 2R Arm](#62-analytic-example-planar-2r-arm) |
+| 6.3 | [Analytic IK for PUMA and Stanford Arms](#63-analytic-ik-for-puma-and-stanford-arms) |
+| 6.4 | [Newton-Raphson and Local Linearization](#64-newton-raphson-and-local-linearization) |
+| 6.5 | [The Jacobian Pseudoinverse](#65-the-jacobian-pseudoinverse) |
+| 6.6 | [Numerical IK on SE(3)](#66-numerical-ik-on-se3) |
+| 6.7 | [Worked Example and Python Implementation](#67-worked-example-and-python-implementation) |
+| 6.8 | [Inverse Velocity Kinematics and Redundancy](#68-inverse-velocity-kinematics-and-redundancy) |
+| 6.9 | [Convergence and Closed Task-Space Loops](#69-convergence-and-closed-task-space-loops) |
+| 6.10 | [Common Confusions](#610-common-confusions) |
+| 6.11 | [Formula Sheet](#611-formula-sheet) |
+| 6.12 | [Software Map](#612-software-map) |
+| 6.13 | [Understanding Checklist](#613-understanding-checklist) |
 
 ---
 
@@ -1612,7 +1630,7 @@ J(\theta)=\frac{\partial f}{\partial \theta}.
 }
 $$
 
-Here, $J(\theta)\in\mathbb R^{m\times n}$ is configuration dependent. Its $i$th column is the output velocity created by setting $\dot\theta_i=1$ and all other joint rates to zero.
+Here, $J(\theta)\in\mathbb R^{m\times n}$ is configuration dependent. Its $i$ th column is the output velocity created by setting $\dot\theta_i=1$ and all other joint rates to zero.
 
 For a planar 2R arm,
 
@@ -2108,3 +2126,541 @@ After this chapter, you should be able to:
 * read manipulability and force ellipsoids from the eigenvalues and eigenvectors of $JJ^T$.
 
 Chapter 6 uses these Jacobian tools to solve inverse kinematics: finding joint configurations that realize a desired end-effector pose.
+
+---
+
+## Chapter 6: Inverse Kinematics
+
+Forward kinematics evaluates a pose from joint coordinates. **Inverse kinematics (IK)** works in the other direction: it finds joint coordinates that realize a requested pose. This chapter develops geometric solutions for special arm structures and a general iterative method combining forward kinematics, a pose error, and a Jacobian.
+
+*Source: Chapter 6 of the supplied May 2017 book PDF, printed pp. 219-236. The sections below group the chapter's main ideas; their numbering follows this note's catalog.*
+
+### 6.1 The Inverse Kinematics Problem
+
+Given the forward-kinematics map $T(\theta)$ and a desired pose $T_{sd}\in SE(3)$, find
+
+$$
+\boxed{\theta_d\in\mathbb R^n\quad\text{such that}\quad T(\theta_d)=T_{sd}.}
+$$
+
+Here, $\theta$ contains all joint coordinates, including translations for prismatic joints. A task may also constrain only selected end-effector coordinates, such as position $x=f(\theta)\in\mathbb R^3$.
+
+| Situation | Possible IK outcome |
+|:--|:--|
+| Target outside the task workspace | No solution |
+| Reachable target with different arm postures | Multiple isolated solutions |
+| Redundant robot at a regular configuration | A continuous family of solutions |
+| Singular configuration | Solution branches can meet, or special continuous families can appear |
+
+Redundancy is relative to the **task**. A planar 3R arm is redundant for a two-coordinate position task, but generally not for a three-coordinate planar pose task. At a solution where an $m$-coordinate task Jacobian has full row rank, the local solution family has dimension $n-m$.
+
+A six-joint spatial arm typically has finitely many IK solutions for a reachable full pose, but six joints do not guarantee either reachability or uniqueness. Joint limits further restrict the admissible configurations.
+
+### 6.2 Analytic Example: Planar 2R Arm
+
+For link lengths $L_1,L_2>0$, the position equations are
+
+$$
+x=L_1\cos\theta_1+L_2\cos(\theta_1+\theta_2),
+\qquad
+y=L_1\sin\theta_1+L_2\sin(\theta_1+\theta_2).
+$$
+
+![Planar 2R workspace, two arm postures, and the triangle used for geometric IK](../../../assets/Modern_Robotics/ch06_planar_2r_inverse_kinematics.png)
+
+*The same interior workspace point admits two elbow postures. The triangle on the right provides the geometric IK solution. Cropped from book Figure 6.1, printed p. 220.*
+
+#### Reachability and elbow branches
+
+Squaring and adding the position equations gives
+
+$$
+r^2=x^2+y^2=L_1^2+L_2^2+2L_1L_2\cos\theta_2.
+$$
+
+Define
+
+$$
+D=\frac{x^2+y^2-L_1^2-L_2^2}{2L_1L_2}.
+$$
+
+A solution requires $|D|\leq 1$, equivalently
+
+$$
+\boxed{|L_1-L_2|\leq r\leq L_1+L_2.}
+$$
+
+The two elbow branches can be written as
+
+$$
+\boxed{\theta_2=\operatorname{atan2}\!\left(\pm\sqrt{1-D^2},D\right).}
+$$
+
+For each choice of $\theta_2$, recover the shoulder angle using
+
+$$
+\boxed{
+\theta_1=\operatorname{atan2}(y,x)
+-\operatorname{atan2}(L_2\sin\theta_2,L_1+L_2\cos\theta_2).
+}
+$$
+
+This is an equivalent form of the book's law-of-cosines construction. The first angle points toward the target; the second is the angle between that direction and link 1. `atan2(y, x)` preserves the quadrant and handles $x=0$ when $y\ne 0$.
+
+Ignoring joint limits and identifying angles modulo $2\pi$, there are two solutions in the annulus interior and one where the branches merge at a boundary, assuming $L_1\ne L_2$. The special case $L_1=L_2$, $(x,y)=(0,0)$ has infinitely many solutions: $\theta_2=\pi$ and any $\theta_1$.
+
+#### Short example
+
+With $L_1=L_2=1$ and target $(x,y)=(1,1)$, $D=0$, so
+
+$$
+(\theta_1,\theta_2)=(0,\pi/2)
+\quad\text{or}\quad
+(\pi/2,-\pi/2).
+$$
+
+Both reach the same point, but their endpoint orientations $\theta_1+\theta_2$ differ. Specifying position alone and specifying a full pose are different IK problems.
+
+### 6.3 Analytic IK for PUMA and Stanford Arms
+
+#### Decouple wrist position from orientation
+
+The book's PUMA-type 6R and Stanford-type RRPRRR arms have three wrist axes intersecting at a common **wrist center**. Wrist rotation changes orientation without moving this center, so IK separates into:
+
+1. Find the first three joint coordinates that place the wrist center correctly.
+2. Find the last three joint angles that produce the remaining orientation.
+
+If the tool origin is offset from the wrist center by a fixed vector $r$ expressed in the tool frame, a desired tool pose $(R_d,p_d)$ requires wrist-center position
+
+$$
+p_w=p_d-R_d r.
+$$
+
+The position formulas below use $p=(p_x,p_y,p_z)=p_w$, not necessarily the tool-tip position.
+
+#### PUMA-type arm: shoulder and elbow geometry
+
+For the zero-shoulder-offset model in book Figure 6.2, let $a_2,a_3$ be the two arm-link lengths. Choose a signed radial coordinate
+
+$$
+\rho=\pm\sqrt{p_x^2+p_y^2}.
+$$
+
+For $\rho>0$, choose $\theta_1=\operatorname{atan2}(p_y,p_x)$; for $\rho<0$, add $\pi$. The remaining position equations reduce to a planar 2R problem with target $(\rho,p_z)$:
+
+$$
+D=\frac{\rho^2+p_z^2-a_2^2-a_3^2}{2a_2a_3},
+\qquad
+\theta_3=\operatorname{atan2}\!\left(\pm\sqrt{1-D^2},D\right),
+$$
+
+$$
+\theta_2=\operatorname{atan2}(p_z,\rho)
+-\operatorname{atan2}(a_3\sin\theta_3,a_2+a_3\cos\theta_3).
+$$
+
+Two shoulder choices and two elbow choices give up to four position branches. At $p_x=p_y=0$, the wrist center lies on the first joint axis and its position no longer determines $\theta_1$.
+
+For the book's shoulder offset $d_1$, the projected geometry instead gives $\rho^2=p_x^2+p_y^2-d_1^2$, and
+
+$$
+D=\frac{p_x^2+p_y^2+p_z^2-d_1^2-a_2^2-a_3^2}{2a_2a_3}.
+$$
+
+Both $p_x^2+p_y^2\geq d_1^2$ and $|D|\leq1$ are necessary. The offset changes the shoulder-angle construction, yielding the lefty/righty and elbow-up/elbow-down branches shown in book Figure 6.5.
+
+#### Solve the remaining wrist orientation
+
+Using the space-form PoE model, once $\theta_1,\theta_2,\theta_3$ are known,
+
+$$
+e^{[S_4]\theta_4}e^{[S_5]\theta_5}e^{[S_6]\theta_6}
+=e^{-[S_3]\theta_3}e^{-[S_2]\theta_2}e^{-[S_1]\theta_1}T_{sd}M^{-1}.
+$$
+
+The right-hand side is known. For the book's home wrist-axis directions $z,y,x$, its rotation block $R$ satisfies
+
+$$
+R=R_z(\theta_4)R_y(\theta_5)R_x(\theta_6).
+$$
+
+Thus the orientation subproblem is ZYX Euler-angle extraction. For the branch with $\cos\theta_5>0$,
+
+$$
+\theta_4=\operatorname{atan2}(R_{21},R_{11}),\quad
+\theta_5=\operatorname{atan2}\!\left(-R_{31},\sqrt{R_{11}^2+R_{21}^2}\right),\quad
+\theta_6=\operatorname{atan2}(R_{32},R_{33}).
+$$
+
+A second nonsingular branch is $(\theta_4+\pi,\pi-\theta_5,\theta_6+\pi)$ modulo $2\pi$. When $\cos\theta_5=0$, the first and last wrist rotations cannot be independently recovered. These formulas depend on the stated wrist-axis convention.
+
+#### Stanford-type arm: replace the elbow by a prismatic joint
+
+For the geometry in book Figure 6.6, define
+
+$$
+r=\sqrt{p_x^2+p_y^2},\qquad s=p_z-d_1.
+$$
+
+One position branch is
+
+$$
+\theta_1=\operatorname{atan2}(p_y,p_x),\qquad
+\theta_2=\operatorname{atan2}(s,r),\qquad
+\boxed{\theta_3=\sqrt{r^2+s^2}-a_2.}
+$$
+
+Here $d_1$ is the base-height offset, $a_2$ is the fixed radial length, and $\theta_3$ is a translation. The last expression follows from $(\theta_3+a_2)^2=r^2+s^2$, taking the positive total radial extension. Another branch uses $\theta_1+\pi$ and $\pi-\theta_2$ with the same extension. Actual prismatic travel limits must still be checked. The wrist-orientation calculation is the same as above.
+
+### 6.4 Newton-Raphson and Local Linearization
+
+An analytic solution exploits a particular mechanism's geometry. Numerical IK instead repeatedly corrects an initial guess using the local differential map. An analytic solution for an idealized arm can also initialize numerical IK for a calibrated model whose axes differ slightly from the ideal geometry.
+
+For a scalar equation $g(\theta)=0$, linearize about the current iterate $\theta^k$:
+
+$$
+0\approx g(\theta^k)+g'(\theta^k)\Delta\theta.
+$$
+
+Solving for the correction gives the Newton-Raphson update
+
+$$
+\theta^{k+1}=\theta^k-\frac{g(\theta^k)}{g'(\theta^k)}.
+$$
+
+For an IK task $x=f(\theta)$, let $e^k=x_d-f(\theta^k)$. The corresponding linearization is
+
+$$
+f(\theta^k+\Delta\theta)\approx f(\theta^k)+J(\theta^k)\Delta\theta,
+\qquad
+\boxed{J(\theta^k)\Delta\theta\approx e^k.}
+$$
+
+If $J$ is square and invertible,
+
+$$
+\theta^{k+1}=\theta^k+J(\theta^k)^{-1}e^k.
+$$
+
+The plus sign follows because $J=\partial f/\partial\theta$, whereas $\partial g/\partial\theta=-J$. In code, solve the linear system rather than explicitly forming an inverse.
+
+Each iteration must recompute both the error and the Jacobian. The correction solves a **local approximation**; it generally does not solve the original nonlinear problem in one step.
+
+### 6.5 The Jacobian Pseudoinverse
+
+When $J\in\mathbb R^{m\times n}$ is rectangular or singular, replace the inverse by the Moore-Penrose pseudoinverse:
+
+$$
+\boxed{\Delta\theta=J^\dagger e.}
+$$
+
+| Linearized problem | Meaning of $J^\dagger e$ |
+|:--|:--|
+| $J\Delta\theta=e$ has an exact solution | The exact solution with the smallest Euclidean joint-step norm |
+| No exact solution exists | The minimum-norm solution among those minimizing $\lVert J\Delta\theta-e\rVert_2$ |
+
+The second case occurs when $e$ has a component outside the column space of $J$. Even a tall or rank-deficient Jacobian can solve a particular error exactly if that error lies in its column space.
+
+Under the stated rank conditions,
+
+$$
+J^\dagger=
+\begin{cases}
+J^T(JJ^T)^{-1},&\text{full row rank},\\
+(J^TJ)^{-1}J^T,&\text{full column rank}.
+\end{cases}
+$$
+
+These formulas explain the geometry; an SVD-based pseudoinverse is preferable for numerical computation. With $J=U\Sigma V^T$, use $J^\dagger=V\Sigma^\dagger U^T$, reciprocating nonzero singular values and leaving zero singular values at zero. A numerical implementation uses a threshold for effectively zero values.
+
+Small retained singular values produce large corrections. A pseudoinverse makes the linearized problem well defined, but does not ensure convergence of nonlinear IK or reachability of the target.
+
+### 6.6 Numerical IK on SE(3)
+
+#### Turn the pose discrepancy into a body twist
+
+For a full pose, $T_{sd}-T_{sb}(\theta^k)$ is a $4\times4$ matrix difference, not the six-component twist required by the geometric Jacobian. Instead, express the target in the current body frame:
+
+$$
+T_{bd}=T_{sb}(\theta^k)^{-1}T_{sd}.
+$$
+
+Take its matrix logarithm and convert from an $se(3)$ matrix to a six-vector:
+
+$$
+\boxed{
+[V_b]=\log T_{bd},\qquad
+V_b=\begin{bmatrix}\omega_b\\v_b\end{bmatrix}=(\log T_{bd})^\vee.
+}
+$$
+
+The vee symbol $\vee$ reverses the bracket map: it extracts the three angular and three linear components. This construction satisfies
+
+$$
+T_{sb}(\theta^k)e^{[V_b]}=T_{sd}.
+$$
+
+Thus $V_b$ describes a constant body twist that would carry the current frame to the target if followed for **unit time**. Here it is a pose-error coordinate used by the solver; it is not a measured velocity or a command to move the robot for one second.
+
+For a small joint correction,
+
+$$
+T(\theta^k+\Delta\theta)
+\approx T(\theta^k)e^{[J_b(\theta^k)\Delta\theta]},
+$$
+
+which motivates $J_b\Delta\theta\approx V_b$ and the update
+
+$$
+\boxed{\theta^{k+1}=\theta^k+J_b(\theta^k)^\dagger V_b.}
+$$
+
+The logarithm gives an exact finite displacement for the end-effector frame. Realizing it through this joint correction is approximate because the robot Jacobian changes as the joints move.
+
+#### Stop using separate angular and linear tolerances
+
+At every iteration, recompute $V_b$ and require **both**
+
+$$
+\lVert\omega_b\rVert\leq\epsilon_\omega,
+\qquad
+\lVert v_b\rVert\leq\epsilon_v.
+$$
+
+The angular and linear components have different units: radians and the model's length unit under the unit-time interpretation. Separate tolerances avoid adding these directly into a single unscaled error threshold.
+
+In general, $v_b$ is not simply $R_{sb}^T(p_d-p_{sb})$: the matrix logarithm couples translation with rotation. They coincide for pure translation and agree to first order near zero pose error.
+
+#### Space-frame formulation
+
+Express the same displacement twist in the space frame using the current pose:
+
+$$
+V_s=\operatorname{Ad}_{T_{sb}}V_b,
+\qquad
+\boxed{\theta^{k+1}=\theta^k+J_s(\theta^k)^\dagger V_s.}
+$$
+
+Always pair $V_b$ with $J_b$, or $V_s$ with $J_s$. These describe the same exact linear constraint after a frame change. However, when only an approximate least-squares step is possible, their unweighted pseudoinverse steps can differ: the adjoint is generally not orthogonal, so it changes the residual metric. Linear-error tolerance values are also frame dependent.
+
+### 6.7 Worked Example and Python Implementation
+
+Book Example 6.1 uses a planar 2R arm with both links of length $1\,\mathrm m$. At home the arm points along $+x$, with
+
+$$
+M=\begin{bmatrix}
+1&0&0&2\\0&1&0&0\\0&0&1&0\\0&0&0&1
+\end{bmatrix},\qquad
+B_1=\begin{bmatrix}0\\0\\1\\0\\2\\0\end{bmatrix},\quad
+B_2=\begin{bmatrix}0\\0\\1\\0\\1\\0\end{bmatrix}.
+$$
+
+The target pose is generated by $(\theta_1,\theta_2)=(30^\circ,90^\circ)$: its position is approximately $(0.366,1.366)\,\mathrm m$ and its orientation is $120^\circ$ about $z$. Start from $(0^\circ,30^\circ)$ and use $\epsilon_\omega=10^{-3}\,\mathrm{rad}$, $\epsilon_v=10^{-4}\,\mathrm m$.
+
+![Initial and updated arm configurations with the screw motion toward the target frame](../../../assets/Modern_Robotics/ch06_newton_raphson_pose_update.png)
+
+*The first joint update approaches the target pose. The curved dashed path represents the constant-twist frame motion used to define the error; it is not the arm's executed trajectory. Cropped from book Figure 6.8, printed p. 231.*
+
+| Iteration $k$ | Joint angles in degrees | $\lVert\omega_b\rVert$ | $\lVert v_b\rVert$ |
+|:--:|:--|:--:|:--:|
+| 0 | $(0.00,30.00)$ | 1.571 | 1.924 |
+| 1 | $(34.23,79.18)$ | 0.115 | 0.131 |
+| 2 | $(29.98,90.22)$ | 0.004 | 0.004 |
+| 3 | $(30.00,90.00)$ | Below $10^{-3}$ | Below $10^{-4}$ |
+
+The table rounds the book's intermediate values. Although a 2R arm cannot realize an arbitrary planar pose, this particular target is reachable because it was generated by the same arm's forward kinematics.
+
+The following implementation exposes the iteration while using the [official Modern Robotics Python library](https://github.com/NxRLab/ModernRobotics/tree/master/packages/Python) for rigid-transform operations and Jacobians. It returns the final estimate, a convergence flag, and the number of updates.
+
+```python
+import numpy as np
+import modern_robotics as mr
+
+
+def ik_body(Blist, M, T_sd, theta0, eomg=1e-3, ev=1e-4, max_iter=20):
+    theta = np.array(theta0, dtype=float, copy=True)
+    for k in range(max_iter + 1):
+        T_sb = mr.FKinBody(M, Blist, theta)
+        V_b = mr.se3ToVec(mr.MatrixLog6(mr.TransInv(T_sb) @ T_sd))
+        if np.linalg.norm(V_b[:3]) <= eomg and np.linalg.norm(V_b[3:]) <= ev:
+            return theta, True, k
+        if k == max_iter:
+            return theta, False, k
+        theta += np.linalg.pinv(mr.JacobianBody(Blist, theta)) @ V_b
+
+
+M = np.eye(4)
+M[0, 3] = 2.0
+Blist = np.array([
+    [0, 0],
+    [0, 0],
+    [1, 1],
+    [0, 0],
+    [2, 1],
+    [0, 0],
+], dtype=float)
+
+# Generate a valid target pose without rounding its rotation matrix.
+T_sd = mr.FKinBody(M, Blist, np.deg2rad([30.0, 90.0]))
+theta, success, updates = ik_body(
+    Blist, M, T_sd, np.deg2rad([0.0, 30.0])
+)
+print(success, updates, np.round(np.rad2deg(theta), 2))
+# True 3 [30. 90.]
+```
+
+For a standalone run, place this block in a scratch script such as `/tmp/ik_example.py`, install its dependencies with `python3 -m pip install numpy modern_robotics` in your Python environment, and run `python3 /tmp/ik_example.py`. All input angles are in radians. This implements the chapter's unconstrained iteration; the success flag reports pose-error convergence only.
+
+### 6.8 Inverse Velocity Kinematics and Redundancy
+
+Configuration IK finds a pose solution. **Inverse velocity kinematics** finds joint rates for a requested instantaneous twist:
+
+$$
+J(\theta)\dot\theta=V_d,\qquad
+\boxed{\dot\theta=J(\theta)^\dagger V_d.}
+$$
+
+$J$ and $V_d$ must refer to the same frame. For example, the desired trajectory's space twist satisfies $[V_{s,d}]=\dot T_{sd}T_{sd}^{-1}$. A desired body twist defined in the desired frame must be transformed into the current body frame before pairing it with the current $J_b$.
+
+This allows velocity tracking without solving full configuration IK at every timestep. Integrating velocity commands can accumulate pose error, so trajectory tracking also needs pose feedback, developed in Chapter 11.
+
+#### Minimum-norm motion and null-space freedom
+
+When the task is feasible, all exact velocity solutions can be written as
+
+$$
+\dot\theta=J^\dagger V_d+(I-J^\dagger J)z,
+$$
+
+where $z$ is arbitrary. Since $J(I-J^\dagger J)=0$, the second term does not change the instantaneous task velocity. The pseudoinverse alone chooses the minimum Euclidean norm, corresponding to zero added null-space motion. This is a local joint-rate criterion, not a guarantee of the globally nearest IK configuration.
+
+#### Weighted motion
+
+The chapter also considers different costs for joint velocities. For a symmetric positive-definite weight $W$ and a full-row-rank $J$,
+
+$$
+\min_{\dot\theta}\frac12\dot\theta^TW\dot\theta
+\quad\text{subject to}\quad J\dot\theta=V_d
+$$
+
+has solution
+
+$$
+\boxed{
+\dot\theta=G V_d,\qquad
+G=W^{-1}J^T(JW^{-1}J^T)^{-1}.
+}
+$$
+
+For $W=I$, this becomes the ordinary pseudoinverse solution. Taking $W$ to be the robot's mass matrix minimizes instantaneous kinetic energy. The book denotes that matrix by $M(\theta)$; $W$ here distinguishes it from the home transform $M$ used in forward kinematics.
+
+#### Add a secondary configuration objective
+
+Let $h(\theta)$ be a potential or posture cost, so its rate of change is $\dot h=\nabla h^T\dot\theta$. Following the book's optimization formulation, minimize
+
+$$
+\frac12\dot\theta^TW\dot\theta+\nabla h^T\dot\theta
+\quad\text{subject to}\quad J\dot\theta=V_d.
+$$
+
+Stationarity gives $W\dot\theta+\nabla h=J^T\lambda$. Substituting $\dot\theta=W^{-1}J^T\lambda-W^{-1}\nabla h$ into the constraint yields
+
+$$
+\boxed{\dot\theta=G V_d-(I-GJ)W^{-1}\nabla h.}
+$$
+
+The second term uses the remaining joint freedom to reduce the secondary cost without altering $J\dot\theta$. The task motion itself can still increase $h$.
+
+*Source correction: printed p. 234 of the supplied PDF shows a plus sign before this projected gradient term. The minus sign above follows directly from the stated minimization and its stationarity equation. With $W=I$ and $V_d=0$, it gives $\dot h=-\lVert(I-J^\dagger J)\nabla h\rVert^2\leq0$, which checks the descent direction.*
+
+### 6.9 Convergence and Closed Task-Space Loops
+
+#### The initial guess determines the local search
+
+Newton-Raphson can converge quickly near a regular solution. A poor initial guess, a near-singular Jacobian, or an unreachable target can produce large steps, oscillation, stagnation, or failure to converge. A failed run does not prove that no IK solution exists.
+
+For a slowly changing sequence of target poses, use the previous solution as the next initial guess. This often keeps the solver near a useful solution branch, but it does not guarantee continuity across singularities or enforce joint limits and collision avoidance.
+
+Always bound the number of iterations and inspect the final pose error. A small joint update alone does not establish success: at a singularity, a nonzero error can be orthogonal to every achievable instantaneous motion direction.
+
+#### A closed endpoint path need not close in joint space
+
+For a redundant robot, a trajectory satisfying
+
+$$
+T_{sd}(0)=T_{sd}(t_f)
+$$
+
+may still produce
+
+$$
+\theta(0)\ne\theta(t_f).
+$$
+
+Returning the end effector to its starting pose does not fix the remaining posture freedom. Local pseudoinverse updates need not return the robot to the original joint configuration; joint-space repeatability requires additional conditions.
+
+The book's "closed loops" in Section 6.4 refers to closed **trajectories**, not the mechanically closed kinematic chains studied in Chapter 7.
+
+### 6.10 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "IK is just inverting the transform $T$." | $T^{-1}$ reverses a frame transformation; IK inverts the nonlinear map from joints to poses. |
+| "Six joints mean one solution." | Multiple discrete branches are common, and singular targets need separate analysis. |
+| "The pseudoinverse removes singularity problems." | It defines a least-squares step; tiny singular values can still produce large steps, and nonlinear convergence is not guaranteed. |
+| "The twist error is position subtraction plus Euler-angle subtraction." | It comes from $\log(T_{sb}^{-1}T_{sd})$ and includes rotation-translation coupling. |
+| "One IK iteration is one physical controller timestep." | It is a numerical correction to a candidate configuration; it has no prescribed execution duration. |
+| "The closest solution is guaranteed." | The initial guess influences convergence, but minimum-norm local steps do not solve a global nearest-configuration problem. |
+| "Reaching the pose makes the motion valid." | Pose convergence alone says nothing about joint limits, collisions, or the path between configurations. |
+
+### 6.11 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Full-pose IK | $T(\theta_d)=T_{sd}$ |
+| Planar 2R reachability | $\lvert L_1-L_2\rvert\leq\sqrt{x^2+y^2}\leq L_1+L_2$ |
+| Local coordinate correction | $J(\theta^k)\Delta\theta\approx x_d-f(\theta^k)$ |
+| Pseudoinverse correction | $\Delta\theta=J^\dagger e$ |
+| Body pose error | $V_b=(\log(T_{sb}^{-1}T_{sd}))^\vee$ |
+| Body IK update | $\theta^{k+1}=\theta^k+J_b^\dagger V_b$ |
+| Space pose error | $V_s=\operatorname{Ad}_{T_{sb}}V_b$ |
+| Space IK update | $\theta^{k+1}=\theta^k+J_s^\dagger V_s$ |
+| Convergence test | $\lVert\omega\rVert\leq\epsilon_\omega$ and $\lVert v\rVert\leq\epsilon_v$ |
+| Inverse velocity kinematics | $\dot\theta=J^\dagger V_d$ |
+| Null-space freedom | $\dot\theta=J^\dagger V_d+(I-J^\dagger J)z$ |
+| Weighted inverse, full row rank | $G=W^{-1}J^T(JW^{-1}J^T)^{-1}$ |
+| Weighted secondary-objective motion | $\dot\theta=GV_d-(I-GJ)W^{-1}\nabla h$ |
+
+### 6.12 Software Map
+
+| Operation | Modern Robotics / NumPy function |
+|:--|:--|
+| Body-frame numerical IK | `IKinBody(Blist, M, T, thetalist0, eomg, ev)` |
+| Space-frame numerical IK | `IKinSpace(Slist, M, T, thetalist0, eomg, ev)` |
+| Current pose | `FKinBody(M, Blist, thetalist)` / `FKinSpace(M, Slist, thetalist)` |
+| Current Jacobian | `JacobianBody(Blist, thetalist)` / `JacobianSpace(Slist, thetalist)` |
+| Inverse rigid transform | `TransInv(T)` |
+| Rigid-transform logarithm | `MatrixLog6(T)` |
+| Extract twist coordinates | `se3ToVec(se3mat)` |
+| Change twist frame | `Adjoint(T) @ V` |
+| Moore-Penrose pseudoinverse | `np.linalg.pinv(J)` |
+
+`IKinBody` and `IKinSpace` return `(thetalist, success)`. Their screw-axis lists have shape $6\times n$, with home screw axes as columns. The target `T` has shape $4\times4$, and the initial guess has $n$ joint coordinates. `eomg` and `ev` are interpreted in the selected body or space frame. See the [official Python implementation](https://github.com/NxRLab/ModernRobotics/blob/master/packages/Python/modern_robotics/core.py) for the library routines.
+
+### 6.13 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* distinguish position-only IK from full-pose IK and count task-relative redundancy;
+* derive the planar 2R reachability condition and both elbow solutions;
+* explain how a common wrist center separates position and orientation IK;
+* describe the PUMA and Stanford position subproblems;
+* derive a Newton-Raphson joint correction from local linearization;
+* distinguish minimum-norm exact solutions from least-squares approximations;
+* compute a body pose error using the matrix logarithm and pair it with the correct Jacobian;
+* implement the iterative solver with separate angular and linear stopping tolerances;
+* explain how the initial guess and small Jacobian singular values affect convergence;
+* use null-space freedom and a weighted inverse to resolve redundancy;
+* explain why a closed end-effector path may not return the joints to their initial configuration.
+
+Chapter 7 extends kinematic analysis to mechanisms with closed chains, whose joint motions must also satisfy loop-closure constraints.
