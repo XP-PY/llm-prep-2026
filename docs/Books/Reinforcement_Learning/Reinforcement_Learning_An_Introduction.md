@@ -11,7 +11,7 @@
 | Foundations | 1 | [Introduction](#chapter-1-introduction) | Complete |
 | I | 2 | [Multi-armed Bandits](#chapter-2-multi-armed-bandits) | Complete |
 | I | 3 | [Finite Markov Decision Processes](#chapter-3-finite-markov-decision-processes) | Complete |
-| I | 4 | Dynamic Programming | Not started |
+| I | 4 | [Dynamic Programming](#chapter-4-dynamic-programming) | Complete |
 | I | 5 | Monte Carlo Methods | Not started |
 | I | 6 | Temporal-Difference Learning | Not started |
 | I | 7 | $n$-step Bootstrapping | Not started |
@@ -74,6 +74,25 @@
 | 3.10 | [Common Confusions](#310-common-confusions) |
 | 3.11 | [Formula Sheet](#311-formula-sheet) |
 | 3.12 | [Understanding Checklist](#312-understanding-checklist) |
+
+## Chapter 4 Catalog
+
+| Section | Topic |
+|:--|:--|
+| 4.1 | [From Bellman Equations to Planning](#41-from-bellman-equations-to-planning) |
+| 4.2 | [Iterative Policy Evaluation](#42-iterative-policy-evaluation) |
+| 4.3 | [Gridworld: Evaluation and Greedy Actions](#43-gridworld-evaluation-and-greedy-actions) |
+| 4.4 | [Policy Improvement](#44-policy-improvement) |
+| 4.5 | [Policy Iteration](#45-policy-iteration) |
+| 4.6 | [Value Iteration](#46-value-iteration) |
+| 4.7 | [Jack's Car Rental and the Gambler's Problem](#47-jacks-car-rental-and-the-gamblers-problem) |
+| 4.8 | [Asynchronous Dynamic Programming](#48-asynchronous-dynamic-programming) |
+| 4.9 | [Generalized Policy Iteration](#49-generalized-policy-iteration) |
+| 4.10 | [Python Example: Gridworld Updates](#410-python-example-gridworld-updates) |
+| 4.11 | [Efficiency and Method Comparison](#411-efficiency-and-method-comparison) |
+| 4.12 | [Common Confusions](#412-common-confusions) |
+| 4.13 | [Formula Sheet](#413-formula-sheet) |
+| 4.14 | [Understanding Checklist](#414-understanding-checklist) |
 
 ---
 
@@ -1335,3 +1354,554 @@ After this chapter, you should be able to:
 * state why realistic MDPs require approximation even when the formal optimum is well defined.
 
 Chapter 4 turns these Bellman equations into exact tabular planning algorithms when the finite MDP dynamics are known.
+
+---
+
+## Chapter 4: Dynamic Programming
+
+**Dynamic programming (DP)** computes values and good policies by repeatedly applying Bellman updates to a known MDP. Its two central operations are **policy evaluation**, which estimates the return of the current policy, and **policy improvement**, which chooses better actions using those estimates.
+
+*Source: Chapter 4 of the supplied second-edition book PDF, printed pp. 73-90. The sections below group the material for this note rather than reproduce the book's section numbering.*
+
+### 4.1 From Bellman Equations to Planning
+
+The chapter assumes a finite MDP with known dynamics
+
+$$
+p(s',r\mid s,a).
+$$
+
+States lie in $\mathcal S$, actions in $\mathcal A(s)$, and successor states in $\mathcal S^+$, which also includes termination for episodic tasks. The model supplies the probabilities of **all possible** next-state and reward outcomes.
+
+Classical DP is therefore a **planning** method: it computes with a model rather than estimating transitions from experience. Later RL methods relax this model requirement while retaining many of the same value-update ideas.
+
+#### Equations become assignments
+
+Chapter 3 defines $v_\pi$ by a Bellman equation. DP turns its right-hand side into a target for the current estimate $V$:
+
+$$
+V(s)\leftarrow
+\sum_a\pi(a\mid s)\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma V(s')\right].
+$$
+
+This is an **expected update** because it averages over model outcomes. It is also **bootstrapping** because its target uses estimates $V(s')$ of successor values. A known model makes the expectation computable, but does not make an update exact when those successor values are still inaccurate.
+
+Use $v_\pi$ and $v_*$ for the true value functions, $V$ for a stored approximation, and $v_k$ when explicitly indexing successive approximations. The index $k$ counts computational iterations, not environment timesteps.
+
+#### Convergence assumptions
+
+For finite MDPs with bounded rewards and $0\leq\gamma<1$, the standard evaluation and optimality updates have well-defined convergence guarantees. The chapter also treats undiscounted episodic tasks, but $\gamma=1$ requires appropriate termination conditions. For policy evaluation, eventual termination must hold from every state under the evaluated policy; control algorithms require corresponding assumptions on the policies and task.
+
+Throughout, terminal states have value zero unless an explicitly stated boundary-value reformulation is used.
+
+### 4.2 Iterative Policy Evaluation
+
+**Prediction** asks: given a fixed policy $\pi$, what is $v_\pi(s)$? The policy does not change during evaluation.
+
+Starting with arbitrary $v_0$ and $v_0(\text{terminal})=0$, apply
+
+$$
+\boxed{
+v_{k+1}(s)=
+\sum_a\pi(a\mid s)\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma v_k(s')\right].
+}
+$$
+
+Each full pass through the nonterminal states is a **sweep**. Repeated sweeps propagate future reward information backward through the transition structure.
+
+#### Why this computes the policy value
+
+The true value is a fixed point: substituting $v_k=v_\pi$ returns $v_{k+1}=v_\pi$. To see why the fixed point attracts the estimates in the discounted case, define the policy Bellman operator
+
+$$
+(T_\pi V)(s)=\sum_a\pi(a\mid s)\sum_{s',r}p(s',r\mid s,a)
+[r+\gamma V(s')].
+$$
+
+Probability-weighted averaging cannot increase the largest difference between two value tables, so
+
+$$
+\lVert T_\pi V-T_\pi U\rVert_\infty
+\leq\gamma\lVert V-U\rVert_\infty.
+$$
+
+For $\gamma<1$, every synchronous update reduces the maximum error relative to $v_\pi$ by at least this factor. This gives a short explanation of the chapter's convergence result; it is not a proof for $\gamma=1$.
+
+With a known model, evaluation can alternatively solve a linear system. Defining the policy-induced expected reward vector $r_\pi$ and transition matrix $P_\pi$ over nonterminal states,
+
+$$
+v_\pi=r_\pi+\gamma P_\pi v_\pi,
+\qquad
+(I-\gamma P_\pi)v_\pi=r_\pi.
+$$
+
+Iterative evaluation avoids solving that system all at once and exposes the local update used by later methods.
+
+#### Two arrays versus in-place updates
+
+| Implementation | Values read during a sweep | Consequence |
+|:--|:--|:--|
+| Synchronous, two arrays | Only the previous table $v_k$ | Matches the displayed recurrence exactly |
+| In-place, one array | The latest available values, including earlier updates in the same sweep | Often propagates information faster; update order matters |
+
+Both converge under the appropriate assumptions. The book's pseudocode generally uses in-place updates:
+
+```text
+Initialize V; keep V(terminal) = 0
+Repeat:
+    delta = 0
+    For each nonterminal state s:
+        old = V(s)
+        V(s) = sum_a pi(a|s) sum_(s',r) p(s',r|s,a) [r + gamma V(s')]
+        delta = max(delta, abs(V(s) - old))
+Until delta < theta
+```
+
+$\theta>0$ is a numerical stopping threshold. A small sweep change indicates approximate convergence; it is not generally the same as an error of at most $\theta$ relative to the true value function. Values may converge only asymptotically, so practical implementations also use a sweep limit.
+
+### 4.3 Gridworld: Evaluation and Greedy Actions
+
+Book Example 4.1 is a $4\times4$ grid with 14 nonterminal cells. The upper-left and lower-right cells depict the same terminal state in two places.
+
+* Actions are up, right, down, and left, each selected with probability $1/4$ under the random policy.
+* Moving off the grid leaves the state unchanged.
+* Every transition from a nonterminal state earns $-1$, including the transition into termination.
+* $\gamma=1$, so the objective is to terminate in as few expected steps as possible.
+
+Under the random policy,
+
+$$
+v_\pi(s)=-\mathbb E_\pi[\text{steps until termination}\mid S_0=s].
+$$
+
+#### Compute the first updates
+
+With $v_0=0$, every nonterminal state has $v_1(s)=-1$. Consider state 1, immediately right of the upper-left terminal cell. Its successors are the terminal cell, states 1, 2, and 5. Thus
+
+$$
+v_2(1)=\frac14\left[(-1+0)+(-1-1)+(-1-1)+(-1-1)\right]=-1.75.
+$$
+
+The self-transition caused by hitting the top boundary still incurs the step cost. Repeating these updates yields
+
+$$
+v_\pi=
+\begin{bmatrix}
+0&-14&-20&-22\\
+-14&-18&-20&-20\\
+-20&-20&-18&-14\\
+-22&-20&-14&0
+\end{bmatrix}.
+$$
+
+![Successive random-policy value estimates and their corresponding greedy policies in the 4 by 4 gridworld](../../../assets/Reinforcement_Learning_An_Introduction/ch04_gridworld_policy_evaluation.png)
+
+*The left column evaluates the fixed random policy; the right column shows policies greedy with respect to those intermediate estimates. In this example, the greedy policy is already optimal after three sweeps, long before the values converge. Cropped from book Figure 4.1, printed p. 77.*
+
+The right-column policies are **not** used to generate the next left-column value estimate. Evaluation continues to use the original random policy. This distinction explains why the final left-column values are still large negative numbers even though the displayed greedy policy takes shortest paths to termination.
+
+### 4.4 Policy Improvement
+
+Suppose $v_\pi$ is known. Taking action $a$ once, then following $\pi$, has value
+
+$$
+q_\pi(s,a)=\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma v_\pi(s')\right].
+$$
+
+This one-step lookahead assesses an action using its immediate reward **and** its expected long-term consequences under the old policy.
+
+#### Policy improvement theorem
+
+For deterministic policies, if a new policy $\pi'$ satisfies
+
+$$
+q_\pi(s,\pi'(s))\geq v_\pi(s)
+\qquad\text{for all }s,
+$$
+
+then, under the chapter's assumptions,
+
+$$
+\boxed{v_{\pi'}(s)\geq v_\pi(s)\qquad\text{for all }s.}
+$$
+
+The intuition is to apply the one-step inequality repeatedly: replacing the old action by the new action at the first step is no worse, replacing it at the next step is no worse, and continuing gives the return of $\pi'$. More explicitly,
+
+$$
+v_\pi(s)\leq
+\mathbb E_{\pi'}\!\left[
+\sum_{t=0}^{n-1}\gamma^tR_{t+1}+\gamma^n v_\pi(S_n)
+\mid S_0=s\right]
+\longrightarrow v_{\pi'}(s).
+$$
+
+For a stochastic new policy, the sufficient condition becomes
+
+$$
+\sum_a\pi'(a\mid s)q_\pi(s,a)\geq v_\pi(s).
+$$
+
+#### Greedification provides the improvement
+
+Choose
+
+$$
+\boxed{
+\pi'(s)\in\arg\max_a
+\sum_{s',r}p(s',r\mid s,a)[r+\gamma v_\pi(s')].
+}
+$$
+
+The maximum is at least the old policy's action-weighted average, so the theorem applies. If several actions maximize the expression, the new policy can choose one or distribute probability among them, assigning zero probability to all other actions.
+
+An improvement need not be optimal. However, if full greedification produces no improvement anywhere, the policy value also satisfies the Bellman optimality equation, so the old and new policies are optimal.
+
+The exact theorem uses $v_\pi$. Greedifying an inaccurate estimate $V$ need not improve the true return; the approximation quality matters.
+
+### 4.5 Policy Iteration
+
+**Policy iteration** repeatedly evaluates the current policy and makes it greedy:
+
+$$
+\pi_0\xrightarrow{\text{evaluate}}v_{\pi_0}
+\xrightarrow{\text{improve}}\pi_1
+\xrightarrow{\text{evaluate}}v_{\pi_1}
+\xrightarrow{\text{improve}}\cdots.
+$$
+
+An outline for a deterministic policy is:
+
+```text
+Initialize pi(s) to a legal action and initialize V
+Repeat:
+    Evaluate pi, starting from the current V
+    stable = true
+    For each nonterminal state s:
+        Compute the one-step action values using V
+        If pi(s) is not a maximizing action:
+            pi(s) = a maximizing action, using a fixed tie-breaking order
+            stable = false
+Until stable
+Return pi and V
+```
+
+Reusing $V$ from the preceding evaluation often saves work because successive policies can have similar values.
+
+#### Why tie handling matters
+
+The book's Exercise 4.4 points out a termination issue: arbitrary tie breaking can continually switch between equally good policies. Retaining the current action when it is already maximizing prevents these unnecessary switches. A fixed deterministic ordering also makes selection reproducible.
+
+With exact policy evaluation, finite state and action sets, and the standard discounted or suitable episodic assumptions, each genuine improvement increases the value at some state. There are finitely many deterministic policies, so policy iteration reaches an optimal policy after finitely many improvement rounds.
+
+This does not mean finitely many numerical evaluation updates yield exact values. Iterative evaluation uses a tolerance, and policy stability with approximate values alone is not a certificate of exact optimality.
+
+### 4.6 Value Iteration
+
+Policy iteration can spend many sweeps evaluating a policy that will soon change. **Value iteration** combines greedy improvement with a single evaluation-style update:
+
+$$
+\boxed{
+v_{k+1}(s)=\max_a\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma v_k(s')\right].
+}
+$$
+
+This is the Bellman **optimality** equation turned into an assignment. Relative to policy evaluation, the action average under $\pi$ is replaced by a maximum.
+
+```text
+Initialize V; keep V(terminal) = 0
+Repeat:
+    delta = 0
+    For each nonterminal state s:
+        old = V(s)
+        V(s) = max_a sum_(s',r) p(s',r|s,a) [r + gamma V(s')]
+        delta = max(delta, abs(V(s) - old))
+Until delta < theta
+Extract a policy greedy with respect to the final V
+```
+
+The update may be synchronous or in-place. In the discounted case, the optimality operator $T_*$ is also a contraction, and the value table converges to $v_*$. A greedy policy can become optimal before the values have fully converged.
+
+#### How much evaluation is necessary?
+
+| Method | Evaluation work before the next improvement |
+|:--|:--|
+| Policy iteration | Evaluate the current policy to convergence, or a practical tolerance |
+| Truncated / modified policy iteration | Perform a limited number of evaluation sweeps |
+| Value iteration | Combine one evaluation-style sweep with greedy maximization |
+
+Value iteration repeatedly updates the table; it is not one sweep total. The essential feature is the greedy maximum in the backup, not repeatedly evaluating one fixed policy for one sweep.
+
+#### Action-value versions
+
+The same construction applies to $q$ tables. Policy evaluation uses
+
+$$
+q_{k+1}(s,a)=\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma\sum_{a'}\pi(a'\mid s')q_k(s',a')\right],
+$$
+
+whereas optimality updates use
+
+$$
+q_{k+1}(s,a)=\sum_{s',r}p(s',r\mid s,a)
+\left[r+\gamma\max_{a'}q_k(s',a')\right].
+$$
+
+The continuation contribution is zero at termination. Once $q_*$ is available, action selection needs only an argmax over the table. These DP updates still require the transition model to compute $q_*$; storing action values does not by itself make the method model-free.
+
+### 4.7 Jack's Car Rental and the Gambler's Problem
+
+#### Jack's car rental: policy iteration with stochastic transitions
+
+Book Example 4.2 formulates overnight car transfers as a continuing MDP:
+
+| Component | Specification |
+|:--|:--|
+| State | End-of-day car counts $(n_1,n_2)$ at the two locations, each from 0 to 20 |
+| Action | Net cars transferred overnight, at most five in either direction, subject to availability |
+| Rental income | $10 per fulfilled request |
+| Transfer cost | $2 per car moved |
+| Request distributions | Poisson means 3 and 4 at locations 1 and 2 |
+| Return distributions | Poisson means 3 and 2 at locations 1 and 2 |
+| Discount | $\gamma=0.9$ |
+
+Cars returned during a day become available for the next day. Counts above the 20-car capacity disappear from the modeled system. With $a>0$ denoting a transfer from location 1 to 2, the reward is rental income minus $2|a|$.
+
+Policy evaluation must average over possible rental requests and returns, accounting for limited inventory and capacity. Improvement then compares transfers using both immediate revenue and the future value of the resulting inventory. The book starts from no transfers and shows that a small number of policy-improvement rounds finds the optimal policy.
+
+The lesson is that a known stochastic model still requires planning: expected demand alone does not capture the consequences of stockouts, capacity limits, and future inventory.
+
+#### Gambler's problem: value is a success probability
+
+Book Example 4.3 uses capital $s\in\{1,\ldots,99\}$. A stake $a$ wins $a$ with probability $p_h$ and loses $a$ otherwise. Capital 0 and 100 terminate the episode, $\gamma=1$, and reward is $+1$ only on reaching 100.
+
+Because the return is 1 for success and 0 for failure,
+
+$$
+v_\pi(s)=\Pr_\pi(\text{reach 100 before ruin}\mid S_0=s).
+$$
+
+For positive stakes $1\leq a\leq\min(s,100-s)$, one Bellman optimality update is
+
+$$
+V(s)\leftarrow\max_a\left\{
+p_h\left[\mathbf1_{\{s+a=100\}}+V(s+a)\right]
++(1-p_h)V(s-a)
+\right\},
+$$
+
+with **both terminal values set to zero**. The indicator supplies the reward for reaching the goal.
+
+Exercise 4.9 offers an equivalent computational convention: set boundary values $V(0)=0$, $V(100)=1$ and omit the explicit success-reward term:
+
+$$
+V(s)\leftarrow\max_a\left[p_hV(s+a)+(1-p_h)V(s-a)\right].
+$$
+
+Use one convention consistently. Adding a $+1$ reward and also using $V(100)=1$ would count success twice. The boundary value 1 is a computational substitute for the terminal reward, not the usual value of an already terminated episode.
+
+The book lists zero stake as an action. It creates a zero-reward self-loop: a policy that always chooses it never finishes. For the nondegenerate coin probabilities used in the examples, restricting computation and policy extraction to positive stakes preserves the optimal success probability and avoids this nonterminating choice. This is especially relevant when extracting a greedy policy under $\gamma=1$.
+
+For $p_h=0.4$, Figure 4.3 shows that optimal stakes can change sharply with capital, and multiple optimal policies share the same values. Maximizing the probability of reaching a goal is different from maximizing the expected immediate dollar gain.
+
+### 4.8 Asynchronous Dynamic Programming
+
+A complete sweep can be too expensive when the state set is large. **Asynchronous DP** updates selected states in place, in an arbitrary order, using the latest available successor estimates.
+
+For example, at computational step $k$, choose one state $s_k$ and update
+
+$$
+V(s_k)\leftarrow\max_a\sum_{s',r}p(s',r\mid s_k,a)
+[r+\gamma V(s')],
+$$
+
+leaving other entries unchanged. Some states may be updated many times before others are updated once.
+
+For this discounted tabular algorithm, convergence to $v_*$ is guaranteed when **every nonterminal state is updated infinitely often**. State selection can be random; it cannot permanently neglect states while claiming the same global guarantee. Undiscounted tasks need additional care.
+
+Useful scheduling ideas include updating states that help propagate new value information or states currently encountered by an acting agent. An experience-driven choice of which state to update does not turn the backup into a sample update: it can still compute the full model expectation at that state.
+
+Here, "asynchronous" describes the update schedule. It does not require parallel workers or multiple threads, and it does not remove the need for a model.
+
+### 4.9 Generalized Policy Iteration
+
+**Generalized policy iteration (GPI)** is the interaction of two processes:
+
+* Evaluation moves $V$ toward $v_\pi$ for the current policy.
+* Improvement moves $\pi$ toward a policy greedy with respect to the current $V$.
+
+![Policy evaluation and policy improvement interacting until the policy and value function are jointly optimal](../../../assets/Reinforcement_Learning_An_Introduction/ch04_generalized_policy_iteration.png)
+
+*Evaluation changes values and improvement changes behavior. Their common solution is an optimal policy and its value function. Cropped from the unnumbered GPI diagram on printed p. 86.*
+
+A policy change generally makes the current values inaccurate for the new policy. Updating those values can then reveal another policy improvement. Each operation changes the input to the other.
+
+At an exact joint fixed point,
+
+$$
+V=v_\pi,
+\qquad
+\pi\text{ is greedy with respect to }V.
+$$
+
+Together these imply
+
+$$
+V=T_\pi V=T_*V,
+$$
+
+so $V=v_*$ and $\pi$ is optimal under the relevant MDP assumptions. Evaluation consistency alone does not establish optimality, and greediness relative to an arbitrary table does not either.
+
+Policy iteration, value iteration, and asynchronous variants differ in how finely they interleave these two processes. GPI also helps describe later RL methods, but is a framework rather than a blanket convergence theorem for every approximate or sampled algorithm.
+
+### 4.10 Python Example: Gridworld Updates
+
+This standard-library example reproduces the random-policy evaluation and optimal values for Example 4.1. It uses **synchronous** sweeps so that iteration counts match the recurrence in Section 4.2. The two corner indices represent terminal locations and are held at zero.
+
+```python
+ACTIONS = ((-1, 0), (0, 1), (1, 0), (0, -1))  # up, right, down, left
+TERMINALS = {0, 15}
+
+
+def next_state(s, action):
+    row, col = divmod(s, 4)
+    dr, dc = action
+    nr, nc = row + dr, col + dc
+    return 4 * nr + nc if 0 <= nr < 4 and 0 <= nc < 4 else s
+
+
+def action_values(s, values):
+    return [-1.0 + values[next_state(s, a)] for a in ACTIONS]
+
+
+def solve_gridworld(optimal=False, theta=1e-10, max_sweeps=10000):
+    values = [0.0] * 16
+    for sweep in range(1, max_sweeps + 1):
+        updated = values.copy()
+        for s in range(16):
+            if s in TERMINALS:
+                continue
+            q = action_values(s, values)
+            updated[s] = max(q) if optimal else sum(q) / len(q)
+        delta = max(abs(new - old) for new, old in zip(updated, values))
+        values = updated
+        if delta < theta:
+            return values, sweep
+    raise RuntimeError("Value updates did not converge within the sweep limit")
+
+
+def greedy_actions(values, tie_tol=1e-9):
+    policy = {}
+    for s in range(16):
+        if s in TERMINALS:
+            continue
+        q = action_values(s, values)
+        best = max(q)
+        policy[s] = tuple(a for a, score in enumerate(q) if best - score <= tie_tol)
+    return policy
+
+
+for optimal in (False, True):
+    values, sweeps = solve_gridworld(optimal=optimal)
+    print("Optimal values" if optimal else "Random-policy values")
+    for row in range(4):
+        print(" ".join(f"{v:6.1f}" for v in values[4 * row:4 * row + 4]))
+    print("Greedy action indices at state 1:", greedy_actions(values)[1])
+```
+
+Run the block as a Python 3 script with `python3 /path/to/gridworld_example.py`; it has no third-party dependencies. The random-policy output matches Section 4.3. Value iteration produces
+
+$$
+v_*=
+\begin{bmatrix}
+0&-1&-2&-3\\
+-1&-2&-3&-2\\
+-2&-3&-2&-1\\
+-3&-2&-1&0
+\end{bmatrix}.
+$$
+
+Each optimal value is the negative shortest-path distance to a terminal cell. The code returns all actions tied within a small numerical tolerance; at state 1 the greedy choice is left, action index 3. The tolerance only handles numerical comparisons and is not part of the mathematical argmax definition.
+
+The function `greedy_actions` does not alter the evaluation policy. When `optimal=False`, every sweep still uses the uniform average over the four actions.
+
+### 4.11 Efficiency and Method Comparison
+
+DP shares work through a value table instead of independently evaluating every policy. With $n$ states and $m$ actions available per state, there are $m^n$ deterministic policies, but a Bellman sweep processes state-action transitions rather than enumerating those policies.
+
+If rewards have been reduced to expected one-step rewards and transitions are dense, an optimality sweep costs roughly $O(n^2m)$: each of $n$ states examines $m$ actions and up to $n$ successors. Sparse transition models reduce this cost to the number of reachable successor entries. A state-value table requires $O(n)$ storage, while the model itself may be much larger.
+
+This does not eliminate the **curse of dimensionality**: if a state contains $d$ variables with $b$ possible values each, the tabular state count can be $b^d$. Computational cost also depends on the discount, desired accuracy, and number of updates needed. The chapter's favorable comparison with exhaustive policy search does not make every large MDP practical.
+
+| Method | Quantity updated | Main operation | Policy handling |
+|:--|:--|:--|:--|
+| Policy evaluation | $V\approx v_\pi$ | Average under a fixed policy | Policy unchanged |
+| Policy improvement | $\pi$ | Greedy one-step lookahead | Changes policy using current values |
+| Policy iteration | $V$ and $\pi$ | Repeated evaluation and improvement | Explicit policy between evaluation phases |
+| Value iteration | $V\approx v_*$ | Maximize in every value backup | Greedy choices implicit; extract a final policy |
+| Asynchronous DP | Selected entries | Evaluation or optimality backups | Flexible state scheduling |
+
+There is no universal winner between policy iteration and value iteration. Evaluation accuracy, transition structure, initialization, and update order all affect the work required.
+
+#### Separate model use from bootstrapping
+
+| Method family | Needs a transition model for its update? | Bootstraps from value estimates? |
+|:--|:--:|:--:|
+| Classical DP | Yes | Yes |
+| Monte Carlo methods, Chapter 5 | No | No |
+| Temporal-difference methods, Chapter 6 | No | Yes |
+
+These properties are independent: bootstrapping means using another value estimate in a target, not using an environment model or resampling a dataset.
+
+### 4.12 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "Policy evaluation improves the policy." | It estimates the current policy's return; a separate improvement operation changes behavior. |
+| "Greedy means maximizing the immediate reward." | The DP greedy choice maximizes expected reward plus discounted successor value. |
+| "An expected update gives the true value immediately." | The model expectation is exact, but successor value estimates may still be wrong. |
+| "Policy iteration and value iteration differ only in what they return." | They differ in how evaluation and improvement are interleaved; both can produce values and a policy. |
+| "An optimal-looking policy means the values have converged." | Action rankings can stabilize before the numerical values, as in Figure 4.1. |
+| "A sweep is an episode." | A sweep is a computational pass through states, without requiring an environment trajectory. |
+| "Asynchronous DP is model-free or necessarily parallel." | It is a flexible update schedule that can run sequentially and still use full model expectations. |
+| "Every undiscounted MDP behaves like a discounted one." | Nontermination can invalidate the convergence and greedy-policy arguments used for well-posed episodic tasks. |
+| "GPI guarantees convergence of every RL algorithm." | It describes the interaction of evaluation and improvement; guarantees depend on the actual updates and assumptions. |
+
+### 4.13 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Policy evaluation backup | $V(s)\leftarrow\sum_a\pi(a\mid s)\sum_{s',r}p(s',r\mid s,a)[r+\gamma V(s')]$ |
+| One-step action value from $V$ | $Q_V(s,a)=\sum_{s',r}p(s',r\mid s,a)[r+\gamma V(s')]$ |
+| Greedy improvement | $\pi'(s)\in\arg\max_a Q_V(s,a)$ |
+| Improvement condition | $\sum_a\pi'(a\mid s)q_\pi(s,a)\geq v_\pi(s)$ for every $s$ |
+| Improvement guarantee | $v_{\pi'}(s)\geq v_\pi(s)$ for every $s$ |
+| Value iteration backup | $V(s)\leftarrow\max_a Q_V(s,a)$ |
+| Policy evaluation as a linear system | $(I-\gamma P_\pi)v_\pi=r_\pi$ |
+| Discounted contraction | $\lVert T_\pi V-T_\pi U\rVert_\infty\leq\gamma\lVert V-U\rVert_\infty$ |
+| Exact GPI fixed point | $V=v_\pi$ and $\pi$ greedy with respect to $V$, hence $V=v_*$ |
+
+Here $Q_V$ is a temporary one-step lookahead quantity. It equals $q_\pi$ when $V=v_\pi$, but need not be the action-value function of any policy for an arbitrary approximate $V$.
+
+### 4.14 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* explain why classical DP is planning with a known finite-MDP model;
+* turn a Bellman expectation equation into an iterative policy-evaluation update;
+* distinguish synchronous sweeps, in-place sweeps, and asynchronous state selection;
+* compute the first gridworld updates and interpret values as negative expected episode lengths;
+* state the policy improvement condition and explain why repeated one-step improvement helps;
+* implement policy iteration with stable tie handling and distinguish exact from approximate evaluation;
+* derive value iteration by replacing the policy average with a maximum;
+* write the corresponding evaluation and optimality updates for action values;
+* formulate the car-rental and gambler examples, including rewards and terminal conventions;
+* explain the state-coverage requirement for discounted asynchronous value iteration;
+* describe GPI as interacting evaluation and improvement processes;
+* separate the known-model assumption, bootstrapping, and the cost of a tabular state space.
+
+Chapter 5 replaces the model-based expectations with sampled complete returns, introducing Monte Carlo methods that learn without a transition model and without bootstrapping.
