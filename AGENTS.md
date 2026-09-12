@@ -43,6 +43,8 @@ Keep terminology consistent with neighboring documents, especially for alignment
 - Build book notes incrementally, one requested chapter at a time. Append new chapters to the existing book note rather than creating one file per chapter.
 - Keep a navigable catalog or table of contents at the top of each book note and update it whenever a chapter is added.
 - Do not extensively copy the chapter. Explain its core material precisely, prioritizing important definitions, formulas, algorithms, and short clarifying examples.
+- Make each chapter note self-contained for review without reopening the book PDF. Include the definitions, symbol meanings, assumptions, and intermediate reasoning needed to understand the material; link to earlier sections of the note for prerequisites already covered.
+- Do not rely on a figure, equation, example, or appendix that appears only in the source book. Embed necessary figures near the relevant explanation, or provide an adequate explanation in the note. Keep source numbers and page references as attribution, not as substitutes for the content.
 - Add figures from the book only when they are necessary for a clear explanation. Store extracted figures under the corresponding book asset directory and provide descriptive captions.
 - Maintain consistent notation across chapters and with the source book. Check that equations, Mermaid diagrams, code fences, anchors, and relative links render correctly.
 - Current book-note locations are:

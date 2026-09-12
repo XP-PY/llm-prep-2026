@@ -2240,7 +2240,13 @@ The position formulas below use $p=(p_x,p_y,p_z)=p_w$, not necessarily the tool-
 
 #### PUMA-type arm: shoulder and elbow geometry
 
-For the zero-shoulder-offset model in book Figure 6.2, let $a_2,a_3$ be the two arm-link lengths. Choose a signed radial coordinate
+![PUMA arm position geometry with shoulder rotation, two link lengths, elbow angle, and wrist-center coordinates](../../../assets/Modern_Robotics/ch06_puma_position_geometry.png)
+
+*Zero-offset PUMA position geometry. The first joint rotates the arm plane about $\hat z_0$; the next two joints position the wrist center within that plane. Cropped from book Figure 6.2, printed p. 222.*
+
+In the zero-shoulder-offset model above, $a_2$ is the shoulder-to-elbow length and $a_3$ is the elbow-to-wrist-center length. The shoulder is at the fixed-frame origin. Joint angle $\theta_1$ sets the arm plane's azimuth, $\theta_2$ raises link 2 from the horizontal, and $\theta_3$ is the angle of link 3 relative to link 2.
+
+The dashed projection in the figure has length $r=\sqrt{p_x^2+p_y^2}$. To include both shoulder branches, use a **signed** radial coordinate instead:
 
 $$
 \rho=\pm\sqrt{p_x^2+p_y^2}.
@@ -2261,13 +2267,38 @@ $$
 
 Two shoulder choices and two elbow choices give up to four position branches. At $p_x=p_y=0$, the wrist center lies on the first joint axis and its position no longer determines $\theta_1$.
 
-For the book's shoulder offset $d_1$, the projected geometry instead gives $\rho^2=p_x^2+p_y^2-d_1^2$, and
+#### PUMA shoulder offset and solution branches
+
+![PUMA shoulder offset and its top-view right-triangle construction](../../../assets/Modern_Robotics/ch06_puma_shoulder_offset.png)
+
+*The shoulder offset $d_1$ separates the first joint axis from the arm plane. In the top view, the wrist-center radius $r$ is the hypotenuse of a triangle with perpendicular components $d_1$ and $\rho$. Cropped from book Figure 6.3, printed p. 222.*
+
+Here $d_1$ is a lateral offset, not a base height. With the positive offset direction shown in the right-hand top view, the horizontal wrist position is
+
+$$
+\begin{bmatrix}p_x\\p_y\end{bmatrix}
+=\begin{bmatrix}\cos\theta_1&-\sin\theta_1\\\sin\theta_1&\cos\theta_1\end{bmatrix}
+\begin{bmatrix}\rho\\d_1\end{bmatrix}.
+$$
+
+Consequently, the two shoulder branches can be parameterized by
+
+$$
+\rho=\pm\sqrt{p_x^2+p_y^2-d_1^2},\qquad
+\theta_1=\operatorname{atan2}(p_y,p_x)-\operatorname{atan2}(d_1,\rho).
+$$
+
+For $\rho>0$, these angles correspond to $\theta_1=\phi-\alpha$ in the figure: $\phi$ points from the origin toward the wrist projection, and $\alpha$ corrects for the offset. Keeping the sign of $\rho$ also handles the other shoulder branch. For each branch, solve the same planar target $(\rho,p_z)$ as above, with
 
 $$
 D=\frac{p_x^2+p_y^2+p_z^2-d_1^2-a_2^2-a_3^2}{2a_2a_3}.
 $$
 
-Both $p_x^2+p_y^2\geq d_1^2$ and $|D|\leq1$ are necessary. The offset changes the shoulder-angle construction, yielding the lefty/righty and elbow-up/elbow-down branches shown in book Figure 6.5.
+Both $p_x^2+p_y^2\geq d_1^2$ and $|D|\leq1$ are necessary. For each signed $\rho$, take both signs in the expression for $\theta_3$, then compute $\theta_2$ from the preceding two-link formula. This gives up to four position solutions before checking joint limits; branches can merge at singular configurations.
+
+![Four PUMA arm postures combining lefty and righty shoulder choices with two elbow choices](../../../assets/Modern_Robotics/ch06_puma_ik_branches.png)
+
+*Four position-IK branches: the upper pair has lefty shoulder postures and the lower pair has righty shoulder postures; each pair contains the two elbow choices. Wrist angles are solved separately to match the target orientation. Cropped from book Figure 6.5, printed p. 224.*
 
 #### Solve the remaining wrist orientation
 
@@ -2296,7 +2327,11 @@ A second nonsingular branch is $(\theta_4+\pi,\pi-\theta_5,\theta_6+\pi)$ modulo
 
 #### Stanford-type arm: replace the elbow by a prismatic joint
 
-For the geometry in book Figure 6.6, define
+![Stanford arm position geometry with two revolute joints, a radial prismatic joint, and base-height offset](../../../assets/Modern_Robotics/ch06_stanford_position_geometry.png)
+
+*The Stanford arm's first three joints form an RRP positioning mechanism: $\theta_1$ sets azimuth, $\theta_2$ sets elevation, and the prismatic joint changes radial reach. Cropped from book Figure 6.6, printed p. 225.*
+
+In this diagram, $d_1$ is the shoulder height above the fixed-frame origin, $a_2$ is the fixed length along the extending arm, and the segment labeled $d_3$ is the prismatic displacement denoted by $\theta_3$ in these formulas. Thus the shoulder-to-wrist distance is $a_2+\theta_3$. The horizontal distance $r$ and vertical displacement $s$ from the shoulder are
 
 $$
 r=\sqrt{p_x^2+p_y^2},\qquad s=p_z-d_1.
