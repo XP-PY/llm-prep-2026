@@ -64,7 +64,7 @@ Knowledge insulation is designed to avoid all three failures.
 
 ## 3. Core Architecture
 
-![Knowledge-insulated VLA architecture](../../../../assets/Pi_0_5_KI_architecture.png)
+![Knowledge-insulated VLA architecture](../../../../assets/Pi_0_5_KI/Pi_0_5_KI_architecture.png)
 
 *Paper Figure 1. The VLM learns language and FAST action prediction, while the smaller action expert learns continuous flow matching. The stop-gradient blocks only the expert-to-backbone training path.*
 
@@ -794,7 +794,7 @@ The items-in-drawer task and several mobile tasks use environments excluded from
 
 ## 14. Performance and Language Following
 
-![Knowledge insulation performance and language-following results](../../../../assets/Pi_0_5_KI_insulation_results.png)
+![Knowledge insulation performance and language-following results](../../../../assets/Pi_0_5_KI/Pi_0_5_KI_insulation_results.png)
 
 *Paper Figure 4. On items-in-drawer, stopping the expert gradient gives the strongest task completion and language following.*
 
@@ -817,7 +817,7 @@ On DROID, the reported progress scores are:
 
 ## 15. Training Speed
 
-![Training strategies and convergence speed](../../../../assets/Pi_0_5_KI_training_speed.png)
+![Training strategies and convergence speed](../../../../assets/Pi_0_5_KI/Pi_0_5_KI_training_speed.png)
 
 *Paper Figure 6. The FAST representation objective makes the knowledge-insulated model converge at approximately pi0-FAST speed, while retaining flow-based runtime control.*
 
@@ -831,7 +831,7 @@ Joint discrete and continuous training adds about **20% compute per step**, but 
 
 ## 16. Generalization from VLM Data
 
-![Generalization to novel objects](../../../../assets/Pi_0_5_KI_ood_generalization.png)
+![Generalization to novel objects](../../../../assets/Pi_0_5_KI/Pi_0_5_KI_ood_generalization.png)
 
 *Paper Figure 7. VLM co-training is especially valuable for following instructions involving objects excluded from robot training.*
 

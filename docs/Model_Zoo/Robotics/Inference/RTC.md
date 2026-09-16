@@ -339,7 +339,7 @@ Inference takes $d$ timesteps, so the new chunk is not available until timestep 
 
 In Figure 3, $H=16$, $s=5$, and $d=4$. Thus, $a_0$ through $a_3$ form the frozen prefix, $a_4$ through $a_{10}$ form the editable overlap, and $a_{11}$ through $a_{15}$ form the new tail.
 
-![RTC](../../../../assets/RTC.png)
+![RTC](../../../../assets/RTC/RTC.png)
 
 The frozen prefix may appear unnecessary because it is already stale when inference finishes. However, it records the actions the robot actually executed during inference. Conditioning the rest of the generated trajectory on this prefix makes the usable suffix begin as a coherent continuation of the robot's real motion.
 

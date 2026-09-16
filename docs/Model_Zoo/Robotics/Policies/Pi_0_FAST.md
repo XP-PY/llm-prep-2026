@@ -162,7 +162,7 @@ raw action chunk
 -> output action tokens
 ```
 
-![Pi_0_FAST](../../../../assets/Pi_0_FAST.png)
+![Pi_0_FAST](../../../../assets/Pi_0_FAST/Pi_0_FAST.png)
 
 This is inspired by compression methods such as JPEG:
 

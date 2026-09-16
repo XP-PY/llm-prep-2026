@@ -40,7 +40,7 @@ These instructions require two different abilities:
 
 Hi Robot separates these roles into a high-level policy and a low-level policy.
 
-![Hi Robot open-ended instruction following examples](../../../../assets/Hi_Robot_open_ended.png)
+![Hi Robot open-ended instruction following examples](../../../../assets/Hi_Robot/Hi_Robot_open_ended.png)
 
 ## 3. Core Idea
 
@@ -58,7 +58,7 @@ The high-level model acts like a deliberative planner. It reads the scene and th
 
 The low-level model acts like a reactive controller. It receives the simplified command, images, and robot state, then outputs continuous robot actions.
 
-![Hi Robot hierarchical VLA architecture](../../../../assets/Hi_Robot_hierarchy.png)
+![Hi Robot hierarchical VLA architecture](../../../../assets/Hi_Robot/Hi_Robot_hierarchy.png)
 
 ## 4. Problem Setup
 
@@ -182,7 +182,7 @@ teleoperated robot demos
 -> high-level policy training data
 ```
 
-![Hi Robot data collection and synthetic prompt generation](../../../../assets/Hi_Robot_data_generation.png)
+![Hi Robot data collection and synthetic prompt generation](../../../../assets/Hi_Robot/Hi_Robot_data_generation.png)
 
 ### 8.1 Demonstration Data
 
@@ -346,7 +346,7 @@ Hi Robot is compared against:
 | GPT-4o high-level | GPT-4o chooses low-level commands, paired with the same low-level policy |
 | Expert human high-level | oracle human provides low-level commands |
 
-![Hi Robot comparison to flat VLA, GPT-4o high-level, and human high-level oracle](../../../../assets/Hi_Robot_results.png)
+![Hi Robot comparison to flat VLA, GPT-4o high-level, and human high-level oracle](../../../../assets/Hi_Robot/Hi_Robot_results.png)
 
 The main result is that Hi Robot performs better than both the flat VLA and GPT-4o high-level baseline across table bussing, sandwich making, and grocery shopping.
 
@@ -366,7 +366,7 @@ The flat VLA has a different problem: it lacks an explicit place to revise its p
 
 The paper tests two important ablations.
 
-![Hi Robot ablations on synthetic data and hierarchy](../../../../assets/Hi_Robot_ablations.png)
+![Hi Robot ablations on synthetic data and hierarchy](../../../../assets/Hi_Robot/Hi_Robot_ablations.png)
 
 ### 15.1 Synthetic Data Ablation
 

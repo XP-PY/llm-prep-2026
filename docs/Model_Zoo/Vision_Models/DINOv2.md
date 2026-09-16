@@ -49,7 +49,7 @@ The two output types serve different downstream interfaces:
 
 The patch features develop object-part correspondence without pixel labels. In the paper's PCA visualization below, similar object parts receive similar colors across changes in viewpoint, style, and even object category.
 
-![PCA visualization of DINOv2 patch features](../../../assets/DINOv2_pca_features.png)
+![PCA visualization of DINOv2 patch features](../../../assets/DINOv2/DINOv2_pca_features.png)
 
 *Paper Figure 1. The first three PCA components of patch features reveal aligned semantic parts and foreground-background separation.*
 
@@ -57,7 +57,7 @@ The patch features develop object-part correspondence without pixel labels. In t
 
 Simply scaling raw web images is not enough. The paper finds that a curated 142M-image set gives substantially better transfer than an equally sized random sample from the same source.
 
-![DINOv2 data processing pipeline](../../../assets/DINOv2_data_pipeline.png)
+![DINOv2 data processing pipeline](../../../assets/DINOv2/DINOv2_data_pipeline.png)
 
 *Paper Figure 3. Curated images act as queries that retrieve visually related images from a large uncurated pool.*
 
@@ -244,7 +244,7 @@ This distinction matters: strong numbers mean the required information is alread
 
 ## 12. Main Results
 
-![DINOv2 performance scaling across visual tasks](../../../assets/DINOv2_scaling.png)
+![DINOv2 performance scaling across visual tasks](../../../assets/DINOv2/DINOv2_scaling.png)
 
 *Paper Figure 2. DINOv2 scaling improves global, local, robustness, retrieval, and video metrics; depth RMSE is lower-is-better.*
 
@@ -285,7 +285,7 @@ DINOv2 is particularly strong for instance matching. On Oxford-Hard, frozen DINO
 
 ### 12.4 Dense prediction
 
-![Segmentation and depth predictions from frozen DINOv2 features](../../../assets/DINOv2_dense_features.png)
+![Segmentation and depth predictions from frozen DINOv2 features](../../../assets/DINOv2/DINOv2_dense_features.png)
 
 *Paper Figure 7. Frozen DINOv2-g features provide stronger spatial detail than OpenCLIP-G for segmentation and monocular depth prediction.*
 

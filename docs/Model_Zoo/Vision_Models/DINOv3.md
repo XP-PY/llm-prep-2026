@@ -66,7 +66,7 @@ The outputs have different uses:
 
 The main goal of DINOv3 is to make both the class token and patch tokens strong at the same time.
 
-![High-resolution DINOv3 patch similarity](../../../assets/DINOv3_high_resolution_features.png)
+![High-resolution DINOv3 patch similarity](../../../assets/DINOv3/DINOv3_high_resolution_features.png)
 
 *Paper Figure 3. Each heat map compares one red-marked patch with every other patch in a `4096 x 4096` image. Similarities remain localized despite the very high input resolution.*
 
@@ -236,7 +236,7 @@ DINOv2 requires the final training horizon in advance because many hyperparamete
 
 Longer training improves ImageNet linear classification, but semantic segmentation peaks early and then falls.
 
-![Dense features degrade during long training](../../../assets/DINOv3_dense_feature_collapse.png)
+![Dense features degrade during long training](../../../assets/DINOv3/DINOv3_dense_feature_collapse.png)
 
 *Paper Figure 5. From `200k` to `1M` iterations, class-token accuracy continues to improve while VOC segmentation and patch locality degrade, especially for ViT-7B.*
 
@@ -364,7 +364,7 @@ The paper's ablation improves:
 
 Dense performance improves sharply while global classification is essentially preserved.
 
-![Effect of Gram anchoring](../../../assets/DINOv3_gram_anchoring.png)
+![Effect of Gram anchoring](../../../assets/DINOv3/DINOv3_gram_anchoring.png)
 
 *Paper Figure 10. Before refinement, unrelated patches receive noisy high similarities. High-resolution Gram anchoring restores compact, object-aligned similarity regions.*
 
@@ -397,7 +397,7 @@ Unlike the original self-distillation stage:
 
 Students train for `1M` iterations, followed by a `250k` cosine learning-rate cooldown and high-resolution adaptation.
 
-![DINOv3 distilled model family](../../../assets/DINOv3_model_family.png)
+![DINOv3 distilled model family](../../../assets/DINOv3/DINOv3_model_family.png)
 
 *Paper Figure 16. DINOv3 provides ViT and ConvNeXt variants over a wide compute range. The 840M ViT-H+ remains close to the 6.7B teacher on representative global and dense tasks.*
 
@@ -447,7 +447,7 @@ This matters when reading the results:
 
 ## 15. Dense-Feature Results
 
-![Dense feature comparison](../../../assets/DINOv3_dense_comparison.png)
+![Dense feature comparison](../../../assets/DINOv3/DINOv3_dense_comparison.png)
 
 *Paper Figure 13. PCA projections of frozen patch features from SigLIP 2, PE Spatial, DINOv2 with registers, and DINOv3. DINOv3 is visibly cleaner and more spatially coherent.*
 

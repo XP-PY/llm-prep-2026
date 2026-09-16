@@ -1,5 +1,5 @@
 # Multi-head Latent Attention (MLA)
-![Model_Architecture](../../assets/DeepSeek-V2.png)
+![Model_Architecture](../../assets/DeepSeek_V2/DeepSeek-V2.png)
 
 ## Overview & Role
 
