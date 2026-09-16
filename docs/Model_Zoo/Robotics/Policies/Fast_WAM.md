@@ -51,15 +51,21 @@ This is a direct policy at inference, not a planner that searches over candidate
 
 ### 2.1 Components
 
-| Component | Role |
-|:--|:--|
-| Pretrained Wan2.2-5B video DiT | Initializes the video/world-modeling backbone; DiT means Diffusion Transformer |
-| Pretrained video VAE | Encodes camera images into latent visual tokens |
-| Built-in T5 text encoder | Encodes the instruction; all token groups receive language through cross-attention |
-| Action expert DiT | Generates continuous action chunks; hidden dimension 1024, approximately 1B parameters |
-| Shared-attention Mixture-of-Transformer (MoT) structure | Connects the video and action branches subject to the attention mask |
+There are **three encoders and two interacting transformer branches**, rather than a video generator whose output is fed into an action generator in sequence:
 
-The reported total model size is approximately **6B parameters**. Images from multiple cameras are concatenated into one image before entering the VAE. MoT here describes modality-specific transformer branches connected by attention, not a learned top-$k$ router selecting interchangeable experts.
+| Component | Input | Output and role |
+|:--|:--|:--|
+| Built-in T5 text encoder | Instruction string $l$ | Language embeddings $L$, supplied to both transformer branches through cross-attention |
+| Pretrained video VAE encoder | Camera images/video | Compressed visual latents; this is a visual encoder, not the action generator |
+| Action encoder, shown in Figure 2 | Numerical action variables at the sampled noise level | Action embeddings suitable for the action DiT; these are not words or discrete FAST tokens |
+| Pretrained Wan2.2-5B video DiT | Clean current-observation tokens and, during training, noisy future-video tokens | Contextual visual features and predictions of future-latent flow velocity; DiT means Diffusion Transformer |
+| Action expert DiT | Noisy action embeddings, visual context, language, and noise-level conditioning | Predicted action flow velocity, used to update the noisy action chunk |
+
+The action expert has hidden dimension **1024** and approximately **1B parameters**; the reported total model size is approximately **6B**. Its transformer architecture follows the video branch at a reduced hidden width. The paper does not specify the exact action encoder/output projection layers or all tensor dimensions.
+
+The **Mixture-of-Transformer (MoT)** structure connects modality-specific branches through shared attention. It is not a learned top-$k$ router selecting interchangeable experts. Likewise, "shared attention" does not mean that the 5B video branch and 1B action branch have identical weights or hidden widths.
+
+Keep three visual quantities separate: **VAE latents** encode images, **DiT hidden features** provide context for actions, and **predicted flow velocities** are the video branch's training outputs. None of these is itself a decoded RGB future video.
 
 ### 2.2 Three token groups
 
@@ -83,9 +89,67 @@ Attention within the future-video group and within the action group is bidirecti
 
 Consequently, deleting future tokens at inference does not remove an input that the action branch was allowed to rely on during training. This is a trained architectural property, not an inference-only shortcut applied to an arbitrary WAM.
 
-## 3. Joint Flow-Matching Training
+### 2.3 How the branches interact inside the model
 
-Fast-WAM uses the same flow-matching formulation for actions and future-video latents. Let the clean target $y$ be either an action chunk $a_{1:H}$ or future-frame VAE latents $z_{1:T}$. Here $z_{1:T}$ denotes video targets, distinct from the conditioning representation $z(o,l)$ above.
+Read the mask as a rule applied throughout transformer processing, not just a filter on the final output. At a given layer, let $O$, $F$, and $A$ denote the hidden tokens for the current observation, future video, and actions. The permitted attention operations can be summarized as
+
+$$
+\begin{aligned}
+\Delta O &= \operatorname{Attn}(Q_O,K_O,V_O),\\
+\Delta F &= \operatorname{Attn}(Q_F,[K_O;K_F],[V_O;V_F]),\\
+\Delta A &= \operatorname{Attn}(Q_A,[K_O;K_A],[V_O;V_A]).
+\end{aligned}
+$$
+
+Here $Q$, $K$, and $V$ mean projected queries, keys, and values; subscripts identify their token group. Semicolons concatenate token sequences. For one attention head,
+
+$$
+\operatorname{Attn}(Q,K,V)
+=\operatorname{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right)V,
+$$
+
+where $d_k$ is the query/key width. These equations explain the mask, not the exact source-code layout. Cross-branch attention requires compatible projected dimensions; it does not imply concatenating the raw hidden states of differently sized branches without projection.
+
+Alongside these interactions, each branch processes its own hidden states with transformer operations and receives language through cross-attention. The noisy branches also need their flow-noise level to predict the appropriate velocity. The paper does not detail every normalization, projection, or conditioning layer.
+
+**There are not separate video DiTs for the current and future frames.** These are two token groups processed by the video backbone. The action expert reads permitted current-observation features through attention; it does not consume the video branch's predicted future or video-output head.
+
+An important consequence is that Fast-WAM's future-video branch also **cannot read actions**. Its video objective is conditioned on observation and language, not an explicit action-conditioned simulator of the form $p(v\mid o,l,a)$. Here, "world modeling" should not be mistaken for rolling out a supplied candidate action sequence.
+
+## 3. Training Pipeline: From Demonstrations to Two Losses
+
+### 3.1 What one training example contains
+
+Take a time window from a recorded robot demonstration:
+
+$$
+(o,l,A^*,V^*),\qquad A^*=a^*_{1:H}\in\mathbb R^{H\times d_{\mathrm{act}}}.
+$$
+
+| Data | Meaning | Use in training |
+|:--|:--|:--|
+| $o$ | Current camera observations | Clean conditioning input shared by both branches |
+| $l$ | Task instruction, such as "Fold the cloth" | Language conditioning for both branches |
+| $A^*$ | Recorded continuous robot actions following the observation | Clean target from which noisy action inputs and action-loss targets are constructed |
+| $V^*$ | Recorded future camera frames from the same demonstration window | Clean video supervision, encoded into latent targets and then noised |
+
+$H=32$ is the number of physical action steps in the chunk. The action dimension $d_{\mathrm{act}}$ depends on the robot representation and is not specified in the paper. A batch adds a leading batch dimension to these quantities.
+
+**The training future is recorded data, not a future first imagined by the model.** Ground-truth future frames supervise their own branch; they are not privileged conditioning inputs to the action branch.
+
+### 3.2 Encode language, images, and actions in their respective spaces
+
+1. **Language:** T5 converts the instruction into an embedding sequence $L=E_{\mathrm{text}}(l)$. Language reaches both DiTs through cross-attention, rather than being treated as another camera frame.
+2. **Images:** concatenate the multiple camera views into a single image at each selected time, then use the pretrained video VAE to obtain visual latents. Separate the clean current-observation group $O_0$ from the future target latents $Z^*$. This is a logical separation; the paper does not prescribe the exact VAE-call layout.
+3. **Actions:** keep the demonstration's numerical action chunk as the clean target $A^*$. After noise is added as below, the action encoder maps the noisy variables into transformer embeddings. An action-output mapping returns the predicted velocity to action space for the loss.
+
+The paper uses temporal downsampling by 4 and **9 video frames per chunk**. That is a frame count, not a claim that the DiT receives 9 visual tokens. VAE compression and visual tokenization determine the latent sequence length; the exact token counts and image resolution are not given. Similarly, a 32-step action chunk and an action hidden width of 1024 describe different axes, not 1024 physical action coordinates.
+
+The current-observation representation must contain only currently available visual information. Keeping its DiT attention isolated would not repair a preprocessing pipeline that had already mixed future information into it.
+
+### 3.3 Add noise only to the prediction targets
+
+Fast-WAM uses the same flow-matching formulation for both modalities. Let $y$ be either $A^*$ or $Z^*$. The latter is the paper's future-latent target $z_{1:T}$, distinct from the conditioning representation $z(o,l)$ in Section 1.
 
 Sample Gaussian noise $\epsilon\sim\mathcal N(0,I)$ and a noise level $t\in(0,1)$, then form
 
@@ -99,7 +163,9 @@ $$
 \frac{dy_t}{dt}=\epsilon-y.
 $$
 
-The model predicts that velocity, with loss
+Thus the two prediction paths receive noisy actions $A_t$ and noisy future latents $Z_t$. **Do not add this target noise to $O_0$ or the instruction.** The notation $t$ describes the noise level for either branch; the paper does not specify whether the two branches share a sampled level or draw levels independently.
+
+The model predicts the corresponding velocity, with loss
 
 $$
 \mathcal L_{\mathrm{FM}}(y)
@@ -107,38 +173,112 @@ $$
 \left[\left\|f_\theta(y_t,t,o,l)-(\epsilon-y)\right\|_2^2\right].
 $$
 
+Concretely, the action output is compared with $\epsilon_A-A^*$ and the video output with $\epsilon_Z-Z^*$. Their output shapes must match the action chunk and future latent target, respectively. These are **velocity predictions**, not direct clean-action or RGB-frame predictions from one forward pass.
+
 The two branch losses are combined:
 
 $$
-\mathcal L_{\mathrm{act}}=\mathcal L_{\mathrm{FM}}(a_{1:H}),
+\mathcal L_{\mathrm{act}}=\mathcal L_{\mathrm{FM}}(A^*),
 \qquad
-\mathcal L_{\mathrm{vid}}=\mathcal L_{\mathrm{FM}}(z_{1:T}),
+\mathcal L_{\mathrm{vid}}=\mathcal L_{\mathrm{FM}}(Z^*),
 $$
 
 $$
 \boxed{\mathcal L=\mathcal L_{\mathrm{act}}+\lambda\mathcal L_{\mathrm{vid}}.}
 $$
 
-$\lambda$ balances action learning and video supervision; its numerical value is not specified in the PDF. The masks determine which inputs each branch of $f_\theta$ can access.
+$\lambda$ balances action learning and video supervision; its numerical value is not specified in the paper. The masks determine which inputs each branch of $f_\theta$ can access.
 
 **Noise time is not robot time.** The variable $t$ indexes the flow from data to noise, while $H$ and $T$ index action and video horizons. At inference, action generation starts from noise and integrates the learned field in the reverse direction, from $t=1$ toward $t=0$.
 
-## 4. Inference: What Is Removed, and What Remains?
+### 3.4 One training forward pass
 
 ```text
-Current camera images + instruction
-  -> VAE visual tokens + T5 language embeddings
-  -> One video-backbone pass over clean current-observation tokens
-  -> Reuse the resulting context for action generation
-  -> Denoise an action chunk for 10 steps
-  -> Output 32 actions
+Recorded instruction ----------------> T5 --------------------> L
+Recorded current camera views -------> VAE / tokenization ----> O0 (clean)
+Recorded future camera frames -------> VAE -> Z* -> add noise -> Zt
+Recorded action chunk ----------------------> A* -> add noise -> At
+
+Video DiT:  O0 and embedded Zt, conditioned on L and noise level
+  O0 tokens read only O0 tokens
+  O0 hidden features -> current-observation context C for the action branch
+  Zt tokens read O0 and Zt tokens
+  future-token output -> latent-velocity prediction -> video loss
+
+Action DiT: action-encoder(At), conditioned on C, L, and noise level
+  action tokens read current-observation features C and action tokens
+  action tokens cannot read future-video tokens Zt
+  action output -> action-velocity prediction -> action loss
+
+action loss + lambda * video loss -> backpropagate -> optimizer update
 ```
 
-No future-video tokens are instantiated, so there is no iterative future-video generation. The **video backbone itself remains**: it encodes the current observation into the context used by the action expert.
+The branches interact within the masked MoT computation; the layout above separates their roles for explanation. It does **not** mean that training first generates a complete future and then runs the action model.
+
+**The action branch has the same conditioning in training and inference:** current-observation features $C$, language embeddings $L$, and the noise level $t$, alongside the noisy action input $A_t$. Schematically, its velocity prediction is
+
+$$
+\hat u_A=\hat u_{A,\theta}(A_t,t;C,L).
+$$
+
+Here $C$ denotes the current-observation features produced by the video backbone and accessed through masked attention, potentially at multiple layers. It is not the raw VAE latent $O_0$ or the predicted future video. Training constructs $A_t$ from a recorded action chunk and noise; inference starts from pure noise and updates it repeatedly. Neither phase conditions actions on future-video tokens.
+
+For the stated flow-matching objective, a training example is evaluated at sampled noise levels. Training does not require executing the full 10-step inference denoising loop for each example. Nor does this latent-space video loss require decoding a generated video into pixels before computing the loss.
+
+Backpropagation updates the trainable parameters through both losses. In particular, video learning shapes the visual backbone used by the action branch, even though future-token activations cannot flow into actions. This is **joint representation learning**, not teacher-generated action labels or a separate distillation stage. The paper does not give a complete list of frozen versus trainable encoder parameters.
+
+## 4. Inference Pipeline: Encode Once, Denoise Actions Repeatedly
+
+### 4.1 One policy call
+
+Only the current observation and instruction are available. There are no recorded future frames or target actions.
+
+```text
+Instruction -> T5 -> language embeddings L
+Current camera views -> concatenate -> VAE -> clean observation tokens O0
+O0 + L -> ONE video-DiT pass -> reusable observation context C
+
+Gaussian action noise A(1)
+  -> action encoder -> action DiT with C, L, current noise level
+  -> action-velocity prediction -> update noisy actions
+  -> repeat for 10 denoising steps -> final 32-step action chunk
+```
+
+1. **Build conditioning once:** encode the instruction and current images, then process the clean observation tokens with the video backbone. Here $C$ names the reusable visual context; it is the representation summarized as $z(o,l)$ earlier, not a predicted future.
+2. **Initialize the unknown actions:** sample Gaussian noise with the shape of an action chunk, $A^{(1)}\sim\mathcal N(0,I)$ in $\mathbb R^{H\times d_{\mathrm{act}}}$. Unlike training, there is no clean $A^*$ to mix with this noise.
+3. **Predict and apply a velocity repeatedly:** embed the current noisy actions, run the action DiT using visual and language conditioning, and update the action variables toward the clean end of the flow. Reuse the visual context, but recompute action features because the actions and noise level change.
+4. **Return numerical actions:** after 10 denoising steps, output the 32-step action chunk. This is not a sequence of text tokens and does not require a VAE video decoder.
+
+For intuition, a first-order Euler update would be
+
+$$
+A^{(t_{j+1})}
+=A^{(t_j)}+(t_{j+1}-t_j)
+\hat u_A\!\left(A^{(t_j)},t_j;C,L\right),
+\qquad t_{j+1}<t_j,
+$$
+
+where $\hat u_A$ is the predicted action velocity. The negative time increment moves from noise toward data. This is an illustrative integration step, not a claim that the paper specifies this exact solver or time grid. It reports 10 denoising steps and CFG scale 1.0, but not the full numerical integration configuration.
+
+### 4.2 Why the video computation is reusable
 
 The mask explains why the visual computation can be reused: observation tokens depend on neither future-video tokens nor the changing noisy action tokens. Their context does not need to be recomputed from those tokens at each action-denoising step.
 
-**The entire policy is not a one-step action generator.** The paper's single-forward-pass description concerns obtaining the visual/world representation. Its implementation still uses **10 denoising steps**, with classifier-free guidance scale **1.0**.
+At the attention level, this permits reusing observation-side keys and values while recomputing action-side queries, keys, and values. That is an implementation interpretation of the dependency structure; the paper does not specify the cache layout or API. The conditioning may be a collection of layerwise features, not necessarily one pooled vector passed only into the first action layer.
+
+This reuse is **within a policy call**. A new camera observation requires new visual context. The predicted chunk is then available to the controller; the paper does not specify the exact execution/replanning schedule.
+
+| Item | Training | Inference |
+|:--|:--|:--|
+| Current observation and language | Clean conditioning | Clean conditioning |
+| Future video | Recorded targets, encoded and noised for the video loss | Absent; no future tokens or future denoising |
+| Action input | Recorded chunk mixed with noise at a sampled level | Start from pure noise, then use the iteratively updated chunk |
+| Video DiT | Processes current and noisy future token groups | Processes only current-observation tokens once |
+| Action DiT | Predicts velocity at sampled noise levels | Predicts velocities over 10 denoising steps |
+| Output supervision | Action and future-latent velocity losses | No losses or ground-truth targets |
+| VAE video decoder | Not required by the stated latent-space loss | Not required for action generation |
+
+**The entire policy is not a one-step action generator.** Fast-WAM removes future-video generation, not the video backbone or iterative action denoising. It also does not change from future-conditioned actions in training to observation-only actions at inference: actions use only observation/language context in both phases.
 
 The reported **190 ms** is inference latency on one NVIDIA RTX 5090D V2 32GB GPU. It is not a 190 ms duration for each physical action, and a 32-action chunk does not by itself specify the robot's controller frequency or how many actions execute before replanning.
 
@@ -178,7 +318,7 @@ The RoboTwin setup is described as spanning more than 50 tasks; Appendix Table 3
 | Noise schedule | Described as logit-normal over $t$ for training and inference |
 | Inference denoising / CFG | 10 steps / scale 1.0 |
 
-The PDF does not provide a detailed freeze/unfreeze curriculum, batch size, or the complete noise-schedule parameterization. Those should not be inferred from the neighboring VLA recipes.
+The paper does not provide a detailed freeze/unfreeze curriculum, batch size, or the complete noise-schedule parameterization. Those should not be inferred from the neighboring VLA recipes.
 
 ## 6. Controlled Variants: Separating the Two Effects
 
@@ -273,6 +413,6 @@ Fast-WAM is approximately **3.1 times faster than Joint** and **4.3 times faster
 2. **The attention mask makes the separation possible.** Actions never rely on future-video tokens, directly or indirectly through observation tokens, during training.
 3. **Single-pass visual encoding does not mean single-step action generation.** Fast-WAM retains iterative action denoising while removing iterative video denoising.
 4. **The strongest evidence is the controlled ablation.** Dropping video co-training hurts more than dropping test-time imagination on the reported simulation averages; real-world results also show a substantial co-training benefit.
-5. **Do not generalize this to all planning problems.** The real-world evaluation covers one task, IDM retains a success advantage there, and the PDF does not report uncertainty estimates or the real-world trial count. It also does not fully specify how failed trials enter the completion-time average. These results do not establish that explicit future prediction is unnecessary for every task or distribution shift.
+5. **Do not generalize this to all planning problems.** The real-world evaluation covers one task, IDM retains a success advantage there, and the paper does not report uncertainty estimates or the real-world trial count. It also does not fully specify how failed trials enter the completion-time average. These results do not establish that explicit future prediction is unnecessary for every task or distribution shift.
 
 **In one sentence:** Fast-WAM uses future-video prediction to improve a policy that acts from current observations, without requiring it to generate future video every time it acts.
