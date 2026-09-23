@@ -14,8 +14,8 @@
 | 4 | [Forward Kinematics](#chapter-4-forward-kinematics) | Complete |
 | 5 | [Velocity Kinematics and Statics](#chapter-5-velocity-kinematics-and-statics) | Complete |
 | 6 | [Inverse Kinematics](#chapter-6-inverse-kinematics) | Complete |
-| 7 | Kinematics of Closed Chains | Not started |
-| 8 | Dynamics of Open Chains | Not started |
+| 7 | Kinematics of Closed Chains | Skipped |
+| 8 | [Dynamics of Open Chains](#chapter-8-dynamics-of-open-chains) | Sections 8.1-8.5 complete |
 | 9 | Trajectory Generation | Not started |
 | 10 | Motion Planning | Not started |
 | 11 | Robot Control | Not started |
@@ -100,6 +100,23 @@
 | 6.11 | [Formula Sheet](#611-formula-sheet) |
 | 6.12 | [Software Map](#612-software-map) |
 | 6.13 | [Understanding Checklist](#613-understanding-checklist) |
+
+## Chapter 8 Catalog
+
+Only book Sections 8.1-8.5 are covered. The review aids below do not represent additional book sections.
+
+| Book section | Topic |
+|:--|:--|
+| Roadmap | [How the Chapter Fits Together](#how-the-chapter-fits-together) |
+| 8.1 | [Lagrangian Formulation](#81-lagrangian-formulation) |
+| 8.2 | [Dynamics of a Single Rigid Body](#82-dynamics-of-a-single-rigid-body) |
+| 8.3 | [Newton-Euler Inverse Dynamics](#83-newton-euler-inverse-dynamics) |
+| 8.4 | [Dynamic Equations in Closed Form](#84-dynamic-equations-in-closed-form) |
+| 8.5 | [Forward Dynamics of Open Chains](#85-forward-dynamics-of-open-chains) |
+| Review | [Common Confusions](#chapter-8-common-confusions) |
+| Review | [Formula Sheet](#chapter-8-formula-sheet) |
+| Review | [Software Map](#chapter-8-software-map) |
+| Review | [Understanding Checklist](#chapter-8-understanding-checklist) |
 
 ---
 
@@ -2699,3 +2716,861 @@ After this chapter, you should be able to:
 * explain why a closed end-effector path may not return the joints to their initial configuration.
 
 Chapter 7 extends kinematic analysis to mechanisms with closed chains, whose joint motions must also satisfy loop-closure constraints.
+
+---
+
+## Chapter 8: Dynamics of Open Chains
+
+**Scope:** Sections 8.1-8.5 of the supplied May 2017 book PDF, printed pp. 272-300. Chapter 7 was skipped. Task-space dynamics, constrained dynamics, URDF inertial parameters, gearing, and friction modeling in Sections 8.6 onward are outside this note.
+
+Kinematics describes how a robot moves; **dynamics relates that motion to the forces and torques needed to produce it**. The two main problems are
+
+| Problem | Given | Find |
+|:--|:--|:--|
+| Inverse dynamics | Joint positions $\theta$, velocities $\dot\theta$, accelerations $\ddot\theta$, and external loading | Required joint effort $\tau$ |
+| Forward dynamics | Current state $(\theta,\dot\theta)$, applied joint effort $\tau$, and external loading | Joint acceleration $\ddot\theta$ |
+
+Unless stated otherwise, assume a fixed-base open chain with rigid links, independent one-DOF joints, and no joint friction. A revolute joint's effort is a torque; a prismatic joint's effort is a force. Both are entries of $\tau\in\mathbb R^n$, with mechanical power $\tau^T\dot\theta$.
+
+Prerequisites are [twists and adjoints](#33-rigid-body-motions-and-twists), [wrenches](#34-wrenches), and [body Jacobians](#54-body-jacobian), not closed-chain kinematics. Retain the angular-first conventions
+
+$$
+V=\begin{bmatrix}\omega\\v\end{bmatrix},\qquad
+F=\begin{bmatrix}m\\f\end{bmatrix},\qquad
+T_{ab}:\text{ coordinates in frame }\{b\}\text{ to frame }\{a\}.
+$$
+
+The equation we will build and then compute in two different ways is
+
+$$
+\boxed{\tau=M(\theta)\ddot\theta+c(\theta,\dot\theta)+g(\theta)+J(\theta)^TF_{\mathrm{tip}}.}
+$$
+
+| Symbol | Meaning |
+|:--|:--|
+| $M(\theta)\in\mathbb R^{n\times n}$ | Joint-space mass matrix; not a homogeneous home transform |
+| $c(\theta,\dot\theta)\in\mathbb R^n$ | Coriolis and centripetal effort vector |
+| $g(\theta)\in\mathbb R^n$ | Gravity-compensation effort vector |
+| $h(\theta,\dot\theta)=c+g$ | Velocity/gravity bias for the frictionless model |
+| $\mathbf g\in\mathbb R^3$ | Physical gravitational acceleration in base coordinates, distinct from $g(\theta)$ |
+| $F_{\mathrm{tip}}\in\mathbb R^6$ | Wrench the **robot applies to the environment**, in the same frame as $J$ |
+
+The environment applies $-F_{\mathrm{tip}}$ to the robot. If a different convention instead defines $F_{\mathrm{ext}}$ as the environment-on-robot wrench, the corresponding term on the right is $-J^TF_{\mathrm{ext}}$. This sign convention will also determine the backward recursion.
+
+#### How the chapter fits together
+
+The sections answer successive questions about **the same dynamics equation**, rather than introducing unrelated models:
+
+| Step | Question | Result carried into the next step |
+|:--|:--|:--|
+| [8.1: energy view](#81-lagrangian-formulation) | Where do $M$, $c$, and $g$ come from, and what do they mean? | Differentiate kinetic and potential energy to obtain the equation; interpret $M$ in joint and endpoint coordinates. |
+| [8.2: one link](#82-dynamics-of-a-single-rigid-body) | How can we obtain the required force and moment without differentiating the whole robot's energy? | Build a rigid-body law mapping a link's motion and inertia to its required wrench. |
+| [8.3: the chain](#83-newton-euler-inverse-dynamics) | How do those single-link laws combine across joints? | Propagate motion outward and required loads inward to compute $\tau$. |
+| [8.4: equivalence](#84-dynamic-equations-in-closed-form) | Where are the original $M$, $c$, and $g$ inside that recursion? | Collect its terms and recover the energy-based mass matrix and dynamics equation. |
+| [8.5: simulation](#85-forward-dynamics-of-open-chains) | Given effort instead of acceleration, how does the robot move? | Solve the same equation for $\ddot\theta$, then integrate the state. |
+
+In particular, the matrices encountered here describe inertia at different levels: $I_b$ describes one body's rotation, $G_b$ describes its full rigid motion, $M$ combines all links in joint coordinates, and $\Lambda$ expresses the robot's kinetic energy in endpoint coordinates when the relevant Jacobian is invertible. The transformations between them will explain their relationship.
+
+### 8.1 Lagrangian Formulation
+
+**Starting question:** given a robot's geometry and mass distribution, how do we determine the joint effort needed for a prescribed motion? The energy route is: write $K$ and $P$, differentiate them to obtain $M\ddot\theta+c+g$, then interpret that equation. Mass ellipsoids and apparent endpoint mass are interpretations of the resulting $M$, not additional force laws.
+
+#### Start with energy to avoid solving internal joint forces
+
+Choose independent generalized coordinates $q$. Their conjugate generalized forces $f$ are defined by power $f^T\dot q$. For an open-chain robot, use $q=\theta$ and $f=\tau$.
+
+Why use energy? An ideal joint's constraint reactions do no work along its allowed motion. Using independent joint coordinates lets us derive the actuator efforts without first solving every internal reaction force. The geometry enters through the positions and velocities used to compute energy.
+
+With kinetic energy $K$ and potential energy $P$, define the Lagrangian
+
+$$
+\mathcal L(q,\dot q)=K(q,\dot q)-P(q).
+$$
+
+The Euler-Lagrange equations with applied generalized forces are
+
+$$
+\boxed{f_i=\frac{d}{dt}\frac{\partial\mathcal L}{\partial\dot q_i}
+-\frac{\partial\mathcal L}{\partial q_i}.}
+$$
+
+For a mass moving vertically with upward coordinate $x$, $K=\tfrac12m\dot x^2$ and $P=mgx$. Therefore $f=m\ddot x+mg$: part of the applied force accelerates the mass, and part supports its weight. Gravity is already included through $P$; it must not be added again as a separate applied force.
+
+#### From kinetic energy to the mass matrix and velocity coupling
+
+At a fixed configuration, each link's velocity is linear in $\dot\theta$. Since kinetic energy is quadratic in those velocities, the robot's total energy has the form
+
+$$
+K=\frac12\dot\theta^TM(\theta)\dot\theta,
+\qquad g(\theta)=\frac{\partial P}{\partial\theta}.
+$$
+
+If gravity is represented by the vector $\mathbf g$, a convenient potential is $P=-\sum_i m_i\mathbf g^Tp_{c_i}$, up to an arbitrary constant, where $p_{c_i}$ is link $i$'s center-of-mass position in the base frame.
+
+Thus $M$ is **the matrix of kinetic-energy coefficients**, not an extra assumption added to the Euler-Lagrange equation. Its entries depend on configuration because the same joint rates move the link masses differently at different postures. [Section 8.4](#84-dynamic-equations-in-closed-form) will construct it explicitly from all the rigid links' inertias and Jacobians.
+
+Now differentiate this energy. Let $m_{ij}(\theta)$ be an entry of the symmetric matrix $M$:
+
+$$
+\frac{d}{dt}\frac{\partial K}{\partial\dot\theta_i}
+=\sum_jm_{ij}\ddot\theta_j+
+\sum_{j,k}\frac{\partial m_{ij}}{\partial\theta_k}\dot\theta_j\dot\theta_k,
+\qquad
+\frac{\partial K}{\partial\theta_i}
+=\frac12\sum_{j,k}\frac{\partial m_{jk}}{\partial\theta_i}\dot\theta_j\dot\theta_k.
+$$
+
+The first expression has **two sources of change**: joint rates change, producing $M\ddot\theta$, and the kinetic-energy coefficients change as the robot changes posture, producing velocity products. Subtracting the second expression and adding $\partial P/\partial\theta_i$ gives
+
+$$
+\boxed{\tau=M(\theta)\ddot\theta+c(\theta,\dot\theta)+g(\theta)}
+$$
+
+without an endpoint load. Symmetrizing the coefficients of $\dot\theta_j\dot\theta_k$ gives a compact formula for the remaining kinetic-energy terms:
+
+$$
+\Gamma_{ijk}=\frac12\left(
+\frac{\partial m_{ij}}{\partial\theta_k}
++\frac{\partial m_{ik}}{\partial\theta_j}
+-\frac{\partial m_{jk}}{\partial\theta_i}\right),
+\qquad
+c_i=\sum_{j,k}\Gamma_{ijk}\dot\theta_j\dot\theta_k.
+$$
+
+The $\Gamma_{ijk}$ are **Christoffel symbols of the first kind**. Here their role is bookkeeping: they collect derivatives of $M$ into the velocity-product vector $c$. They are not new physical parameters. Equivalently, define the **Coriolis matrix**
+
+$$
+C_{ij}(\theta,\dot\theta)=\sum_k\Gamma_{ijk}\dot\theta_k,
+\qquad c=C\dot\theta.
+$$
+
+The dependency is therefore $K\rightarrow M\rightarrow c$, while $P\rightarrow g$. In this frictionless model, choosing $M(\theta)$ fixes the corresponding velocity-product terms; they cannot be chosen independently. If $M$ is constant in the chosen coordinates, these terms vanish. The following example makes that dependency concrete.
+
+#### Worked model: the book's point-mass 2R arm
+
+![Planar 2R arm with point masses at the link ends and downward gravity](../../../assets/Modern_Robotics/ch08_2r_dynamics_model.png)
+
+*The links are massless rods of lengths $L_1,L_2$, with masses $m_1,m_2$ at their distal ends. The second angle is relative to the first link; gravity points along negative $y$. Cropped from book Figure 8.1, printed p. 273.*
+
+Use one model throughout: first obtain its dynamics from energy, then reuse its mass matrix to interpret joint coupling and endpoint mass. The planar mass positions are
+
+$$
+p_1=\begin{bmatrix}L_1\cos\theta_1\\L_1\sin\theta_1\end{bmatrix},
+\quad
+p_2=\begin{bmatrix}
+L_1\cos\theta_1+L_2\cos(\theta_1+\theta_2)\\
+L_1\sin\theta_1+L_2\sin(\theta_1+\theta_2)
+\end{bmatrix}.
+$$
+
+Differentiate these positions to obtain velocities. Their squared magnitudes are
+
+$$
+\begin{aligned}
+\|\dot p_1\|^2&=L_1^2\dot\theta_1^2,\\
+\|\dot p_2\|^2&=L_1^2\dot\theta_1^2
++L_2^2(\dot\theta_1+\dot\theta_2)^2
++2L_1L_2\cos\theta_2\,\dot\theta_1(\dot\theta_1+\dot\theta_2).
+\end{aligned}
+$$
+
+Thus $K=\tfrac12m_1\|\dot p_1\|^2+\tfrac12m_2\|\dot p_2\|^2$, and
+
+$$
+P=(m_1+m_2)gL_1\sin\theta_1+m_2gL_2\sin(\theta_1+\theta_2),
+$$
+
+where the scalar $g>0$ is gravitational acceleration magnitude. To simplify the algebra, define
+
+$$
+\alpha=(m_1+m_2)L_1^2,\qquad
+\beta=m_2L_1L_2,\qquad \delta=m_2L_2^2.
+$$
+
+**Read off inertia from energy.** Writing $K=\tfrac12M_{11}\dot\theta_1^2+M_{12}\dot\theta_1\dot\theta_2+\tfrac12M_{22}\dot\theta_2^2$ gives
+
+$$
+M(\theta)=\begin{bmatrix}
+\alpha+\delta+2\beta\cos\theta_2 & \delta+\beta\cos\theta_2\\
+\delta+\beta\cos\theta_2 & \delta
+\end{bmatrix}.
+$$
+
+The off-diagonal entry appears because both joint rates contribute to the motion of $m_2$. The $\cos\theta_2$ terms appear because the two links' velocity contributions align differently as the elbow angle changes. This is the concrete reason that the arm's inertia is a configuration-dependent matrix rather than a scalar mass.
+
+**Differentiate that same energy to obtain the other efforts.** For example, the second Euler-Lagrange equation follows from
+
+$$
+\begin{aligned}
+\frac{\partial K}{\partial\dot\theta_2}
+&=(\delta+\beta\cos\theta_2)\dot\theta_1+\delta\dot\theta_2,\\
+\frac{d}{dt}\frac{\partial K}{\partial\dot\theta_2}
+&=(\delta+\beta\cos\theta_2)\ddot\theta_1+\delta\ddot\theta_2
+-\beta\sin\theta_2\dot\theta_1\dot\theta_2,\\
+\frac{\partial K}{\partial\theta_2}
+&=-\beta\sin\theta_2(\dot\theta_1^2+\dot\theta_1\dot\theta_2).
+\end{aligned}
+$$
+
+Subtracting the last line cancels the mixed-velocity term, leaving $+\beta\sin\theta_2\dot\theta_1^2$. Applying the same procedure to the first joint yields
+
+$$
+c(\theta,\dot\theta)=\begin{bmatrix}
+-\beta\sin\theta_2(2\dot\theta_1\dot\theta_2+\dot\theta_2^2)\\
+\beta\sin\theta_2\dot\theta_1^2
+\end{bmatrix},
+$$
+
+$$
+g(\theta)=\begin{bmatrix}
+(m_1+m_2)gL_1\cos\theta_1+m_2gL_2\cos(\theta_1+\theta_2)\\
+m_2gL_2\cos(\theta_1+\theta_2)
+\end{bmatrix}.
+$$
+
+Together these give $\tau=M\ddot\theta+c+g$ with no endpoint wrench. Notice that $M$ contains $\cos\theta_2$, its derivatives generate the $\sin\theta_2$ factors in $c$, and differentiating the height terms in $P$ generates the cosines in $g$. Each term has a traceable origin. The point-mass assumption matters: uniform rigid rods with distributed mass would have different inertia and center-of-mass terms.
+
+#### Why zero joint acceleration does not mean zero physical acceleration
+
+The derivation produced $c$ even before assigning it a physical name. Why can this effort be needed when $\ddot\theta=0$? A link's mass can change its direction of motion while its joint speed stays constant. Differentiating $\dot p=J_p(\theta)\dot\theta$ gives $\ddot p=J_p\ddot\theta+\dot J_p\dot\theta$: setting the first term to zero does not remove the second.
+
+Terms proportional to $\dot\theta_i^2$ are called **centripetal** terms, and terms proportional to $\dot\theta_i\dot\theta_j$, $i\ne j$, are **Coriolis** terms. They describe these acceleration effects in joint coordinates. The Cartesian term $\dot J_p\dot\theta$ is an acceleration; $c$ is the resulting generalized effort after accounting for the masses and joint geometry, not the same vector.
+
+For the 2R arm at $(\theta_1,\theta_2)=(0,\pi/2)$ with $\ddot\theta=0$,
+
+$$
+\ddot p_2=
+\underbrace{\begin{bmatrix}-L_1\dot\theta_1^2\\-L_2\dot\theta_1^2-L_2\dot\theta_2^2\end{bmatrix}}_{\text{centripetal}}
++\underbrace{\begin{bmatrix}0\\-2L_2\dot\theta_1\dot\theta_2\end{bmatrix}}_{\text{Coriolis}}.
+$$
+
+The masses can accelerate even while both joint speeds remain constant. Coriolis/centripetal terms are not friction: they account for changing motion directions and dynamic coupling.
+
+#### Check the connection through energy conservation
+
+The same dependency between $M$ and $c$ has an important consequence: velocity coupling must be consistent with mechanical power. This is why the book introduces the identity involving $\dot M-2C$, rather than treating it as an unrelated matrix property.
+
+The vector $c$ and matrix $C$ are different objects. For the Christoffel construction above, $\dot M-2C$ is skew-symmetric. Its entries reduce to
+
+$$
+(\dot M-2C)_{ij}
+=\sum_k\left(\frac{\partial m_{kj}}{\partial\theta_i}
+-\frac{\partial m_{ik}}{\partial\theta_j}\right)\dot\theta_k,
+$$
+
+which change sign when $i,j$ are exchanged. Consequently $\dot\theta^T(\dot M-2C)\dot\theta=0$. To see why this matters, differentiate the total energy and substitute the dynamics:
+
+$$
+\begin{aligned}
+\frac{d}{dt}(K+P)
+&=\dot\theta^TM\ddot\theta+\frac12\dot\theta^T\dot M\dot\theta+\dot\theta^Tg\\
+&=\dot\theta^T\tau+\frac12\dot\theta^T(\dot M-2C)\dot\theta\\
+&=\dot\theta^T\tau.
+\end{aligned}
+$$
+
+This is the frictionless robot without an endpoint load. With the outgoing tip-wrench convention, the power balance becomes $\tfrac{d}{dt}(K+P)=\dot\theta^T\tau-V_{\mathrm{tip}}^TF_{\mathrm{tip}}$. The velocity terms account for the changing kinetic-energy coefficients; they do not dissipate energy like friction. An arbitrary matrix factorization $c=C\dot\theta$ need not have the same skew-symmetry property.
+
+#### From the mass matrix to mass ellipsoids
+
+We now know how to compute effort. The next question is geometric: **why does the same acceleration magnitude require different effort in different directions?** Isolate the inertial part by considering zero velocity with gravity and external loads removed or compensated. Then $\tau_{\mathrm{net}}=M\ddot\theta$, the matrix analogue of $f=ma$.
+
+$M$ is symmetric. It is positive definite when every nonzero generalized velocity produces positive kinetic energy, as for a nondegenerate rigid-link model with independent joint coordinates. Off-diagonal entries express coupling: accelerating one joint can require torque at another.
+
+At a fixed configuration, write $M=Q\operatorname{diag}(\lambda_i)Q^T$, where the columns $v_i$ of $Q$ are orthonormal eigenvectors. In these principal coordinates each acceleration component is multiplied by its own $\lambda_i$. A sphere therefore becomes an ellipsoid:
+
+* a unit acceleration ball maps to a torque ellipsoid with axes $v_i$ and semiaxis lengths $\lambda_i$;
+* a unit torque ball maps through $M^{-1}$ to an acceleration ellipsoid with semiaxis lengths $1/\lambda_i$;
+* torque and acceleration are parallel only along an eigenvector, unless all eigenvalues are equal.
+
+![Configuration-dependent mapping between joint acceleration and torque ellipsoids](../../../assets/Modern_Robotics/ch08_mass_ellipsoids.png)
+
+*Solid curves show a unit acceleration circle and its torque image; dotted curves show a unit torque circle and its acceleration image. The 2R arm has unit lengths and masses. Interpret the torques as inertial torques after removing gravity. Cropped from Figure 8.3, printed p. 280.*
+
+For the unit 2R example at $(0,\pi/2)$,
+
+$$
+M=\begin{bmatrix}3&1\\1&1\end{bmatrix},\qquad
+M^{-1}=\begin{bmatrix}0.5&-0.5\\-0.5&1.5\end{bmatrix}.
+$$
+
+A net torque $(1,0)$ therefore produces acceleration $(0.5,-0.5)$, not $(1,0)$. These are acceleration-to-force ellipsoids, not constant-energy velocity ellipsoids, whose radii scale as $1/\sqrt{\lambda_i}$. Euclidean balls also presume a chosen coordinate scaling; mixing revolute and prismatic coordinates requires care about units.
+
+#### From joint-space inertia to apparent endpoint mass
+
+The ellipsoid above answers a question about **joint** efforts and accelerations. A person pushing the end effector instead asks: "What inertia does the whole arm present at this endpoint?" We need the same kinetic energy expressed in endpoint velocities, not a new mass attached to the tool.
+
+For a square, invertible Jacobian $J$, $V=J\dot\theta$ implies $\dot\theta=J^{-1}V$. Substitute this into the energy already derived:
+
+$$
+K=\frac12(J^{-1}V)^TM(J^{-1}V)
+=\frac12V^T\underbrace{(J^{-T}MJ^{-1})}_{\Lambda}V,
+\qquad
+\boxed{\Lambda=J^{-T}MJ^{-1}.}
+$$
+
+Here, for the planar example, $V=(\dot x,\dot y)$ and $J$ is the $2\times2$ position Jacobian, not a six-row spatial Jacobian. Thus $M$ and $\Lambda$ describe **the same robot in different velocity coordinates**; their eigenvalues refer to different acceleration/effort spaces.
+
+The connection to force is equally direct. At rest, with gravity compensated and no other load, let $f_{\mathrm{push}}$ be an external planar force applied **to** the robot at the endpoint. With no additional joint drive, $M\ddot\theta=J^Tf_{\mathrm{push}}$, and the endpoint acceleration is $a=J\ddot\theta$. Eliminating $\ddot\theta$ gives
+
+$$
+f_{\mathrm{push}}=J^{-T}MJ^{-1}a=\Lambda a.
+$$
+
+This uses an incoming push, not the outgoing $F_{\mathrm{tip}}$ convention. The endpoint mass ellipsoid follows by applying the same eigenvector construction to $\Lambda$. The energy identity holds at any velocity where $J$ is invertible, but this simple force-acceleration interpretation assumes rest; at nonzero velocity there are additional velocity terms.
+
+Return to the same 2R arm at $(0,\pi/2)$ with unit lengths and masses:
+
+$$
+J=\begin{bmatrix}-1&-1\\1&0\end{bmatrix},\qquad
+\Lambda=\begin{bmatrix}1&0\\0&2\end{bmatrix}.
+$$
+
+For $V=(1,0)$, $\dot\theta=J^{-1}V=(0,-1)$: only the second joint moves, so only $m_2$ moves. For $V=(0,1)$, $\dot\theta=(1,-1)$: both masses move vertically at unit speed. Their kinetic energies are therefore $1/2$ and $1$, giving apparent masses 1 and 2. At rest, a unit push along $x$ consequently produces unit acceleration, whereas a unit push along $y$ produces acceleration $1/2$.
+
+The inverse-Jacobian formula requires nonsingularity; it is not a general redundant-robot formula. A singular endpoint map prevents this change of coordinates even when the joint-space $M$ remains positive definite. Full task-space dynamics in Section 8.6 is not covered here.
+
+**What carries forward:** geometry and mass determine energy; energy yields $M$, its configuration derivatives yield $c$, and potential energy yields $g$. Ellipsoids visualize the inertial map, while $\Lambda$ changes its coordinates. We now understand the equation, but symbolically differentiating a large robot's energy is cumbersome. Newton-Euler will compute the **same physical efforts** by balancing forces and moments one link at a time. First we need the dynamics law for one link.
+
+### 8.2 Dynamics of a Single Rigid Body
+
+**Question inherited from Section 8.1:** what local law can replace differentiating the whole robot's energy? Each link both translates and rotates, so its scalar mass is insufficient. We first describe its rotational inertia, use Newton's and Euler's laws to find the required force and moment, then package those laws into a six-dimensional form that can be reused for every link.
+
+#### Center of mass and rotational inertia
+
+Rotation gives different particles different speeds, so rotational energy depends on how mass is distributed about the rotation axis. For a rigid body represented by point masses $m_k$, let $r_k$ be their positions in a body-fixed frame whose origin is the center of mass. Then
+
+$$
+m=\sum_km_k,\qquad \sum_km_kr_k=0.
+$$
+
+The rotational energy is $K_{\mathrm{rot}}=\tfrac12\sum_km_k\|\omega_b\times r_k\|^2$. Collecting its coefficients into $K_{\mathrm{rot}}=\tfrac12\omega_b^TI_b\omega_b$ gives the rotational inertia matrix about this origin:
+
+$$
+I_b=-\sum_km_k[r_k]^2
+=\sum_km_k\left(\|r_k\|^2I_3-r_kr_k^T\right).
+$$
+
+For continuous density $\rho$, replace sums by integrals. For example,
+
+$$
+I_{xx}=\int(y^2+z^2)\rho\,dV,\qquad
+I_{xy}=-\int xy\rho\,dV,
+\qquad
+I_b=\begin{bmatrix}I_{xx}&I_{xy}&I_{xz}\\I_{xy}&I_{yy}&I_{yz}\\I_{xz}&I_{yz}&I_{zz}\end{bmatrix}.
+$$
+
+The negative sign in the off-diagonal entry is part of this convention. In a body-fixed frame, $I_b$ is constant, unlike the configuration-dependent robot mass matrix $M(\theta)$.
+
+The eigenvectors of $I_b$ are the **principal axes**, and its eigenvalues are the principal moments of inertia. Choosing these axes as the coordinate axes diagonalizes $I_b$. For familiar uniform solids about their centers of mass:
+
+| Solid and axis convention | Principal moments |
+|:--|:--|
+| Box with side lengths $a,b,c$ along $x,y,z$ | $\tfrac{m}{12}(b^2+c^2),\ \tfrac{m}{12}(a^2+c^2),\ \tfrac{m}{12}(a^2+b^2)$ |
+| Cylinder of radius $r$, length $h$, symmetry axis $z$ | $I_{xx}=I_{yy}=\tfrac{m}{12}(3r^2+h^2),\ I_{zz}=\tfrac12mr^2$ |
+| Ellipsoid with semiaxes $a,b,c$ along $x,y,z$ | $\tfrac{m}{5}(b^2+c^2),\ \tfrac{m}{5}(a^2+c^2),\ \tfrac{m}{5}(a^2+b^2)$ |
+
+These formulas supply the content of book Figure 8.5 without needing that figure. Rotational inertia is positive definite for ordinary three-dimensional bodies; idealized point or line masses can have zero moments about some axes.
+
+#### Newton's and Euler's equations in body coordinates
+
+Having identified the inertia, we can relate motion to load. Body coordinates keep $I_b$ constant, but the axes themselves rotate; differentiating momentum in those axes must account for that rotation. This is the single-body counterpart of the changing-coordinate effects that produced $c$ in Section 8.1.
+
+Let $V_b=(\omega_b,v_b)$ be the body twist at the center of mass, and $F_b=(m_b,f_b)$ the total applied wrench, both expressed in the same body frame. Then
+
+$$
+\boxed{f_b=m(\dot v_b+\omega_b\times v_b),}
+\qquad
+\boxed{m_b=I_b\dot\omega_b+\omega_b\times(I_b\omega_b).}
+$$
+
+The dots differentiate the **body-coordinate components**. In particular, $\dot v_b$ alone is not the physical center-of-mass acceleration written in that rotating frame. Since the inertial velocity is $Rv_b$ and $\dot R=R[\omega_b]$,
+
+$$
+R^T\frac{d}{dt}(Rv_b)=\dot v_b+[\omega_b]v_b.
+$$
+
+Applying the same transport rule to angular momentum $I_b\omega_b$ explains the rotational cross-product term. Even constant angular-velocity components can require torque if rotation is not about a principal axis. With diagonal inertia, for example,
+
+$$
+(m_b)_x=I_{xx}\dot\omega_x+(I_{zz}-I_{yy})\omega_y\omega_z,
+$$
+
+with cyclic expressions for $y,z$. For planar rotation about a principal $z$ axis, this reduces to $(m_b)_z=I_{zz}\dot\omega_z$.
+
+#### Change the inertia frame correctly
+
+The body law is easiest to derive at the center of mass, but model data or joint frames may use another origin or orientation. Before combining links or subcomponents, we therefore need to express inertia in a common frame while preserving the body's kinetic energy.
+
+For a rotated frame $\{c\}$ with the **same origin** and $\omega_b=R_{bc}\omega_c$, energy invariance gives
+
+$$
+I_c=R_{bc}^TI_bR_{bc}.
+$$
+
+For a parallel frame with its origin at $q$ relative to the center of mass, **Steiner's theorem** gives
+
+$$
+I_q=I_b+m(\|q\|^2I_3-qq^T).
+$$
+
+The scalar parallel-axis theorem is $I_d=I_{\mathrm{cm}}+md^2$. To combine rigid subcomponents, rotate and shift their inertias into one common frame before summing them; adding matrices about unrelated origins is invalid.
+
+#### Spatial inertia, momentum, and the Lie bracket
+
+We now have separate rotational and translational laws. The chain algorithm needs to transform both together using the twists and wrenches of Chapter 3. At the center of mass the energy is $K=\tfrac12\omega_b^TI_b\omega_b+\tfrac12m v_b^Tv_b$, so define the $6\times6$ **spatial inertia** and spatial momentum as
+
+$$
+G_b=\begin{bmatrix}I_b&0\\0&mI_3\end{bmatrix},
+\qquad P_b=G_bV_b,
+\qquad K=\frac12V_b^TG_bV_b.
+$$
+
+$P_b$ here is spatial momentum, not the scalar potential energy $P$. "Spatial inertia" means the six-dimensional inertia representation, not necessarily an inertia expressed in the world frame.
+
+The remaining cross products in the body-frame equations can also be written as one matrix operation. For $V=(\omega,v)$, the **small adjoint**, or Lie-bracket matrix, is
+
+$$
+\operatorname{ad}_V=
+\begin{bmatrix}[\omega]&0\\{}[v]&[\omega]\end{bmatrix},
+\qquad
+\operatorname{ad}_{V_1}V_2=
+\begin{bmatrix}
+\omega_1\times\omega_2\\
+v_1\times\omega_2+\omega_1\times v_2
+\end{bmatrix}.
+$$
+
+It satisfies $\operatorname{ad}_{V_1}V_2=-\operatorname{ad}_{V_2}V_1$ and $\operatorname{ad}_VV=0$. Equivalently, its twist matrix is the commutator $[V_1][V_2]-[V_2][V_1]$.
+
+Do not confuse $\operatorname{ad}_V$, which describes velocity-product interactions, with the finite frame-change matrix
+
+$$
+\operatorname{Ad}_T=
+\begin{bmatrix}R&0\\{}[p]R&R\end{bmatrix},\qquad
+T=\begin{bmatrix}R&p\\0&1\end{bmatrix}.
+$$
+
+Newton's and Euler's equations combine into
+
+$$
+\boxed{F_b=G_b\dot V_b-\operatorname{ad}_{V_b}^TG_bV_b.}
+$$
+
+The minus sign is important. Expanding the second term recovers the positive cross-product terms in the classical equations above.
+
+For another frame $\{a\}$ rigidly attached to the body, use the full transform $T_{ba}$, including translation:
+
+$$
+\boxed{G_a=\operatorname{Ad}_{T_{ba}}^TG_b\operatorname{Ad}_{T_{ba}},}
+\qquad
+F_a=G_a\dot V_a-\operatorname{ad}_{V_a}^TG_aV_a.
+$$
+
+This follows from $V_b=\operatorname{Ad}_{T_{ba}}V_a$ and invariant kinetic energy. Away from the center of mass, $G_a$ generally has translation-rotation coupling blocks; it is not simply $\operatorname{diag}(I_a,mI_3)$.
+
+The construction follows the same energy rule as $\Lambda=J^{-T}MJ^{-1}$: substitute the velocity-coordinate map into a quadratic energy. Here we change the frame of **one body's twist**; there we changed **the whole robot's joint velocities** to endpoint velocities. These are related transformations, not interchangeable inertia matrices.
+
+**Result for the chain:** given a link's $G_i$, $V_i$, and $\dot V_i$, we can now compute its net required wrench. What remains is to find those link motions from the joint motion and determine which joint transmits each load.
+
+### 8.3 Newton-Euler Inverse Dynamics
+
+**Question inherited from Section 8.2:** how do we combine single-body laws when each link supports the links beyond it? There are two dependencies with opposite directions:
+
+1. A child link's motion depends on its parent's motion plus its own joint motion, so compute $V_i,\dot V_i$ from **base to tip**.
+2. The wrench supplied by a parent must accelerate its own child link and support that child's downstream load, so compute $F_i$ from **tip to base**, starting with the known endpoint load.
+
+These dependencies explain the two passes; they are not an arbitrary order of calculation. After each transmitted wrench is known, project it onto the joint's allowed motion to obtain the actuator effort.
+
+#### Model data and frame conventions
+
+Attach frame $\{0\}$ to the base, frame $\{i\}$ to link $i$'s center of mass, and frame $\{n+1\}$ to the end effector, fixed relative to link $n$.
+
+| Quantity | Definition |
+|:--|:--|
+| $M_i=M_{0i}$ | Home pose of link frame $\{i\}$ in the base frame |
+| $M_{i,i-1}=M_i^{-1}M_{i-1}$ | Home pose of the parent frame expressed in link frame $\{i\}$; take $M_0=I_4$ |
+| $A_i\in\mathbb R^6$ | Joint $i$ screw axis in link frame $\{i\}$, constant |
+| $G_i\in\mathbb R^{6\times6}$ | Inertia of link $i$ in that same frame, constant |
+| $V_i,\dot V_i$ | Link twist and its component derivative, expressed in $\{i\}$ |
+| $F_i$ | Wrench transmitted from the parent through joint $i$ onto link $i$, expressed in $\{i\}$ |
+
+The $M_i$ and $M_{ij}$ in this table are homogeneous transforms, not the joint mass matrix $M(\theta)$. Given the home space screw $S_i$ from Chapter 4,
+
+$$
+A_i=\operatorname{Ad}_{M_i^{-1}}S_i,
+\qquad
+T_{i,i-1}(\theta_i)=e^{-[A_i]\theta_i}M_{i,i-1}.
+$$
+
+The negative exponential appears because this transform expresses the **parent in the moving child frame**. Its inverse is $T_{i-1,i}=M_{i-1,i}e^{[A_i]\theta_i}$.
+
+#### Forward pass: propagate motion from base to tip
+
+For a stationary base, initialize
+
+$$
+V_0=0,\qquad \dot V_0=\begin{bmatrix}0\\-\mathbf g\end{bmatrix}.
+$$
+
+The top zero is a three-vector. Using an artificial base acceleration opposite gravity is a computational way to obtain gravity-compensation efforts; the physical base does not accelerate. If $\mathbf g=(0,0,-9.81)$, the initialized linear acceleration is $(0,0,+9.81)$.
+
+For $i=1,\ldots,n$, let $X_i=\operatorname{Ad}_{T_{i,i-1}}$ and compute
+
+$$
+\boxed{V_i=X_iV_{i-1}+A_i\dot\theta_i,}
+$$
+
+$$
+\boxed{\dot V_i=X_i\dot V_{i-1}+A_i\ddot\theta_i
++\operatorname{ad}_{V_i}A_i\dot\theta_i.}
+$$
+
+The terms in the second equation are parent acceleration transported into the child frame, acceleration contributed by the joint, and a velocity-product term from the changing frame. To see the latter's origin, differentiate the twist recursion:
+
+$$
+\dot X_iV_{i-1}
+=-\operatorname{ad}_{A_i\dot\theta_i}X_iV_{i-1}
+=\operatorname{ad}_{V_i}A_i\dot\theta_i.
+$$
+
+The last equality uses $X_iV_{i-1}=V_i-A_i\dot\theta_i$ and the antisymmetry of the Lie bracket. Dropping this derivative of the frame transform would lose the Coriolis/centripetal effects.
+
+#### Backward pass: propagate loads from tip to base
+
+The forward pass has supplied every link's motion, so the single-body law now gives every link's net wrench requirement. It does **not** yet give $F_i$: the parent must supply that requirement plus the load transmitted to the next link. Starting from the known tip load makes that next-link contribution available at each backward step.
+
+![Incoming joint wrench and outgoing child reaction on one link](../../../assets/Modern_Robotics/ch08_link_wrench_balance.png)
+
+*Link $i$ receives $F_i$ from its parent and the reaction $-\operatorname{Ad}_{T_{i+1,i}}^TF_{i+1}$ from its child. Their sum must produce the link's rigid-body dynamics. Cropped from Figure 8.6, printed p. 293.*
+
+Initialize $F_{n+1}=F_{\mathrm{tip}}$ in the end-effector frame, and use the fixed terminal transform $T_{n+1,n}=M_{n+1,n}$. For $i=n,\ldots,1$,
+
+$$
+\boxed{F_i=X_{i+1}^TF_{i+1}+G_i\dot V_i
+-\operatorname{ad}_{V_i}^TG_iV_i,}
+\qquad
+\boxed{\tau_i=A_i^TF_i.}
+$$
+
+The wrench recursion comes from rearranging the free-body balance
+
+$$
+F_i-X_{i+1}^TF_{i+1}
+=G_i\dot V_i-\operatorname{ad}_{V_i}^TG_iV_i.
+$$
+
+The transpose transforms the child wrench into the parent link's coordinates, as required by power invariance. $F_i$ is the full six-dimensional transmitted wrench; the actuator supplies only its component conjugate to the joint's one allowed motion. In fact,
+
+$$
+F_i^T(A_i\dot\theta_i)=\tau_i\dot\theta_i,
+$$
+
+which explains the projection $\tau_i=A_i^TF_i$ without requiring the other constraint-force components to vanish.
+
+```text
+Model: home transforms, link inertias, joint screw axes
+Input: theta, dtheta, ddtheta, gravity, outgoing tip wrench
+
+Base -> tip: compute each relative transform, twist, and acceleration
+Tip -> base: compute each transmitted wrench and joint effort
+Output: tau
+```
+
+Both passes perform a fixed amount of work per link, so one inverse-dynamics evaluation is $O(n)$. "Forward pass" here means recursion direction; it is still part of **inverse dynamics**, not a simulation timestep.
+
+Unlike the Lagrange derivation, the algorithm never has to construct $M$ or $C$ explicitly. Their physical effects are already present in the propagated accelerations and rigid-body wrench terms. The next section identifies those effects algebraically, connecting this computation back to Section 8.1.
+
+### 8.4 Dynamic Equations in Closed Form
+
+**Question inherited from Section 8.3:** where are $M$, $c$, and $g$ hidden inside the recursion? This section is an equivalence check, not a third dynamics model. First, express every link's energy using joint velocities to recover $M$. Then collect the recursion's acceleration, velocity, gravity, and endpoint-load contributions into the same equation obtained by Lagrange.
+
+#### Construct the mass matrix from link kinetic energies
+
+Section 8.2 gave the link energy $\tfrac12V_i^TG_iV_i$. To add these energies and compare with Section 8.1, express all $V_i$ in terms of the **same** joint-rate vector. For each link, let $J_{ib}(\theta)$ be its body Jacobian, padded with zero columns for downstream joints so its shape is $6\times n$. Then
+
+$$
+V_i=J_{ib}\dot\theta,
+\qquad
+K=\frac12\sum_iV_i^TG_iV_i
+=\frac12\dot\theta^T\left(\sum_iJ_{ib}^TG_iJ_{ib}\right)\dot\theta.
+$$
+
+Therefore,
+
+$$
+\boxed{M(\theta)=\sum_{i=1}^nJ_{ib}(\theta)^TG_iJ_{ib}(\theta).}
+$$
+
+Each inertia and Jacobian must use the same link frame. This derivation explains both symmetry and configuration dependence: the link inertias are constant, but the Jacobians vary. Also,
+
+$$
+x^TMx=\sum_i(J_{ib}x)^TG_i(J_{ib}x)>0
+$$
+
+whenever a nonzero joint velocity $x$ necessarily moves some link with positive kinetic energy. An end-effector kinematic singularity does not, by itself, make the joint mass matrix singular.
+
+This completes the connection between inertia levels: mass distribution determines each $I_i$, combining rotation and translation gives $G_i$, and the link Jacobians combine these into $M$. If the endpoint Jacobian is square and invertible, $M$ can then be re-expressed as $\Lambda$. Only the coordinates and level of aggregation change; all are tied to the same kinetic energy.
+
+#### Stack the recursive equations
+
+The energy calculation identifies $M$ but does not yet show how the full recursion produces $c$, $g$, and the tip-load term. Stacking the equations lets us eliminate the intermediate link motions and wrenches and collect those contributions. The following notation separates the propagation matrix $\mathsf L$ from the scalar Lagrangian $\mathcal L$ used earlier.
+
+| Symbol | Definition and size |
+|:--|:--|
+| $\mathbf V,\mathbf F\in\mathbb R^{6n}$ | Stack $V_1,\ldots,V_n$ and $F_1,\ldots,F_n$ |
+| $\mathsf A\in\mathbb R^{6n\times n}$ | Block diagonal with $6\times1$ blocks $A_i$ |
+| $\mathsf G\in\mathbb R^{6n\times6n}$ | $\operatorname{diag}(G_1,\ldots,G_n)$ |
+| $\mathsf W\in\mathbb R^{6n\times6n}$ | Only nonzero blocks are $\mathsf W_{i,i-1}=X_i$, for $i=2,\ldots,n$ |
+| $D\in\mathbb R^{6n\times6n}$ | $\operatorname{diag}(\operatorname{ad}_{A_i\dot\theta_i})$ |
+| $E\in\mathbb R^{6n\times6n}$ | $\operatorname{diag}(\operatorname{ad}_{V_i})$ |
+| $b_0\in\mathbb R^{6n}$ | First block $X_1\dot V_0$, remaining blocks zero |
+| $f_{\mathrm{tip}}\in\mathbb R^{6n}$ | Last block $X_{n+1}^TF_{\mathrm{tip}}$, remaining blocks zero |
+
+For the stationary base $V_0=0$, including gravity via $\dot V_0$, the stacked equations are
+
+$$
+\begin{aligned}
+\mathbf V&=\mathsf W\mathbf V+\mathsf A\dot\theta,\\
+\dot{\mathbf V}&=\mathsf W\dot{\mathbf V}+\mathsf A\ddot\theta-D\mathsf W\mathbf V+b_0,\\
+\mathbf F&=\mathsf W^T\mathbf F+\mathsf G\dot{\mathbf V}-E^T\mathsf G\mathbf V+f_{\mathrm{tip}},\\
+\tau&=\mathsf A^T\mathbf F.
+\end{aligned}
+$$
+
+The minus sign before $D\mathsf W\mathbf V$ is the same frame-derivative term derived in Section 8.3. Since $\mathsf W$ is strictly block-lower-triangular, $\mathsf W^n=0$, and
+
+$$
+\mathsf L=(I-\mathsf W)^{-1}=I+\mathsf W+\cdots+\mathsf W^{n-1}.
+$$
+
+The block $(i,j)$ of $\mathsf L$ is $\operatorname{Ad}_{T_{ij}}$ for $i>j$, identity for $i=j$, and zero otherwise. It accumulates the successive frame transformations along the chain. Rearranging gives
+
+$$
+\begin{aligned}
+\mathbf V&=\mathsf L\mathsf A\dot\theta,\\
+\dot{\mathbf V}&=\mathsf L(\mathsf A\ddot\theta-D\mathsf W\mathbf V+b_0),\\
+\mathbf F&=\mathsf L^T(\mathsf G\dot{\mathbf V}-E^T\mathsf G\mathbf V+f_{\mathrm{tip}}).
+\end{aligned}
+$$
+
+Substituting into $\tau=\mathsf A^T\mathbf F$ separates the dynamics terms:
+
+$$
+\begin{aligned}
+M&=\mathsf A^T\mathsf L^T\mathsf G\mathsf L\mathsf A,\\
+c&=-\mathsf A^T\mathsf L^T(\mathsf G\mathsf L D\mathsf W+E^T\mathsf G)\mathsf L\mathsf A\dot\theta,\\
+g&=\mathsf A^T\mathsf L^T\mathsf G\mathsf Lb_0,\\
+J^TF_{\mathrm{tip}}&=\mathsf A^T\mathsf L^Tf_{\mathrm{tip}}.
+\end{aligned}
+$$
+
+The block rows of $\mathsf L\mathsf A$ are exactly the link Jacobians, so this mass matrix equals the sum of $J_{ib}^TG_iJ_{ib}$. The two contributions to $c$ come from the changing frames in acceleration propagation and the velocity-dependent term in each body's wrench law. Gravity enters through the artificial base acceleration $b_0$; the endpoint wrench is propagated backward and projected into joint efforts. Thus the recursion contains the same categories of effort as the energy derivation, without computing Christoffel symbols.
+
+The block formulation explains the structure; explicit dense block matrices are not required to run the recursive algorithm. Its key consequence for the next section is that, at a fixed state, the dependence on $\ddot\theta$ is linear: all remaining terms form a known bias/load vector.
+
+**Sign check against the supplied PDF:** Equation (8.74) on printed p. 298 displays plus signs for the velocity-product terms after rearrangement. These conflict with the minus sign in (8.69), the differentiated recursion, and the negative expression for $c$ in (8.79). The equations here retain the consistent **minus** sign; this correction follows directly from the derivation above.
+
+### 8.5 Forward Dynamics of Open Chains
+
+**Final question:** so far we have prescribed accelerations and computed the necessary effort. If motors instead apply a known effort, what acceleration results? Because Section 8.4 recovered the same equation and isolated its linear acceleration term, we can solve that equation in the opposite direction and reuse the inverse-dynamics algorithm to obtain its coefficients.
+
+#### Solve for acceleration, not for configuration
+
+With $\theta,\dot\theta,\tau,F_{\mathrm{tip}}$ given, solve
+
+$$
+\boxed{M(\theta)\ddot\theta
+=\tau-c(\theta,\dot\theta)-g(\theta)-J^TF_{\mathrm{tip}}.}
+$$
+
+Although the mathematical expression uses $M^{-1}$, numerical code should solve the linear system, for example with `np.linalg.solve(M, rhs)`. Forward dynamics returns an instantaneous acceleration; an integration method is still needed to obtain future positions and velocities.
+
+#### Reuse inverse dynamics to obtain every term
+
+Write $\operatorname{ID}(\theta,\dot\theta,\ddot\theta,\mathbf g,F_{\mathrm{tip}})$ for the inverse-dynamics routine, with the robot model fixed. The decomposition derived earlier makes it a way to measure individual terms: zero acceleration removes $M\ddot\theta$, zero velocity removes $c$, and zero gravity removes $g$. Once the biases are off, a unit acceleration $e_j$ returns $Me_j$, exactly column $j$ of $M$.
+
+This gives the following calls, without a separate symbolic dynamics derivation:
+
+| Desired term | Inverse-dynamics call |
+|:--|:--|
+| Bias $h=c+g$ | $\operatorname{ID}(\theta,\dot\theta,0,\mathbf g,0)$ |
+| Velocity-product vector $c$ | $\operatorname{ID}(\theta,\dot\theta,0,0,0)$ |
+| Gravity vector $g(\theta)$ | $\operatorname{ID}(\theta,0,0,\mathbf g,0)$ |
+| Endpoint contribution $J^TF_{\mathrm{tip}}$ | $\operatorname{ID}(\theta,0,0,0,F_{\mathrm{tip}})$ |
+| Mass-matrix column $M_{:j}$ | $\operatorname{ID}(\theta,0,e_j,0,0)$ |
+
+Here $e_j$ is the $j$th unit vector in joint-acceleration space; each zero has the dimension of its argument. In particular, computing a mass-matrix column requires setting **both velocity and gravity to zero**, as well as the tip wrench. Otherwise the result includes a bias, not just $M e_j$.
+
+Constructing $M$ takes $n$ inverse-dynamics calls. Since each is $O(n)$, that construction is $O(n^2)$; a generic dense linear solve adds its own cost. This is the method explained in Section 8.5, not a derivation of more specialized articulated-body algorithms.
+
+#### Numerical integration
+
+A solved acceleration describes only the current instant. Simulation requires advancing time, then recomputing dynamics because the configuration, velocity, and possibly input effort have changed. Introduce the first-order state $q_1=\theta$, $q_2=\dot\theta$:
+
+$$
+\dot q_1=q_2,\qquad
+\dot q_2=\operatorname{ForwardDynamics}(q_1,q_2,\tau,F_{\mathrm{tip}}).
+$$
+
+Given initial state $(\theta[0],\dot\theta[0])$ and timestep $\Delta t$, the book's **explicit Euler** update is
+
+$$
+\begin{aligned}
+\ddot\theta[k]&=\operatorname{ForwardDynamics}(\theta[k],\dot\theta[k],\tau[k],F_{\mathrm{tip}}[k]),\\
+\theta[k+1]&=\theta[k]+\Delta t\,\dot\theta[k],\\
+\dot\theta[k+1]&=\dot\theta[k]+\Delta t\,\ddot\theta[k].
+\end{aligned}
+$$
+
+Both updates use the **old state**. Updating velocity first and then using that new velocity for position is a different integration method. Reduce the timestep and compare trajectories to check numerical convergence; explicit Euler can drift in energy or become unstable. The book points to higher-order methods such as fourth-order Runge-Kutta for more accurate integration.
+
+#### Worked numerical check and Python implementation
+
+To close the loop, return to the point-mass 2R arm: the $M$, $c$, and $g$ derived from energy in Section 8.1 now serve as inputs to an inverse/forward dynamics consistency check and a simulated timestep. Use $L_1=L_2=m_1=m_2=1$, $g=9.81$, no endpoint wrench, and
+
+$$
+\theta=(0,\pi/2),\qquad \dot\theta=(1,2),\qquad
+\ddot\theta_{\mathrm{desired}}=(0.5,-0.25).
+$$
+
+The terms are
+
+$$
+M=\begin{bmatrix}3&1\\1&1\end{bmatrix},\quad
+c=\begin{bmatrix}-8\\1\end{bmatrix},\quad
+g=\begin{bmatrix}19.62\\0\end{bmatrix},\quad
+\tau=M\ddot\theta_{\mathrm{desired}}+c+g
+=\begin{bmatrix}12.87\\1.25\end{bmatrix}.
+$$
+
+The following runnable NumPy example implements the derived equations, not a general-purpose dynamics library. It verifies inverse/forward consistency and performs one Euler step. Run the block in a Python notebook or REPL with NumPy installed; a standalone version can be executed with `python3 <script_path>`.
+
+```python
+import numpy as np
+
+
+def two_r_terms(theta, dtheta, lengths=(1.0, 1.0),
+                masses=(1.0, 1.0), gravity=9.81):
+    q1, q2 = np.asarray(theta, dtype=float)
+    w1, w2 = np.asarray(dtheta, dtype=float)
+    l1, l2 = lengths
+    m1, m2 = masses
+    alpha = (m1 + m2) * l1**2
+    beta = m2 * l1 * l2
+    delta = m2 * l2**2
+    M = np.array([
+        [alpha + delta + 2 * beta * np.cos(q2), delta + beta * np.cos(q2)],
+        [delta + beta * np.cos(q2), delta],
+    ])
+    c = beta * np.sin(q2) * np.array([-2 * w1 * w2 - w2**2, w1**2])
+    distal = m2 * gravity * l2 * np.cos(q1 + q2)
+    g = np.array([(m1 + m2) * gravity * l1 * np.cos(q1) + distal, distal])
+    return M, c, g
+
+
+def inverse_dynamics_2r(theta, dtheta, ddtheta):
+    M, c, g = two_r_terms(theta, dtheta)
+    return M @ np.asarray(ddtheta, dtype=float) + c + g
+
+
+def forward_dynamics_2r(theta, dtheta, tau):
+    M, c, g = two_r_terms(theta, dtheta)
+    return np.linalg.solve(M, np.asarray(tau, dtype=float) - c - g)
+
+
+def euler_step_2r(theta, dtheta, tau, dt):
+    theta = np.asarray(theta, dtype=float)
+    dtheta = np.asarray(dtheta, dtype=float)
+    ddtheta = forward_dynamics_2r(theta, dtheta, tau)
+    return theta + dt * dtheta, dtheta + dt * ddtheta
+
+
+theta = np.array([0.0, np.pi / 2])
+dtheta = np.array([1.0, 2.0])
+target_ddtheta = np.array([0.5, -0.25])
+tau = inverse_dynamics_2r(theta, dtheta, target_ddtheta)
+recovered = forward_dynamics_2r(theta, dtheta, tau)
+assert np.allclose(tau, [12.87, 1.25])
+assert np.allclose(recovered, target_ddtheta)
+print(tau)        # [12.87  1.25]
+print(recovered)  # [ 0.5  -0.25]
+print(euler_step_2r(theta, dtheta, tau, dt=0.001))
+# (array([0.001, 1.57279633]), array([1.0005, 1.99975]))
+```
+
+A useful equilibrium check is $\dot\theta=0$, $\tau=g(\theta)$, which must return $\ddot\theta=0$. Zero torque generally does **not** produce zero acceleration because gravity remains active.
+
+### Chapter 8 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "Dynamics is another name for forward kinematics." | Dynamics maps effort and state to acceleration, or state and acceleration to effort. |
+| "Zero $\ddot\theta$ means no mass accelerates." | Cartesian acceleration still has velocity-product terms. |
+| "$g(\theta)$ is the three-vector of gravity." | It is an $n$-vector of compensation efforts; $\mathbf g$ is physical gravitational acceleration. |
+| "$I_b$, $G_b$, and $M$ are interchangeable." | They are a body's $3\times3$ rotational inertia, its $6\times6$ spatial inertia, and the robot's $n\times n$ joint mass matrix. |
+| "An inertia matrix can be moved between frames like a vector." | It transforms by a congruence transformation preserving kinetic energy. |
+| "$\dot v_b$ is the center-of-mass acceleration." | Body-frame rotation adds $\omega_b\times v_b$. |
+| "$F_i$ is just the actuator torque." | It contains all transmitted forces and moments; $A_i^TF_i$ extracts the actuator effort. |
+| "The forward Newton-Euler pass solves forward dynamics." | Both passes together solve inverse dynamics. |
+| "A kinematic singularity makes $M$ singular." | Endpoint motion can be singular even while moving links retain positive kinetic energy. |
+| "Forward dynamics gives the next joint position." | It gives acceleration; numerical integration produces the next state. |
+| "The tip-wrench sign is arbitrary once the code runs." | Robot-on-environment versus environment-on-robot conventions change the equation's sign. |
+
+### Chapter 8 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Lagrangian | $\mathcal L=K-P$ |
+| Euler-Lagrange | $\tau_i=\tfrac{d}{dt}\tfrac{\partial\mathcal L}{\partial\dot\theta_i}-\tfrac{\partial\mathcal L}{\partial\theta_i}$ |
+| Robot kinetic energy | $K=\tfrac12\dot\theta^TM\dot\theta$ |
+| Gravity compensation | $g=\partial P/\partial\theta$ |
+| Velocity products | $c_i=\sum_{j,k}\Gamma_{ijk}\dot\theta_j\dot\theta_k=(C\dot\theta)_i$ |
+| Energy identity | $\dot M-2C$ is skew-symmetric for the Christoffel construction |
+| COM spatial inertia | $G=\operatorname{diag}(I_b,mI_3)$ |
+| Single-body dynamics | $F=G\dot V-\operatorname{ad}_V^TGV$ |
+| Spatial inertia frame change | $G_a=\operatorname{Ad}_{T_{ba}}^TG_b\operatorname{Ad}_{T_{ba}}$ |
+| Forward twist recursion | $V_i=X_iV_{i-1}+A_i\dot\theta_i$ |
+| Forward acceleration recursion | $\dot V_i=X_i\dot V_{i-1}+A_i\ddot\theta_i+\operatorname{ad}_{V_i}A_i\dot\theta_i$ |
+| Backward wrench recursion | $F_i=X_{i+1}^TF_{i+1}+G_i\dot V_i-\operatorname{ad}_{V_i}^TG_iV_i$ |
+| Joint effort | $\tau_i=A_i^TF_i$ |
+| Mass matrix | $M=\sum_iJ_{ib}^TG_iJ_{ib}=\mathsf A^T\mathsf L^T\mathsf G\mathsf L\mathsf A$ |
+| Forward dynamics | $M\ddot\theta=\tau-c-g-J^TF_{\mathrm{tip}}$ |
+
+### Chapter 8 Software Map
+
+| Operation | Modern Robotics / NumPy function |
+|:--|:--|
+| Recursive inverse dynamics | `InverseDynamics(theta, dtheta, ddtheta, g, Ftip, Mlist, Glist, Slist)` |
+| Construct $M$ | `MassMatrix(theta, Mlist, Glist, Slist)` |
+| Compute $c$ | `VelQuadraticForces(theta, dtheta, Mlist, Glist, Slist)` |
+| Compute $g(\theta)$ | `GravityForces(theta, g, Mlist, Glist, Slist)` |
+| Compute $J^TF_{\mathrm{tip}}$ | `EndEffectorForces(theta, Ftip, Mlist, Glist, Slist)` |
+| Solve for acceleration | `ForwardDynamics(theta, dtheta, tau, g, Ftip, Mlist, Glist, Slist)` |
+| Euler state update | `EulerStep(theta, dtheta, ddtheta, dt)` |
+| Lie-bracket matrix | `ad(V)` |
+| Solve $Mx=b$ | `np.linalg.solve(M, b)` |
+
+The library uses `Slist` with shape $6\times n$ for **home space screws**, not the link-frame $A_i$. `Mlist` contains the $n+1$ adjacent home transforms $M_{0,1},\ldots,M_{n,n+1}$, with shape $(n+1,4,4)$; these point in the opposite direction from $M_{i,i-1}$ in the forward recursion. `Glist` has shape $(n,6,6)$. `g` is the base-frame gravity three-vector, and `Ftip` is the outgoing wrench in the end-effector frame. See the [official Python implementation](https://github.com/NxRLab/ModernRobotics/blob/master/packages/Python/modern_robotics/core.py).
+
+### Chapter 8 Understanding Checklist
+
+After Sections 8.1-8.5, you should be able to:
+
+* distinguish inverse dynamics, forward dynamics, and state integration;
+* explain the progression from energy to the dynamics equation, from single-link wrench balance to recursive computation, and from that computation to simulation;
+* derive $M$, $c$, and $g$ for the point-mass 2R example from kinetic and potential energy;
+* explain why $c$ is determined by configuration derivatives of $M$, rather than being an independent correction;
+* explain why Coriolis and centripetal terms persist when joint accelerations vanish;
+* derive the Christoffel expression and explain the energy meaning of $\dot M-2C$;
+* interpret mass ellipsoids and state the invertibility assumption for apparent endpoint mass;
+* connect $I_b$, $G_b$, $M$, and $\Lambda$ through the kinetic energy they represent, identifying the coordinates used by each;
+* construct, rotate, and shift a rigid body's rotational and spatial inertia;
+* distinguish body-coordinate velocity derivatives from physical acceleration;
+* explain the difference between $\operatorname{Ad}_T$ and $\operatorname{ad}_V$;
+* carry out the two Newton-Euler passes with consistent frames, gravity initialization, and wrench signs;
+* connect the recursive equations to both closed-form mass-matrix expressions;
+* obtain mass-matrix columns and bias terms through inverse-dynamics calls;
+* simulate a state update without confusing explicit Euler with a velocity-first update.
+
+This completes the requested coverage through Section 8.5. No notes for Chapter 7 or Sections 8.6 onward are included.

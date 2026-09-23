@@ -22,6 +22,8 @@ Keep terminology consistent with neighboring documents, especially for alignment
 
 ## Research Note Requirements
 
+- Make the logical relationships between concepts explicit in both paper and book notes. Organize explanations around a progression of questions or a derivation, not a list of topics: explain why each concept is introduced, which earlier result it depends on, and how it enables the next step. Connect sections with substantive transitions and, where useful, carry one worked example through the progression. A roadmap alone does not replace these connections within the explanation.
+
 ### Paper Notes
 
 - Use the paper PDF specified by the user as the primary source. Do not substitute a web summary for the supplied paper.

@@ -12,7 +12,7 @@
 | I | 2 | [Multi-armed Bandits](#chapter-2-multi-armed-bandits) | Complete |
 | I | 3 | [Finite Markov Decision Processes](#chapter-3-finite-markov-decision-processes) | Complete |
 | I | 4 | [Dynamic Programming](#chapter-4-dynamic-programming) | Complete |
-| I | 5 | Monte Carlo Methods | Not started |
+| I | 5 | [Monte Carlo Methods](#chapter-5-monte-carlo-methods) | Complete |
 | I | 6 | Temporal-Difference Learning | Not started |
 | I | 7 | $n$-step Bootstrapping | Not started |
 | I | 8 | Planning and Learning with Tabular Methods | Not started |
@@ -93,6 +93,25 @@
 | 4.12 | [Common Confusions](#412-common-confusions) |
 | 4.13 | [Formula Sheet](#413-formula-sheet) |
 | 4.14 | [Understanding Checklist](#414-understanding-checklist) |
+
+## Chapter 5 Catalog
+
+| Section | Topic |
+|:--|:--|
+| 5.1 | [Monte Carlo Prediction](#51-monte-carlo-prediction) |
+| 5.2 | [Monte Carlo Estimation of Action Values](#52-monte-carlo-estimation-of-action-values) |
+| 5.3 | [Monte Carlo Control with Exploring Starts](#53-monte-carlo-control-with-exploring-starts) |
+| 5.4 | [On-Policy Control without Exploring Starts](#54-on-policy-control-without-exploring-starts) |
+| 5.5 | [Off-Policy Prediction via Importance Sampling](#55-off-policy-prediction-via-importance-sampling) |
+| 5.6 | [Incremental Implementation](#56-incremental-implementation) |
+| 5.7 | [Off-Policy Monte Carlo Control](#57-off-policy-monte-carlo-control) |
+| 5.8 | [Discounting-Aware Importance Sampling](#58-discounting-aware-importance-sampling) |
+| 5.9 | [Per-Decision Importance Sampling](#59-per-decision-importance-sampling) |
+| 5.10 | [Python Example: Visits and Importance Weights](#510-python-example-visits-and-importance-weights) |
+| 5.11 | [Method Comparison](#511-method-comparison) |
+| 5.12 | [Common Confusions](#512-common-confusions) |
+| 5.13 | [Formula Sheet](#513-formula-sheet) |
+| 5.14 | [Understanding Checklist](#514-understanding-checklist) |
 
 ---
 
@@ -1905,3 +1924,614 @@ After this chapter, you should be able to:
 * separate the known-model assumption, bootstrapping, and the cost of a tabular state space.
 
 Chapter 5 replaces the model-based expectations with sampled complete returns, introducing Monte Carlo methods that learn without a transition model and without bootstrapping.
+
+---
+
+## Chapter 5: Monte Carlo Methods
+
+**Source scope:** Chapter 5 of the supplied second-edition PDF, printed pp. 91-116, including the starred Sections 5.8 and 5.9. The chapter replaces DP's model-based expected updates with **averages of complete sampled returns**.
+
+Monte Carlo (MC) methods need episodes of experience, not an explicit transition-probability table. Episodes can come from real interaction or a simulator. A simulator is still a model, but it need only sample transitions; the learning update does not need to enumerate their probabilities.
+
+The chapter assumes episodic tasks in which episodes terminate. Updates occur after an episode finishes. Review [returns and discounting](#34-returns-episodes-and-discounting), [state and action values](#35-policies-and-value-functions), and [generalized policy iteration](#49-generalized-policy-iteration) as needed.
+
+| Symbol | Meaning |
+|:--|:--|
+| $S_t,A_t,R_{t+1}$ | State, selected action, and subsequent reward at step $t$ |
+| $T$ | Episode termination time; $S_T$ is terminal and there is no $A_T$ |
+| $G_t$ | Complete discounted return from time $t$ |
+| $\pi$ | Policy being evaluated or improved; later called the target policy |
+| $b$ | Behavior policy that generates off-policy data |
+| $V,Q$ | Estimates of $v_\pi,q_\pi$, or changing estimates during control |
+| $\rho_{t:h}$ | Product of target/behavior action-probability ratios from $t$ through $h$ |
+
+### 5.1 Monte Carlo Prediction
+
+#### Estimate an expectation by averaging observed returns
+
+For a completed episode,
+
+$$
+G_t=\sum_{k=t+1}^{T}\gamma^{k-t-1}R_k,
+\qquad G_T=0,
+\qquad G_t=R_{t+1}+\gamma G_{t+1}.
+$$
+
+The definition $v_\pi(s)=\mathbb E_\pi[G_t\mid S_t=s]$ suggests the estimator
+
+$$
+V(s)=\frac{1}{N(s)}\sum_{i=1}^{N(s)}G^{(i)}(s),
+$$
+
+where $G^{(i)}(s)$ are returns observed after selected visits to $s$ while following a fixed policy $\pi$.
+
+Unlike a DP target, a sampled $G_t$ contains **no estimated successor value**. Computing it backward via $G_t=R_{t+1}+\gamma G_{t+1}$ is not bootstrapping: $G_{t+1}$ is another observed return, not $V(S_{t+1})$. Estimates for different states need not be used to update each other, although samples from one episode can be statistically correlated.
+
+#### First-visit versus every-visit MC
+
+| Method | Returns used for a state in one episode |
+|:--|:--|
+| First-visit MC | Only the return after the first occurrence of that state |
+| Every-visit MC | The returns after every occurrence of that state |
+
+For an undiscounted episode
+
+```text
+S0 = A --reward 1--> S1 = B --reward 2--> S2 = A --reward 3--> terminal
+```
+
+the returns are $G_0=6$, $G_1=5$, and $G_2=3$. First-visit MC uses **6** for $A$, while every-visit MC uses **6 and 3**, averaging to 4.5 after this episode. Both use 5 for $B$.
+
+An episode-by-episode first-visit procedure is:
+
+1. Generate a complete episode using the fixed policy.
+2. Compute all $G_t$ in a backward pass.
+3. For each state, select its earliest occurrence in forward time.
+4. Increment its count and update $V(s)\leftarrow V(s)+[G_t-V(s)]/N(s)$.
+
+**Backward traversal does not redefine "first visit."** A set of states first encountered while walking backward selects the last visit in forward time. Instead, precompute first-occurrence indices or test whether $S_t$ occurs in the prefix $S_0,\ldots,S_{t-1}$.
+
+With a fixed policy, sufficient visits, and suitable return moments, both methods are consistent. Independent first-visit returns across episodes support the ordinary sample-mean argument; with finite variance, standard error decreases as $1/\sqrt{N}$. Every-visit returns within an episode are dependent, so they cannot simply be counted as independent samples. These prediction arguments do not directly apply to a policy that changes after every episode.
+
+#### Blackjack: sampling is easier than constructing the transition table
+
+The book's simplified blackjack task has:
+
+* **State:** player sum 12-21, dealer's visible card ace-10, and whether the player has a usable ace, for $10\times10\times2=200$ decision states.
+* **Usable ace:** an ace that can count as 11 without going bust; otherwise it counts as 1.
+* **Actions:** hit or stick. Sums below 12 are handled by hitting rather than adding decision states.
+* **Dynamics:** cards are sampled with replacement, so previously drawn cards need not be tracked. The dealer hits below 17 and sticks at 17 or above.
+* **Rewards:** +1 for a win, -1 for a loss, 0 for a draw; intermediate rewards are zero and $\gamma=1$. A natural 21 wins immediately unless the dealer also has a natural, producing a draw.
+
+For prediction, fix the player policy to stick on 20 or 21 and hit otherwise. Every nonterminal visit in a game then has the eventual game outcome as its return.
+
+![Monte Carlo estimates of the blackjack policy value with and without a usable ace](../../../assets/Reinforcement_Learning_An_Introduction/ch05_blackjack_prediction.png)
+
+*Values become smoother with more episodes, but usable-ace states receive fewer samples and initially have noisier estimates. These are values of the fixed stick-on-20-or-21 policy, not optimal values. Cropped from book Figure 5.1, printed p. 94.*
+
+This example illustrates why a sample-generating model can be convenient even when calculating the full probability of every win/loss transition is cumbersome. It is not a claim about casino rules or a finite deck.
+
+#### The soap-bubble example: evaluate only the region of interest
+
+On the book's grid approximation, boundary heights are fixed and each interior height equals the average of its neighboring heights. DP repeatedly enforces this local consistency at all grid points. An MC alternative starts random walks from a selected interior point, stops at the boundary, and averages the boundary heights reached. This gives the same discrete harmonic solution at that point without estimating every other interior height.
+
+The advantage is targeted evaluation. It still costs time to generate enough walks and reach the boundary; "not evaluating every state" does not mean long episodes are free.
+
+### 5.2 Monte Carlo Estimation of Action Values
+
+For model-free control, estimate
+
+$$
+q_\pi(s,a)=\mathbb E_\pi[G_t\mid S_t=s,A_t=a],
+$$
+
+which fixes the initial action $a$ and follows $\pi$ afterward. State values alone cannot score an untried action without knowing what rewards and successor states that action produces. Action values allow direct comparison using $\arg\max_a Q(s,a)$.
+
+First-visit and every-visit MC work as before, but the key is now **the pair $(s,a)$**, not just $s$. Two different actions at the same state are different pairs and each can have a first visit in the same episode.
+
+The main problem is **coverage through exploration**. A deterministic policy observes only its chosen action at each visited state, leaving alternative action values unlearned.
+
+One solution is **exploring starts (ES)**: begin episodes from state-action pairs using a sampling scheme that repeatedly covers every relevant pair, for example a fixed distribution assigning positive probability to each pair. After the initial pair, follow $\pi$. This can be arranged in some simulators but generally cannot be assumed for real-world interaction. A random start state without exploration of its initial action is not enough.
+
+### 5.3 Monte Carlo Control with Exploring Starts
+
+MC control uses generalized policy iteration:
+
+$$
+\text{evaluate }\pi\text{ through sampled returns}
+\quad\longleftrightarrow\quad
+\text{make }\pi\text{ greedy with respect to }Q.
+$$
+
+If $q_\pi$ were known exactly and $\pi'(s)\in\arg\max_a q_\pi(s,a)$, then
+
+$$
+q_\pi(s,\pi'(s))=\max_aq_\pi(s,a)
+\geq\sum_a\pi(a\mid s)q_\pi(s,a)=v_\pi(s).
+$$
+
+The policy improvement theorem therefore gives $v_{\pi'}\geq v_\pi$ under the chapter's episodic assumptions. The inequality is about **exact policy values**, not a guarantee that every noisy sample update improves performance.
+
+Practical **MC ES** alternates the two processes after each episode:
+
+```text
+Initialize Q(s,a), counts N(s,a)=0, and a deterministic policy pi
+Repeat:
+    Sample an exploring start (S0,A0)
+    Generate the rest of the episode following pi
+    Compute all complete returns
+    For each pair's first visit at time t:
+        N(St,At) += 1
+        Q(St,At) += (Gt - Q(St,At)) / N(St,At)
+        pi(St) = a greedy action under Q(St, .)
+```
+
+Use a consistent tie rule to avoid unnecessary policy changes. The behavior during an episode is the policy used to generate it; the post-episode updates do not change the already observed trajectory.
+
+The book distinguishes this incremental algorithm from ideal policy iteration with complete evaluation. MC ES averages returns generated under successive policies, so early samples come from older policies. The book argues that a stable suboptimal policy cannot be the limiting fixed point under adequate coverage, but it does **not** provide a general convergence proof for the displayed episode-by-episode MC ES algorithm. This is a statement about the book's analysis, not a survey of subsequent theoretical results.
+
+In the blackjack control example, exploring starts vary the player sum, dealer setup, usable-ace status, and initial action. The learned policy is no longer constrained to the initial stick-only-on-20-or-21 rule.
+
+### 5.4 On-Policy Control without Exploring Starts
+
+#### Keep exploration inside the policy
+
+An **on-policy** method evaluates or improves the same policy used to collect experience. Without exploring starts, permanently greedy behavior can stop sampling alternatives. A **soft** policy has $\pi(a\mid s)>0$ for every available action. An **$\varepsilon$-soft** policy obeys the stronger bound
+
+$$
+\pi(a\mid s)\geq\frac{\varepsilon}{|\mathcal A(s)|},\qquad \varepsilon>0.
+$$
+
+For a selected greedy action $a_*$, the corresponding $\varepsilon$-greedy policy is
+
+$$
+\pi(a\mid s)=
+\begin{cases}
+1-\varepsilon+\varepsilon/|\mathcal A(s)|,&a=a_*,\\
+\varepsilon/|\mathcal A(s)|,&a\ne a_*.
+\end{cases}
+$$
+
+For two actions and $\varepsilon=0.1$, these probabilities are 0.95 and 0.05, not 0.9 and 0.1. The random-action part can also choose the greedy action. Ties can be broken consistently or the exploitation probability can be shared among maximizing actions.
+
+The first-visit on-policy control algorithm generates episodes from its current $\varepsilon$-soft policy, updates first-visit action-value averages, and makes the policy $\varepsilon$-greedy at visited states. This replaces both the ES reset and the fully greedy policy update of MC ES.
+
+#### Why an epsilon-greedy improvement works
+
+Write any $\varepsilon$-soft policy, for $0<\varepsilon<1$, as
+
+$$
+\pi(a\mid s)=\frac{\varepsilon}{m}+(1-\varepsilon)\mu(a\mid s),
+\qquad m=|\mathcal A(s)|,
+$$
+
+where $\mu$ is another probability distribution. Moving all of its probability to an action maximizing $q_\pi$ gives
+
+$$
+\begin{aligned}
+\sum_a\pi'(a\mid s)q_\pi(s,a)
+&=\frac{\varepsilon}{m}\sum_aq_\pi(s,a)+(1-\varepsilon)\max_aq_\pi(s,a)\\
+&\geq\frac{\varepsilon}{m}\sum_aq_\pi(s,a)
++(1-\varepsilon)\sum_a\mu(a\mid s)q_\pi(s,a)\\
+&=v_\pi(s).
+\end{aligned}
+$$
+
+Thus exact evaluation followed by this improvement step is monotonic. Equivalently, imagine an environment that overrides the intended action with a uniformly random action with probability $\varepsilon$. Optimal control of that modified environment corresponds to the best $\varepsilon$-soft policy in the original one.
+
+**Fixed $\varepsilon>0$ optimizes within the $\varepsilon$-soft class, not generally over all policies.** Reducing $\varepsilon$ can reduce the exploration cost, but a decay schedule must still ensure sufficient exploration; merely tending toward zero is not a convergence argument. Soft actions at a state also do not ensure that otherwise unreachable states will be visited.
+
+### 5.5 Off-Policy Prediction via Importance Sampling
+
+#### Separate the target policy from behavior
+
+An **off-policy** method learns about a target policy $\pi$ from episodes produced by a behavior policy $b$. For fixed-policy prediction, require
+
+$$
+\boxed{\pi(a\mid s)>0\ \Longrightarrow\ b(a\mid s)>0.}
+$$
+
+This **coverage** condition prevents the target from requiring actions absent from behavior support. Estimation also needs visits to the state or pair of interest. For a conditional value at $s$, the ratio starts from that visit; it need not correct the probability of having reached $s$ earlier in the episode.
+
+The target may be deterministic while behavior remains exploratory. Importance sampling is possible only when the relevant behavior action probabilities are known or otherwise available; an arbitrary demonstration without these probabilities is not automatically usable by the chapter's exact estimator.
+
+#### Derive the trajectory ratio
+
+Conditioned on $S_t$, the probability of a suffix trajectory, including rewards, contains factors
+
+$$
+P_\pi(\text{suffix}\mid S_t)
+=\prod_{k=t}^{T-1}\pi(A_k\mid S_k)\,
+p(S_{k+1},R_{k+1}\mid S_k,A_k).
+$$
+
+Assuming the same environment under both policies, the environment factors cancel in the likelihood ratio:
+
+$$
+\boxed{\rho_{t:T-1}
+=\prod_{k=t}^{T-1}\frac{\pi(A_k\mid S_k)}{b(A_k\mid S_k)}.}
+$$
+
+The value-changing identity is
+
+$$
+\mathbb E_b[\rho_{t:T-1}G_t\mid S_t=s]=v_\pi(s).
+$$
+
+It follows by summing over suffixes: $P_b\,(P_\pi/P_b)$ becomes $P_\pi$. This is why the correction does not need the transition model, even though both trajectory probabilities do.
+
+For **action values**, the initial action is already conditioned on:
+
+$$
+\boxed{\mathbb E_b[\rho_{t+1:T-1}G_t\mid S_t=s,A_t=a]=q_\pi(s,a).}
+$$
+
+The ratio starts at **$t+1$**, not $t$. Use the empty-product convention $\rho_{T:T-1}=1$. A terminal action-value sample therefore has weight 1 even if that action is never chosen by the target policy; $q_\pi(s,a)$ asks what happens if that initial action is taken anyway, followed by $\pi$.
+
+#### Ordinary versus weighted importance sampling
+
+For $N$ selected visits to the same state, let $G_i$ be a complete return and $W_i$ its suffix ratio. Then
+
+$$
+\widehat V_{\mathrm{ordinary}}=
+\frac{1}{N}\sum_{i=1}^N W_iG_i,
+\qquad
+\widehat V_{\mathrm{weighted}}=
+\frac{\sum_{i=1}^N W_iG_i}{\sum_{i=1}^N W_i}.
+$$
+
+The action-value versions use visits to $(s,a)$ and the ratio beginning at the next action. If the weighted denominator is zero, no target-consistent return has contributed; the book uses zero as a convention, while an incremental implementation can leave its initial estimate unchanged.
+
+| Property | Ordinary IS | Weighted IS |
+|:--|:--|:--|
+| Denominator | Number of sampled visits, including zero-weight ones | Sum of importance weights |
+| First-visit finite-sample bias, fixed target | Unbiased under the stated sampling assumptions | Generally biased, with vanishing bias under consistency conditions |
+| Variance | Can be very large or infinite | Usually much lower; bounded returns give a bounded normalized estimate |
+| Numerical range | Can exceed the range of observed returns | Convex combination of contributing returns when total weight is positive |
+| Every-visit qualification | Finite-sample bias can arise from visit-count/dependence effects | Also generally biased; both have consistency results under appropriate assumptions |
+
+For example, with $(W_1,G_1)=(4,3)$ and $(W_2,G_2)=(0,100)$, ordinary IS gives $12/2=6$, whereas weighted IS gives $12/4=3$. After just the first sample, ordinary IS was 12 and weighted IS was 3. A zero-weight second sample changes the ordinary sample average but leaves the weighted estimate unchanged.
+
+Weighted IS is not an unbiased estimate of the target value at every sample size, nor does it eliminate the cost of rare target-consistent trajectories. The book's blackjack comparison finds lower early mean-squared error for weighted IS despite its bias.
+
+#### Why bounded rewards do not prevent infinite variance
+
+The book's one-state example has $\gamma=1$ and two actions:
+
+* `right`: terminate with reward 0;
+* `left`: return to the state with probability 0.9 and reward 0, or terminate with probability 0.1 and reward +1.
+
+The target always selects `left`, so $v_\pi(s)=1$. Behavior selects each action with probability $1/2$. A successful trajectory with $k$ loops and then a rewarding `left` termination has
+
+$$
+P_b=0.05(0.45)^k,\qquad G_0=1,\qquad W=2^{k+1}.
+$$
+
+Trajectories ending with `right` have weight zero. Therefore, for $X=WG_0$,
+
+$$
+\mathbb E_b[X]=0.1\sum_{k=0}^\infty0.9^k=1,
+\qquad
+\mathbb E_b[X^2]=0.2\sum_{k=0}^\infty1.8^k=\infty.
+$$
+
+The expected estimate is correct, but rare long trajectories cause enormous jumps.
+
+![Ordinary importance sampling estimates on the one-state looping example](../../../assets/Reinforcement_Learning_An_Introduction/ch05_importance_sampling_variance.png)
+
+*Ten runs show unstable ordinary-IS estimates over very large sample budgets. The inset defines the MDP, and the true value is 1. Cropped from book Figure 5.4, printed p. 107.*
+
+In this special example, weighted IS becomes exactly 1 after its first positive-weight episode: all contributing returns equal 1. This unusually strong property is specific to the example.
+
+**Convergence nuance:** infinite variance invalidates the usual finite-variance error-rate argument, but does not by itself imply failure of almost-sure convergence. Here $X\geq0$ and $\mathbb E[X]=1$, so independent episode samples still satisfy the strong law of large numbers. Read the figure as a warning about severe finite-data instability, not as a proof that the sample mean lacks an asymptotic limit.
+
+### 5.6 Incremental Implementation
+
+#### Maintain sufficient statistics, not lists of returns
+
+For on-policy averaging, increment $N$ and use $Q\leftarrow Q+(G-Q)/N$. Ordinary IS uses the same update with sample $WG$:
+
+$$
+N\leftarrow N+1,\qquad Q\leftarrow Q+\frac{WG-Q}{N}.
+$$
+
+For weighted IS, maintain a cumulative weight $C$. If $Q=S/C$ before adding $(W,G)$, the new ratio is $(S+WG)/(C+W)$. Subtracting the old estimate gives
+
+$$
+\boxed{C\leftarrow C+W,\qquad
+Q\leftarrow Q+\frac{W}{C}(G-Q),}
+$$
+
+using the **updated** $C$. If $W=0$, skip the weighted update; if this is the first positive weight, $W/C=1$ and the estimate becomes that sample's return. $C$ is a sum of weights, not a count of visits.
+
+#### Every-visit off-policy action-value prediction
+
+For a fixed target policy and a completed behavior episode:
+
+```text
+G = 0; W = 1
+For t = T-1, ..., 0:
+    G = R[t+1] + gamma * G
+    C[St,At] += W
+    Q[St,At] += (W / C[St,At]) * (G - Q[St,At])
+    W *= pi(At|St) / b(At|St)
+    If W == 0: stop this backward pass
+```
+
+At the moment $Q(S_t,A_t)$ is updated, $W=\rho_{t+1:T-1}$. **Multiply by the current action ratio only afterward**, preparing the weight for the preceding pair. This implements the conditioning difference between $v_\pi$ and $q_\pi$.
+
+For example, suppose a two-step episode takes `left` and then `right`, while the target always takes `left`. The final pair $Q(S_1,\text{right})$ is still updated with weight 1. Only then does the zero target probability of `right` make the weight zero, preventing an update to the preceding pair.
+
+When $b=\pi$, all ratios are 1 and this becomes every-visit on-policy MC averaging. If behavior changes, use the action probability **at the time the action was sampled**, not a later policy's probability.
+
+### 5.7 Off-Policy Monte Carlo Control
+
+Keep a deterministic greedy target $\pi(s)\in\arg\max_aQ(s,a)$ and generate episodes from a soft behavior policy. After each episode:
+
+```text
+G = 0; W = 1
+For t = T-1, ..., 0:
+    G = R[t+1] + gamma * G
+    C[St,At] += W
+    Q[St,At] += (W / C[St,At]) * (G - Q[St,At])
+    pi(St) = a greedy action under Q(St, .), with consistent tie-breaking
+    If At != pi(St): stop this backward pass
+    W /= b(At|St)
+```
+
+Why divide by $b$ rather than multiply by an explicit $\pi/b$? If the recorded action disagrees with the updated deterministic target, its target probability is zero and the loop stops. Otherwise its target probability is one, leaving $1/b(A_t\mid S_t)$.
+
+The current pair is updated **before** the disagreement check because its value conditions on taking that action. Earlier pairs need the subsequent behavior actions to agree with the target. Consequently, long exploratory episodes may contribute only short useful suffixes; increasing exploration can improve coverage while reducing the frequency of long target-consistent suffixes.
+
+This is control, not fixed-target prediction: $Q$ updates also change the target policy. Learning useful values throughout the relevant state-action space still requires repeated visits and sufficient target-consistent continuation data. Positive action probabilities alone cannot rescue states that are never reached.
+
+#### Racetrack as a control example
+
+The chapter's exercise uses a grid-track state consisting of position and two velocity components. Each action changes each velocity component by -1, 0, or +1, giving nine possible increments before constraints. Velocities are nonnegative integers below 5 and cannot both be zero except at the starting line.
+
+An episode starts at a random start cell with zero velocity and ends when the car's path crosses the finish line. Each step costs -1. Hitting another boundary resets the car to a random start cell with zero velocity, but **does not end the episode**. With probability 0.1 the intended velocity increments are replaced by zero increments; this is acceleration noise, not an instantaneous stop. Boundary checks must examine the traversed segment, not just its endpoint.
+
+MC control therefore learns to balance speed against costly resets without being given a transition table. Final demonstration trajectories in the exercise disable the acceleration noise. The exact track geometry is not needed to understand the algorithm; no particular racing solution is asserted here.
+
+### 5.8 Discounting-Aware Importance Sampling
+
+**Advanced, corresponding to the book's starred Section 5.8.** Full-trajectory IS weights an entire return as one unit, even when late actions have little relevance because of discounting. At $\gamma=0$, $G_t=R_{t+1}$, so a state-value sample needs only the ratio for $A_t$, not every later action.
+
+Define the **flat partial return**, with no discount inside the sum,
+
+$$
+\bar G_{t:h}=\sum_{k=t+1}^{h}R_k,\qquad t<h\leq T.
+$$
+
+The full discounted return has the exact decomposition
+
+$$
+G_t=(1-\gamma)\sum_{h=t+1}^{T-1}\gamma^{h-t-1}\bar G_{t:h}
++\gamma^{T-t-1}\bar G_{t:T}.
+$$
+
+For three remaining rewards, for example,
+
+$$
+R_{t+1}+\gamma R_{t+2}+\gamma^2R_{t+3}
+=(1-\gamma)R_{t+1}
++(1-\gamma)\gamma(R_{t+1}+R_{t+2})
++\gamma^2(R_{t+1}+R_{t+2}+R_{t+3}).
+$$
+
+Each reward's coefficients sum to its original discount. The horizon weights are
+
+$$
+\alpha_{t,h}=
+\begin{cases}
+(1-\gamma)\gamma^{h-t-1},&h<T,\\
+\gamma^{T-t-1},&h=T,
+\end{cases}
+\qquad \sum_{h=t+1}^{T}\alpha_{t,h}=1.
+$$
+
+Interpret these as partial termination probabilities: stop at a preterminal horizon with probability $1-\gamma$, and put the remaining mass at actual termination. Since $\bar G_{t:h}$ involves rewards only through $h$, use the truncated ratio $\rho_{t:h-1}$:
+
+$$
+U_t=\sum_{h=t+1}^{T}\alpha_{t,h}\rho_{t:h-1}\bar G_{t:h},
+\qquad
+Z_t=\sum_{h=t+1}^{T}\alpha_{t,h}\rho_{t:h-1}.
+$$
+
+For $N$ selected state visits, indexed by $i$, the book's two estimators become
+
+$$
+\widehat V_{\mathrm{DA,ordinary}}=\frac{\sum_iU_i}{N},
+\qquad
+\widehat V_{\mathrm{DA,weighted}}=\frac{\sum_iU_i}{\sum_iZ_i}.
+$$
+
+Each visit uses its own remaining horizon. The weighted denominator is the sum of **truncated, horizon-weighted ratios**, not $N$ or the sum of full-episode ratios. At $\gamma=1$, only the final horizon remains and both estimators reduce to their Section 5.5 counterparts. At $\gamma=0$, only the first reward and its needed ratio remain, with the usual convention $\gamma^0=1$.
+
+### 5.9 Per-Decision Importance Sampling
+
+**Advanced, corresponding to the book's starred Section 5.9.** Instead of decomposing the return into flat partial returns, correct each individual reward only for the actions that precede it.
+
+Let $\rho_k=\pi(A_k\mid S_k)/b(A_k\mid S_k)$. Given the history up to $S_k$, coverage implies
+
+$$
+\mathbb E_b[\rho_k\mid\text{history through }S_k]
+=\sum_a b(a\mid S_k)\frac{\pi(a\mid S_k)}{b(a\mid S_k)}=1.
+$$
+
+Actions after a reward cannot change that already observed reward. Repeated conditional expectation therefore removes later ratio factors:
+
+$$
+\mathbb E_b[\rho_{t:T-1}R_k\mid S_t=s]
+=\mathbb E_b[\rho_{t:k-1}R_k\mid S_t=s],\qquad k>t.
+$$
+
+This reasoning does **not** require later actions or states to be independent of earlier rewards. It uses their conditional likelihood-ratio expectation, not unconditional independence.
+
+Define the per-decision corrected return
+
+$$
+\boxed{\widetilde G_t
+=\sum_{k=t+1}^{T}\gamma^{k-t-1}\rho_{t:k-1}R_k.}
+$$
+
+Then $\mathbb E_b[\widetilde G_t\mid S_t=s]=v_\pi(s)$, so averaging it gives an ordinary first-visit IS estimator with the same unbiased expectation. It can reduce unnecessary variance even when $\gamma=1$, though lower variance is not guaranteed for every problem.
+
+For a two-step suffix, compare
+
+$$
+\rho_t\rho_{t+1}(R_{t+1}+\gamma R_{t+2})
+\quad\text{with}\quad
+\rho_tR_{t+1}+\gamma\rho_t\rho_{t+1}R_{t+2}.
+$$
+
+Only the second reward needs the second action's ratio. Numerically, if $\rho_t=2$, $\rho_{t+1}=0$, $R_{t+1}=3$, and $R_{t+2}=4$, full-trajectory IS returns zero, while per-decision IS retains 6 from the first reward. The estimators agree **in expectation**, not on each episode.
+
+For action values, replace each reward's ratio by $\rho_{t+1:k-1}$; the first reward has an empty product of 1. The chapter does not provide a consistent weighted per-decision counterpart, so do not obtain one by simply dividing $\widetilde G$ by a full-trajectory weight sum. Its discussion of this limitation reflects the book's treatment, not a claim about all later research.
+
+### 5.10 Python Example: Visits and Importance Weights
+
+This standard-library example implements sample-mean state prediction and the every-visit weighted off-policy action-value update. It consumes **completed episodes**, not an environment model. The fixed-target prediction routine does not perform policy improvement.
+
+Each row is $(S_t,A_t,R_{t+1})$ or, for off-policy data, $(S_t,A_t,R_{t+1},b(A_t\mid S_t))$. Terminal states have no action row. The stored behavior probability is the one used when sampling the action.
+
+```python
+from collections import defaultdict
+from math import isclose
+
+
+def mc_state_values(episodes, gamma=1.0, first_visit=True):
+    values, counts = defaultdict(float), defaultdict(int)
+    for episode in episodes:
+        first = {}
+        for t, (state, action, reward) in enumerate(episode):
+            first.setdefault(state, t)
+        G = 0.0
+        for t in range(len(episode) - 1, -1, -1):
+            state, action, reward = episode[t]
+            G = reward + gamma * G
+            if first_visit and first[state] != t:
+                continue
+            counts[state] += 1
+            values[state] += (G - values[state]) / counts[state]
+    return dict(values), dict(counts)
+
+
+def weighted_mc_q(episodes, target_prob, gamma=1.0):
+    Q, C = defaultdict(float), defaultdict(float)
+    for episode in episodes:
+        G, W = 0.0, 1.0
+        for state, action, reward, behavior_prob in reversed(episode):
+            if not 0.0 < behavior_prob <= 1.0:
+                raise ValueError("Observed action must have positive behavior probability")
+            pi_prob = target_prob(state, action)
+            if not 0.0 <= pi_prob <= 1.0:
+                raise ValueError("Invalid target action probability")
+            G = reward + gamma * G
+            key = (state, action)
+            # W corrects subsequent actions, not the action already conditioned on.
+            C[key] += W
+            Q[key] += (W / C[key]) * (G - Q[key])
+            W *= pi_prob / behavior_prob
+            if W == 0.0:
+                break
+    return dict(Q), dict(C)
+
+
+episode = [("A", "go", 1.0), ("B", "go", 2.0), ("A", "go", 3.0)]
+first, first_counts = mc_state_values([episode])
+every, every_counts = mc_state_values([episode], first_visit=False)
+assert isclose(first["A"], 6.0) and first_counts["A"] == 1
+assert isclose(every["A"], 4.5) and every_counts["A"] == 2
+
+
+def target_prob(state, action):
+    return float(action == "left")
+
+
+agree = [("s0", "left", 0.0, 0.5), ("s1", "left", 2.0, 0.25)]
+Q, C = weighted_mc_q([agree], target_prob)
+assert isclose(C[("s1", "left")], 1.0)
+assert isclose(C[("s0", "left")], 4.0)  # not 8: exclude the initial action ratio
+assert isclose(Q[("s0", "left")], 2.0)
+
+disagree = [("s0", "left", 0.0, 0.5), ("s1", "right", -1.0, 0.5)]
+Q_stop, _ = weighted_mc_q([disagree], target_prob)
+assert isclose(Q_stop[("s1", "right")], -1.0)
+assert ("s0", "left") not in Q_stop
+print(first["A"], every["A"], C[("s0", "left")], Q_stop[("s1", "right")])
+# 6.0 4.5 4.0 -1.0
+```
+
+Run as a Python 3 script with `python3 /path/to/mc_example.py`; no third-party dependencies are required. In actual use, ensure coverage over the whole target support, not merely a positive probability for the actions present in this tiny batch. Large ratio products can overflow or underflow; this minimal example does not implement numerical stabilization or weight clipping. Clipping changes the estimator and can introduce bias.
+
+### 5.11 Method Comparison
+
+| Method | Data and target | Exploration or weighting | Main limitation |
+|:--|:--|:--|:--|
+| MC prediction | Episodes under a fixed policy; estimate its $V$ or $Q$ | First-visit or every-visit return averaging | Must wait for termination and revisit relevant states/pairs |
+| MC ES control | Initial pair is explored; subsequent actions follow the current policy | Greedy improvement with exploring starts | Arbitrary resets may be unavailable |
+| On-policy soft control | Evaluate and improve the behavior policy | $\varepsilon$-greedy improvement | Fixed exploration yields a constrained policy objective |
+| Off-policy prediction | Data from $b$, fixed target $\pi$ | Ordinary or weighted IS | Coverage and potentially high-variance ratios |
+| Off-policy control | Exploratory $b$, changing greedy target | Weighted IS plus greedy improvement | Long useful suffixes can be rare |
+| Discounting-aware IS | Correct flat partial returns | Horizon-truncated ratios with discount-dependent weights | More elaborate estimator; no change at $\gamma=1$ |
+| Per-decision IS | Correct individual rewards | Ratios stop before each reward | Not automatically lower variance; normalization requires care |
+
+Compared with DP, MC needs only sampled experience and does not bootstrap. It can focus on a subset of states without estimating all successor values. Its disadvantages include delayed updates, potentially high return variance, and expensive long episodes. Not bootstrapping can reduce dependence on inaccurate successor estimates, but it does not repair an inadequate state representation or make a non-Markov problem Markov.
+
+### 5.12 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "MC means any randomized learning method." | In this chapter it means learning from complete sampled returns. |
+| "First visit means first time ever." | It means first occurrence within each episode. |
+| "Backward return calculation bootstraps." | It uses observed rewards through termination, not estimated successor values. |
+| "First state visit and first state-action visit are equivalent." | Different actions at the same state define different pairs. |
+| "Soft policies guarantee every state will be visited." | They explore actions at reached states; reachability and repeated state visits still matter. |
+| "Fixed epsilon-greedy control learns the unrestricted optimal policy." | Its policy-improvement objective is the best policy within the epsilon-soft class. |
+| "Importance weights include transition probabilities." | Those factors cancel when target and behavior use the same environment. |
+| "State and action values use the same ratio interval." | State values begin at $t$; action values begin at $t+1$. |
+| "A zero target probability means the current action value cannot be updated." | The current action is conditioned on; the zero ratio blocks preceding action-value updates. |
+| "Weighted IS is unbiased because weights are normalized." | It is generally biased at finite sample sizes, but often has much lower variance. |
+| "Unbiasedness implies reliable estimates with little data." | The ratio-scaled return can have extremely large or infinite variance. |
+| "Every-visit samples are independent." | Returns from repeated visits within an episode overlap and are dependent. |
+| "Off-policy learning requires a stochastic target." | The behavior needs coverage; the target can be deterministic. |
+
+### 5.13 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Complete return | $G_t=\sum_{k=t+1}^{T}\gamma^{k-t-1}R_k=R_{t+1}+\gamma G_{t+1}$ |
+| Sample-mean update | $N\leftarrow N+1,\quad Q\leftarrow Q+(G-Q)/N$ |
+| Greedy target | $\pi(s)\in\arg\max_aQ(s,a)$ |
+| Epsilon-soft condition | $\pi(a\mid s)\geq\varepsilon/\lvert\mathcal A(s)\rvert$ |
+| Off-policy coverage | $\pi(a\mid s)>0\Rightarrow b(a\mid s)>0$ |
+| Trajectory ratio | $\rho_{t:h}=\prod_{k=t}^{h}\pi(A_k\mid S_k)/b(A_k\mid S_k)$ |
+| State-value correction | $\mathbb E_b[\rho_{t:T-1}G_t\mid S_t=s]=v_\pi(s)$ |
+| Action-value correction | $\mathbb E_b[\rho_{t+1:T-1}G_t\mid S_t=s,A_t=a]=q_\pi(s,a)$ |
+| Ordinary IS | $\widehat V=N^{-1}\sum_iW_iG_i$ |
+| Weighted IS | $\widehat V=\sum_iW_iG_i/\sum_iW_i$ |
+| Incremental weighted IS | $C\leftarrow C+W,\quad Q\leftarrow Q+(W/C)(G-Q)$ |
+| Per-decision corrected return | $\widetilde G_t=\sum_{k=t+1}^{T}\gamma^{k-t-1}\rho_{t:k-1}R_k$ |
+
+The importance-sampling expectations above describe fixed-target prediction. Control adds policy improvement and needs its own coverage and convergence reasoning.
+
+### 5.14 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* distinguish model-free return averaging from DP's model-based bootstrapping;
+* compute first-visit and every-visit estimates for an episode with repeated states;
+* explain why model-free control usually estimates action values;
+* distinguish exploring starts, soft policies, and off-policy coverage;
+* describe MC ES and identify the difference between exact policy improvement and noisy incremental control;
+* derive the epsilon-soft improvement inequality and state its constrained objective;
+* derive the importance ratio by canceling environment probabilities;
+* explain why action-value ratios start one action later than state-value ratios;
+* compare ordinary and weighted IS, including finite-sample bias and variance;
+* reproduce the one-state infinite-variance calculation without confusing instability with impossibility of asymptotic convergence;
+* implement cumulative-weight updates in the correct order and explain the off-policy control stopping rule;
+* distinguish discounting-aware and per-decision importance sampling;
+* explain why end-of-episode updates remain a limitation even with incremental averages.
+
+Chapter 6 combines learning from sampled experience with bootstrapping, allowing temporal-difference updates before the episode ends.
