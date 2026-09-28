@@ -88,7 +88,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Vision models: [DINOv2](./docs/Model_Zoo/Vision_Models/DINOv2.md), [DINOv3](./docs/Model_Zoo/Vision_Models/DINOv3.md)
 - Vision-language models: [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [PaliGemma](./docs/Model_Zoo/Vision_Language_Models/PaliGemma.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
 - Robotics datasets: [LIBERO](./docs/Model_Zoo/Robotics/Datasets/LIBERO.md), [Open X-Embodiment](./docs/Model_Zoo/Robotics/Datasets/Open_X_Embodiment.md)
-- Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Fast-WAM](./docs/Model_Zoo/Robotics/Policies/Fast_WAM.md), [MolmoAct2](./docs/Model_Zoo/Robotics/Policies/MolmoAct2.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [WALL-OSS](./docs/Model_Zoo/Robotics/Policies/WALL_OSS.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Pi_Hi_Robot.md), [Human-to-Robot Transfer](./docs/Model_Zoo/Robotics/Policies/Pi_Human_to_Robot.md), [MEM](./docs/Model_Zoo/Robotics/Policies/Pi_MEM.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
+- Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Fast-WAM](./docs/Model_Zoo/Robotics/Policies/Fast_WAM.md), [GR00T N1](./docs/Model_Zoo/Robotics/Policies/GR00T_N1.md), [MolmoAct2](./docs/Model_Zoo/Robotics/Policies/MolmoAct2.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RDT-1B](./docs/Model_Zoo/Robotics/Policies/RDT_1B.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [WALL-OSS](./docs/Model_Zoo/Robotics/Policies/WALL_OSS.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Pi_Hi_Robot.md), [Human-to-Robot Transfer](./docs/Model_Zoo/Robotics/Policies/Pi_Human_to_Robot.md), [MEM](./docs/Model_Zoo/Robotics/Policies/Pi_MEM.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
 - Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
 
 ## 7. Book Notes
@@ -155,6 +155,7 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |       |-- ACT.md
     |   |       |-- Diffusion_Policy.md
     |   |       |-- Fast_WAM.md
+    |   |       |-- GR00T_N1.md
     |   |       |-- MolmoAct2.md
     |   |       |-- Pi_Hi_Robot.md
     |   |       |-- Pi_Human_to_Robot.md
@@ -166,6 +167,7 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |       |-- Pi_0_5_KI.md
     |   |       |-- Pi_0_6.md
     |   |       |-- Pi_0_FAST.md
+    |   |       |-- RDT_1B.md
     |   |       |-- RT_1.md
     |   |       |-- RT_2.md
     |   |       |-- SmolVLA.md

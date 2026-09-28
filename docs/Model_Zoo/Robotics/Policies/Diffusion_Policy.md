@@ -49,7 +49,7 @@ The paper compares three policy representations:
 
 Diffusion Policy keeps the multimodal expressiveness of implicit policies, but avoids the unstable negative-sampling and normalization-constant issues that often appear in energy-based behavior cloning.
 
-## 4. DDPM Background
+## 4. Denoising Diffusion Probabilistic Models (DDPM) Background
 
 A standard DDPM learns a data distribution $p(x_0)$. The closed-form forward noising process is:
 

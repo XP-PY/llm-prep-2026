@@ -1,661 +1,280 @@
 # [pi0: A Vision-Language-Action Flow Model for General Robot Control](https://arxiv.org/abs/2410.24164)
 
+pi0 combines a **pretrained PaliGemma VLM** with a **continuous-action expert**: images and language provide context, while the expert transforms noise into a 50-step robot action chunk through conditional flow matching. Broad robot pre-training supplies diverse physical experience; task-specific post-training improves execution quality.
+
+**Source:** the supplied Black et al. paper, especially Sections IV-V and Appendices B-D. This note describes the original paper's model, not later OpenPI configurations or pi0.5.
+
 ## Convenient Links
 
-* [Paper (arXiv)](https://arxiv.org/abs/2410.24164)
-* [Project Page / Blog](https://physicalintelligence.company/blog/pi0)
-* [OpenVLA note in this repo](./OpenVLA.md)
-* [Octo note in this repo](./Octo.md)
-* [SmolVLA note in this repo](./SmolVLA.md)
-* [Diffusion Policy note in this repo](./Diffusion_Policy.md)
-* [ACT / ALOHA note in this repo](./ACT.md)
+* [Paper](https://arxiv.org/abs/2410.24164) / [Project](https://physicalintelligence.company/blog/pi0)
+* [PaliGemma](../../Vision_Language_Models/PaliGemma.md) / [Diffusion Policy](./Diffusion_Policy.md) / [pi0-FAST](./Pi_0_FAST.md) / [pi0.5](./Pi_0_5.md)
 
-## 1. One-Sentence Summary
+## 1. What Enters and Leaves the Policy?
 
-pi0 is a **3.3B-parameter generalist robot policy** from Physical Intelligence that starts from a pretrained **PaliGemma VLM**, adds a **300M-parameter action expert**, trains on over **10,000 hours of robot manipulation data** across many robot embodiments, and uses **conditional flow matching** to generate continuous high-frequency action chunks for dexterous real-world control.
-
-## 2. Why pi0 Matters
-
-Earlier VLA systems such as RT-2 and OpenVLA showed that pretrained vision-language models can be adapted for robot control, but they often represent actions as discrete tokens.
-
-That is a clean interface for language models, but it is awkward for dexterous control:
-
-* robot actions are continuous
-* fine manipulation needs high precision
-* bimanual manipulation often needs coordinated action chunks
-* control may run at `20 Hz` to `50 Hz`
-* long tasks require recovery from mistakes, not just one-step prediction
-
-pi0 makes a different design choice:
-
-> Keep the semantic strength of a pretrained VLM, but attach a continuous flow-matching action generator for robot control.
-
-The paper matters because it combines three ingredients at a large real-robot scale:
-
-* **VLM initialization** from PaliGemma, importing Internet-scale visual and language priors
-* **cross-embodiment robot pretraining** across single-arm, bimanual, and mobile manipulators
-* **post-training on high-quality task data**, similar in spirit to LLM alignment after broad pretraining
-
-The result is not only a benchmark model. It is a recipe for a robot foundation model:
-
-```text
-large diverse robot data
--> pretrained VLM backbone
--> continuous action expert
--> broad base policy
--> task-specific post-training
--> dexterous long-horizon robot behavior
-```
-
-## 3. Core Idea
-
-pi0 models a language-conditioned robot policy:
+At robot timestep $t$, a training example pairs the **current observation** with a **future demonstrated action chunk**:
 
 $$
-\pi(A_t \mid o_t)
+o_t=(I_t^1,\ldots,I_t^n,\ell_t,q_t),\qquad
+A_t=[a_t,\ldots,a_{t+H-1}],\quad H=50.
 $$
 
-where the observation is:
+| Variable | Content | Role |
+|:--|:--|:--|
+| $I_t^i$ | Current RGB image from camera $i$; PI robots use 2 or 3 views | Locate objects and understand the scene |
+| $\ell_t$ | Task instruction or annotated subtask | Specify the desired behavior |
+| $q_t$ | Current proprioceptive configuration | Specify the robot's physical state |
+| $A_t$ | Sequence of continuous, embodiment-specific control vectors | Supervise the next action chunk, not future images |
+
+The policy learns $p(A_t\mid o_t)$. Actions are **not discretized into language-vocabulary tokens**: one action token represents the whole control vector for one future robot step. Thus a 50-step chunk uses 50 action tokens, not 50 times the number of action dimensions.
+
+For cross-embodiment batching, the paper zero-pads state/action vectors to **18 dimensions** and masks missing camera slots. A bimanual 14-dimensional example therefore becomes $q_t\in\mathbb R^{18}$ and $A_t\in\mathbb R^{50\times18}$. Padding makes tensor shapes compatible; it does not make different robots' controls physically identical.
+
+This interface motivates the architecture: image/language inputs fit a pretrained VLM, but robot state and continuous noisy actions need their own processing path.
+
+## 2. Model Structure: Two Experts, Connected at Every Layer
+
+![pi0 data sources, pretrained vision-language backbone, and continuous action expert](../../../../assets/Pi_0/Pi_0_architecture.png)
+
+*Paper Figure 3: the pretrained image/language path and the smaller action expert form one policy shared across robot embodiments. The figure summarizes the system; the token routing and attention below specify its computation.*
+
+### 2.1 Encode the Inputs
+
+| Input | Encoding path | Transformer expert |
+|:--|:--|:--|
+| Images | PaliGemma's SigLIP image encoder, then projection to visual tokens | VLM weights |
+| Instruction | Text tokenizer and embedding lookup | VLM weights |
+| State $q_t$ | Linear projection to one state token | Action-expert weights |
+| Noisy actions $A_t^\tau$ | Per-action projection combined with flow-time encoding | Action-expert weights |
+
+The backbone is approximately **3B parameters** (SigLIP about 400M plus Gemma about 2.6B); the randomly initialized action expert adds **300M**, for about **3.3B total**. Robot training adapts the pretrained VLM together with the new action components; this is not merely a frozen VLM feature extractor.
+
+The experts have separate transformer parameters but communicate through **self-attention at corresponding layers**. Routing is fixed by token type, not a learned top-$k$ MoE router. The VLM hidden width is 2048; the action expert uses width 1024 and MLP width 4096. Their residual-stream widths need not match because interaction occurs through compatible attention projections, not by directly concatenating their raw hidden vectors.
+
+In particular, an action token's query reads image/language and state keys/values as well as other action tokens. The VLM does **not** first generate a textual plan or a single final embedding that is passed to an otherwise independent decoder.
+
+### 2.2 How Flow Time Enters the Action Expert
+
+Let $\tau\in[0,1]$ denote **flow time**, distinct from robot timestep $t$. pi0 uses
 
 $$
-o_t =
-\left[
-I_t^1,\,
-\dots,\,
-I_t^n,\,
-\ell_t,\,
-q_t
-\right]
+A_t^\tau=(1-\tau)\epsilon+\tau A_t,
 $$
 
-and includes:
+so **$\tau=0$ is pure noise and $\tau=1$ is the clean demonstrated action chunk**. This is the reverse of a convention that increases time while adding noise.
 
-* `2` or `3` RGB camera images
-* a language instruction
-* proprioceptive robot state, such as joint angles
+**Why provide time if it already influenced the noisy actions?** The mixture does not uniquely identify its ingredients: different noise samples and times can produce the same value. For a scalar clean action $a=1$, both cases below give $a^\tau=0.5$, but require different target velocities:
 
-The output is an action chunk:
+| Flow time $\tau$ | Noise $\epsilon$ | Mixed action $(1-\tau)\epsilon+\tau a$ | Target $a-\epsilon$ |
+|:--:|:--:|:--:|:--:|
+| $1/4$ | $1/3$ | $1/2$ | $2/3$ |
+| $3/4$ | $-1$ | $1/2$ | $2$ |
 
-$$
-A_t =
-\left[
-a_t,\,
-a_{t+1},\,
-\dots,\,
-a_{t+H-1}
-\right]
-$$
+The noisy chunk can contain statistical clues about its noise level, but it does not generally determine $\tau$. Explicit time conditioning removes that ambiguity instead of requiring the network to infer it.
 
-The paper uses:
+**What changes with time?** For a fixed pair $(A_t,\epsilon)$, the straight-path target $A_t-\epsilon$ is constant. However, the model sees only the mixed chunk, observation, and time, not that pair. Under the squared-error objective, its ideal prediction is the conditional mean
 
 $$
-H = 50
+v^*(x,o_t,\tau)=\mathbb E[A_t-\epsilon\mid A_t^\tau=x,\ o_t,\ \tau].
 $$
 
-This chunking is important. Instead of predicting one action at a time, pi0 predicts a short future trajectory, which makes high-frequency dexterous control more practical.
+Different times change which clean/noise pairs are plausible at the same $x$, so this field generally depends on $\tau$. Omitting time would instead average over those possible times as well, potentially mixing incompatible velocities. This is the conditional-mean interpretation of the [flow-matching objective](https://arxiv.org/html/2210.02747v2#S3). It does **not** imply a universal rule that velocity magnitude or variance must decrease near clean data; pi0 also uses a fixed Euler step size, not a time-dependent "large step versus fine adjustment" rule.
 
-## 4. High-Level Pipeline
-
-The full training and deployment story is:
-
-```text
-PaliGemma VLM initialization
--> add proprioceptive state input
--> add action expert for noisy action chunks
--> pretrain on broad cross-embodiment robot data
--> optionally post-train on curated task-specific data
--> sample continuous action chunks with flow matching
--> execute chunks open-loop with periodic replanning
-```
-
-The model can be used in three main ways:
-
-1. **Out-of-box prompting**
-   * run the pretrained base policy directly with a language command
-2. **Post-training**
-   * fine-tune on high-quality data for a target task
-3. **High-level language guidance**
-   * use a VLM or human to produce intermediate language commands for long tasks
-
-This is closer to the training pattern used for LLMs than to the classic robotics pattern of training one policy from scratch for one task.
-
-## 5. Architecture Overview
-
-pi0 consists of two coupled parts:
-
-```text
-PaliGemma VLM backbone
--> image and language tokens
-
-robotics action expert
--> proprioceptive state token
--> noisy action chunk tokens
--> denoising vector field
-```
-
-The parameter count is:
-
-| Component          | Size               |
-| :----------------- | :----------------- |
-| PaliGemma backbone | about`3B` params |
-| Action expert      | about`300M`      |
-| Full pi0 model     | about`3.3B`      |
-
-The action expert is initialized from scratch. The VLM backbone is initialized from PaliGemma, which gives the model a pretrained visual-language interface before it ever sees robot actions.
-
-## 6. PaliGemma Backbone
-
-The paper uses **PaliGemma** as the base VLM because it is small enough for practical control while still bringing strong vision-language pretraining.
-
-The standard VLM input path handles:
-
-```text
-RGB images -> visual embeddings
-language prompt -> language tokens
-```
-
-pi0 augments this with robot-specific inputs:
-
-```text
-proprioceptive state q_t
-noisy action chunk A_t^tau
-```
-
-The important architectural choice is that these robot-specific tokens are not simply forced through the exact same weights as ordinary image and text tokens. They are routed through a smaller action expert.
-
-## 7. Action Expert as a Two-Expert Transformer
-
-pi0 is implemented as one transformer-style model with two sets of weights:
-
-| Token type                  | Routed to               |
-| :-------------------------- | :---------------------- |
-| Images and language prompt  | pretrained VLM backbone |
-| Robot state and action data | robotics action expert  |
-
-The experts interact through attention, but the action expert has its own weights for robot-specific computation.
-
-This matters because robot state and noisy action tokens are not part of PaliGemma's original pretraining distribution. Giving them a separate expert reduces the burden on the VLM backbone while still letting the robot policy condition on VLM features.
-
-## 8. Attention Mask
-
-Appendix B describes a blockwise causal attention layout with three blocks:
-
-```text
-[images, language] -> [state] -> [noisy action chunk]
-```
-
-Within each block, attention is bidirectional. Across blocks, earlier blocks do not attend to later blocks.
-
-The practical reasons are:
-
-* image and language tokens stay close to the original PaliGemma pretraining format
-* state tokens can be cached during flow-matching sampling
-* action tokens can attend to the full observation and to each other
-* the action chunk can be generated coherently, rather than as isolated actions
-
-Compared with autoregressive action-token prediction, this design is much more natural for continuous action chunks.
-
-## 9. Flow-Matching Action Generation
-
-pi0 does not discretize actions into vocabulary tokens.
-
-Instead, it learns a conditional flow model over continuous action chunks.
-
-Let the clean action chunk be:
+**How does pi0 supply this condition?** For each noisy action vector $a_{t+j}^{\tau}$, Appendix B gives the input embedding
 
 $$
-A_t =
-\left[
-a_t,\,
-\dots,\,
-a_{t+H-1}
-\right]
+e_j=W_3\,\operatorname{swish}\!\left(
+W_2\,[W_1a_{t+j}^{\tau};\phi(\tau)]\right),
 $$
 
-The noisy action chunk is sampled by interpolating between Gaussian noise and the real action chunk:
+where $\phi(\tau)$ is a sinusoidal encoding and $[\,;\,]$ denotes concatenation. With action dimension $d=18$ and expert width $w=1024$, $W_1$ maps $d\rightarrow w$, $W_2$ maps $2w\rightarrow w$, and $W_3$ maps $w\rightarrow w$.
+
+The sinusoidal features expose time at multiple frequencies, and the MLP fuses them with the current action values. [Fourier-feature research](https://arxiv.org/abs/2006.10739) motivates this richer representation, but **sinusoidal encoding is not mathematically required**: a scalar or learned time embedding can also condition a network. The pi0 paper specifies this design without establishing that scalar time input would fail. In short, $A_t^\tau$ tells the expert **what its current action estimate is**, $\tau$ tells it **where it is along the noise-to-action path**, and $o_t$ supplies the task and scene context through attention.
+
+All 50 actions share the sampled $\tau$ but have different action vectors. A final linear projection of their 50 output hidden states predicts a **$50\times18$ flow-velocity field**, not the finished action chunk in one pass. The main pi0 expert is Gemma-style; the DiT/AdaLN-Zero design described in Appendix C belongs to the **pi0-small baseline**, not this model.
+
+### 2.3 Attention Determines the Conditioning and the Cache
+
+**Layer coupling, not a final-feature handoff.** At transformer layer $l$, keep separate hidden streams: $h_v^{(l)}$ for image/language tokens and $h_e^{(l)}$ for state/action tokens. Their widths may differ, but their attention projections have compatible head dimensions. Each layer performs:
+
+1. **Project separately:** each branch uses its own normalization and $Q/K/V$ projection weights.
+2. **Attend jointly:** concatenate the projected queries, keys, and values along the **token axis**, apply positional encoding to queries/keys, and compute masked attention. Raw hidden states of widths 2048 and 1024 are not concatenated into one shared-width stream.
+3. **Split and update separately:** split attention outputs by token range; each branch applies its own output projection, residual connections, normalization, and MLP. The resulting pair of hidden streams enters layer $l+1$.
+
+Schematically, for one attention head, omitting layer indices:
 
 $$
-A_t^\tau
-=
-\tau A_t
-+
-(1 - \tau)\epsilon,
+Q=[Q_v;Q_e],\quad K=[K_v;K_e],\quad V=[V_v;V_e],
 \qquad
-\epsilon \sim \mathcal{N}(0, I)
+[Z_v;Z_e]=\operatorname{softmax}\!\left(\frac{QK^T}{\sqrt{d_h}}+B\right)V.
 $$
 
-where:
+Here $[\,;\,]$ concatenates tokens, $d_h$ is the head dimension, and $B$ is an additive mask: zero for allowed attention and $-\infty$ for blocked entries. Multi-query attention shares key/value heads across query heads. The official [`gemma_pytorch.py`](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/src/openpi/models_pytorch/gemma_pytorch.py) implements this in `compute_layer_complete`: branch-specific projections, `torch.cat`, joint attention, then branch-specific updates inside a layer loop.
 
-$$
-\tau \in [0, 1]
-$$
+**Joint computation does not mean unrestricted two-way information flow.** The paper's sequence has three attention blocks, despite using only two parameter sets. Rows below are queries; columns are the keys/values they may read:
 
-The model predicts a vector field:
+| Query block | Images + language | State | Noisy actions |
+|:--|:--:|:--:|:--:|
+| Images + language | Yes | No | No |
+| State | Yes | Yes | No |
+| Noisy actions | Yes | Yes | Yes |
 
-$$
-v_\theta(A_t^\tau, o_t)
-$$
+Thus action queries read image/language features from the **corresponding VLM layer**, plus state and action features. VLM queries cannot read state/actions, and state queries cannot read actions. Attention is bidirectional **inside** each block, including across the action chunk; it is not left-to-right autoregressive action generation. The coupling supplies VLM information to the expert at every layer without feeding noisy actions back into the VLM stream.
 
-The target vector field is:
+**Why this permits caching.** Image/language and state representations never depend on noisy actions or flow time. For the paper's inference scheme:
 
-$$
-u(A_t^\tau \mid A_t)
-=
-A_t - \epsilon
-$$
+* Compute observation keys/values **at every layer** once for the current observation.
+* At each flow step, recompute action queries/keys/values. Action layer $l$ reads cached observation keys/values from layer $l$ together with the current action keys/values.
+* Refresh the cache when replanning from a new observation or instruction.
 
-The flow-matching loss is:
+The VLM can therefore finish its entire observation pass before iterative sampling starts, but it supplies a **stack of per-layer caches**, not just its final hidden features. Layerwise conditioning does not require rerunning both branches together at every flow step. The state token uses action-expert weights yet belongs to the paper's cacheable observation prefix: parameter routing and cache boundaries are different concepts.
 
-$$
-\mathcal{L}_\tau(\theta)
-=
-\mathbb{E}
-\left[
-\left\|
-v_\theta(A_t^\tau, o_t)
--
-u(A_t^\tau \mid A_t)
-\right\|_2^2
-\right]
-$$
+**Paper versus implementation:** in the linked [`pi0_pytorch.py`](https://github.com/Physical-Intelligence/openpi/blob/215abfb217dbac7d5f1273282331b9b1866c0479/src/openpi/models_pytorch/pi0_pytorch.py), `sample_actions` caches only image/language tokens; for pi0, `denoise_step` recomputes state together with noisy actions through `embed_suffix`. Its mask still prevents state from reading actions, so state caching is possible but not implemented in that path. This is a caching-policy difference, not a different layer-coupling principle. The inference explanation below follows the paper.
 
-The interpretation is:
+The entire process can be illustrated as...
+```
+VLM
+[B,Tv,2048]
+     ↓ own QKV projection
+Q: [B,Tv,8,256]
+K,V: [B,Tv,1,256]
+          \
+           \
+            → concat along TOKEN dimension
+           /
+          /
+Expert
+[B,Ta,1024]
+     ↓ own QKV projection
+Q: [B,Ta,8,256]
+K,V: [B,Ta,1,256]
 
-```text
-start from noise
--> repeatedly predict a direction toward a realistic action chunk
--> integrate the vector field
--> get continuous robot actions
+                ↓
+
+joint attention
+
+Q:   [B,Tv+Ta,8,256]
+K/V: [B,Tv+Ta,1,256]
+
+                ↓
+
+attention output
+[B,Tv+Ta,8,256]
+
+                ↓ flatten heads
+
+[B,Tv+Ta,2048]
+
+        ↙                    ↘
+
+VLM tokens                 Expert tokens
+[B,Tv,2048]               [B,Ta,2048]
+
+↓ VLM o_proj               ↓ Expert o_proj
+
+[B,Tv,2048]               [B,Ta,1024]
 ```
 
-## 10. Inference with Euler Integration
+## 3. Training Pipeline: From a Demonstration to One Loss
 
-At inference time, pi0 starts from random noise:
+The architecture tells us where inputs go; flow matching specifies what the action outputs must learn. For one sampled pair $(o_t,A_t)$:
+
+1. **Prepare the example.** Select current images, state, and a task/subtask label; collect the next 50 demonstrated actions. Apply the robot's padding and missing-camera mask.
+2. **Construct a noisy chunk.** Sample Gaussian noise $\epsilon$ with the same shape as $A_t$, and sample flow time $\tau$ independently of robot timestep $t$.
+3. **Run the conditioned forward pass.** Encode the observation and feed $A_t^\tau$ with $\tau$ through the two-expert transformer using the mask above.
+4. **Regress the flow velocity.** Compare the predicted field with the known direction from sampled noise to demonstrated actions and backpropagate the loss.
+
+The interpolation and target are
 
 $$
-A_t^0 \sim \mathcal{N}(0, I)
+A_t^\tau=(1-\tau)\epsilon+\tau A_t,\qquad
+\epsilon\sim\mathcal N(0,I),\qquad
+\frac{d A_t^\tau}{d\tau}=A_t-\epsilon.
 $$
 
-and integrates the learned vector field:
+Thus the conditional flow-matching objective is
 
 $$
-A_t^{\tau + \delta}
-=
-A_t^\tau
-+
-\delta v_\theta(A_t^\tau, o_t)
+\mathcal L(\theta)=
+\mathbb E_{(o_t,A_t),\epsilon,\tau}
+\left[\left\|v_\theta(A_t^\tau,o_t,\tau)-(A_t-\epsilon)\right\|_F^2\right].
 $$
 
-The paper uses:
-
-| Setting           | Value          |
-| :---------------- | :------------- |
-| Flow steps        | `10`         |
-| Step size         | `0.1`        |
-| Action horizon    | `50`         |
-| Typical frequency | up to`50 Hz` |
-
-This is why the model can run as a real-time robot policy despite using an iterative generative process.
-
-The paper reports inference timing on an NVIDIA RTX 4090:
-
-| Model part                |      Time |
-| :------------------------ | --------: |
-| Image encoders            | `14 ms` |
-| Observation forward pass  | `32 ms` |
-| 10 action forward passes  | `27 ms` |
-| Total on-board inference  | `73 ms` |
-| Total off-board inference | `86 ms` |
-
-The model caches observation keys and values, so the repeated flow steps mainly recompute the action-token suffix.
-
-## 11. Action Execution
-
-Because pi0 predicts an action chunk, the robot does not need to run full inference at every control step.
-
-The paper executes chunks open-loop and replans periodically:
-
-| Robot family  | Control rate | Replanning cadence                   |
-| :------------ | :----------- | :----------------------------------- |
-| UR5e / Franka | `20 Hz`    | every`0.8 s`, after `16` actions |
-| Other robots  | `50 Hz`    | every`0.5 s`, after `25` actions |
-
-The authors tried temporal ensembling early on, following ACT-style action chunking, but found that it hurt policy performance, so the final setup executes action chunks without aggregation.
-
-## 12. Data Recipe
-
-pi0's data recipe is one of the main contributions.
-
-The pretraining mixture combines:
-
-* Physical Intelligence's own dexterous robot data
-* open-source datasets from Open X-Embodiment, Bridge v2, and DROID
-
-The headline numbers are:
-
-| Data / setup                          |             Quantity |
-| :------------------------------------ | -------------------: |
-| Total robot data                      | over`10,000` hours |
-| PI robot configurations               |                `7` |
-| PI tasks                              |               `68` |
-| PI robot timesteps                    |             `903M` |
-| Single-arm PI timesteps               |             `106M` |
-| Dual-arm PI timesteps                 |             `797M` |
-| Open-source share of training mixture |             `9.1%` |
-| OXE robot coverage                    |        `22` robots |
-
-The paper emphasizes that "task" is broad here. For example, "bussing" is not just one pick-place pair. It includes putting many kinds of dishes, cups, utensils, and trash items into the correct receptacles.
-
-## 13. Cross-Embodiment Training
-
-The model is trained jointly on multiple robot types:
-
-| Robot setup                 | Notes                                           |
-| :-------------------------- | :---------------------------------------------- |
-| UR5e                        | single arm, wrist and over-the-shoulder cameras |
-| Bimanual UR5e               | two UR5e arms, three cameras                    |
-| Franka                      | single Franka arm, two cameras                  |
-| Bimanual Trossen            | ALOHA-style two-arm setup                       |
-| Bimanual ARX / AgileX       | two 6-DoF arms, wrist and base cameras          |
-| Mobile Trossen / Mobile ARX | bimanual mobile manipulator                     |
-| Mobile Fibocom              | bimanual robot on a holonomic base              |
-
-To make one model work across these embodiments, the paper standardizes state and action tensors:
+The norm sums squared errors over chunk steps and action coordinates. "Flow velocity" means change in action space per unit $\tau$, not physical joint velocity. Here $\tau$ is written explicitly; the paper abbreviates the predictor as $v_\theta(A_t^\tau,o_t)$ even though its action embeddings include time.
 
 ```text
-state/action dimension = largest robot dimension
-smaller robots -> zero padding
-missing camera views -> masked image slots
+images + instruction + state -> observation tokens
+A_t + epsilon + tau -> noisy chunk -> time-conditioned action tokens
+observation tokens + action tokens -> transformer -> predicted velocity
+predicted velocity vs. (A_t - epsilon) -> squared-error loss
 ```
 
-The largest vector dimension is `18`, enough for two 6-DoF arms, two grippers, a mobile base, and a vertically actuated torso.
+The clean chunk supplies the noisy input and target; it is **not an additional clean-action prefix visible to the model**. Training samples a time and learns the local vector field rather than running the complete 10-step sampling loop for every loss. Appendix B favors noisier inputs: an equivalent sampling form is $z\sim\operatorname{Beta}(1.5,1)$, $\tau=0.999(1-z)$.
 
-This is a simple but important engineering point: cross-embodiment learning requires a common tensor interface, even if each robot physically exposes a different action space.
+For example, a bimanual shirt-folding sample pairs three current images, `fold shirt`, and padded joint state with a $50\times18$ demonstrated chunk. One forward pass predicts a $50\times18$ velocity field conditioned on that observation. It does not predict images, an intermediate textual plan, or just the next single action.
 
-## 14. Pretraining vs. Post-Training
+## 4. Inference Pipeline: From Noise to Executed Actions
 
-The paper explicitly borrows the pretraining/post-training split from large language models.
+At deployment there is no demonstrated $A_t$. The observation path and conditioning stay the same; the learned field now constructs a chunk from noise:
 
-### 14.1 Pretraining
+1. **Observe once per replan:** obtain current images, instruction, and state; encode them and cache the observation keys/values, including the state token.
+2. **Initialize:** sample $A_t^0\sim\mathcal N(0,I)$.
+3. **Integrate:** run 10 action-suffix forward passes, reusing that cache and updating both the noisy chunk and flow time.
+4. **Execute and refresh:** select the robot's valid action dimensions, execute the chosen leading portion, then collect a new observation and rebuild the cache for the next chunk.
 
-The goal of pretraining is broad capability:
-
-* many robots
-* many scenes
-* many object types
-* many partial failures and recoveries
-* many action distributions
-
-The authors argue that diverse pretraining data teaches robustness. It exposes the model to states that polished expert data may not contain.
-
-### 14.2 Post-Training
-
-The goal of post-training is task fluency:
-
-* consistent execution style
-* efficient trajectories
-* high-quality demonstrations
-* specialization to complex downstream tasks
-
-This mirrors LLM alignment:
-
-```text
-pretraining -> broad knowledge
-post-training -> desired behavior
-```
-
-For robots, the "desired behavior" is not just politeness or instruction following. It is physical dexterity, reliability, recovery, and efficient task completion.
-
-## 15. Language and High-Level Policies
-
-Some tasks are too semantically complex to solve well from a single flat instruction.
-
-For example:
-
-```text
-bus the table
-```
-
-may require many decisions:
-
-```text
-pick up the napkin
-put the napkin in the trash
-pick up the plate
-shake trash off the plate
-put the plate in the dish bin
-...
-```
-
-Because pi0 is language-conditioned, it can receive these intermediate commands from:
-
-* a human expert
-* a high-level VLM policy
-* a flat task prompt
-
-This separates semantic task decomposition from low-level dexterous control:
-
-```text
-high-level VLM or human
--> intermediate language command
--> pi0 executes continuous robot actions
-```
-
-The paper reports that the PaliGemma-initialized pi0 follows intermediate language commands much better than the non-VLM pi0-small baseline.
-
-## 16. Out-of-Box Evaluation
-
-The first evaluation uses the base pretrained model without post-training.
-
-Tasks include:
-
-| Task                 | Robot setup      | Skill tested                            |
-| :------------------- | :--------------- | :-------------------------------------- |
-| Shirt folding        | bimanual ARX     | deformable object manipulation          |
-| Bussing easy         | UR5e             | object sorting and semantic recognition |
-| Bussing hard         | UR5e             | clutter, occlusion, unseen objects      |
-| Grocery bagging      | UR5e             | multi-object packing                    |
-| Toast out of toaster | bimanual Trossen | precise bimanual manipulation           |
-
-The baselines include:
-
-* OpenVLA trained on the same mixture
-* OpenVLA trained only on UR5e data
-* Octo trained on the same mixture
-* pi0-small without VLM initialization
-* a compute-parity pi0 trained for `160k` steps instead of the full `700k`
-
-The headline result is qualitative but strong:
-
-* full pi0 performs best across the out-of-box tasks
-* compute-parity pi0 still outperforms OpenVLA and Octo
-* pi0-small beats OpenVLA and Octo but trails full pi0
-
-The authors attribute OpenVLA's weakness in this setting largely to its autoregressive discrete action-token formulation, which does not naturally support high-frequency action chunks.
-
-## 17. Language-Following Evaluation
-
-The language evaluation compares:
-
-| Condition                                | Description                                          |
-| :--------------------------------------- | :--------------------------------------------------- |
-| `pi0-flat`                             | receives only the high-level task command            |
-| `pi0-human`                            | receives intermediate commands from a human          |
-| `pi0-HL`                               | receives intermediate commands from a high-level VLM |
-| `pi0-small-flat` / `pi0-small-human` | non-VLM baseline variants                            |
-
-Tasks include:
-
-* bussing
-* table setting
-* grocery bagging
-
-The important result is that full pi0 benefits much more from intermediate language commands than pi0-small.
-
-This supports the paper's claim that VLM pretraining matters not only for image recognition, but also for language-conditioned robot control.
-
-## 18. Fine-Tuning to New Dexterous Tasks
-
-The paper fine-tunes pi0 on tasks that differ from pretraining data:
-
-| Task                    | Robot         | Difficulty framing                     |
-| :---------------------- | :------------ | :------------------------------------- |
-| Stack bowls             | UR5e          | similar to pretraining                 |
-| Towel folding           | bimanual ARX  | similar to shirt folding               |
-| Tupperware in microwave | bimanual ARX  | new appliance, related manipulation    |
-| Paper towel replacement | bimanual UR5e | hard, new objects and motions          |
-| Items in drawer         | Franka        | hard, limited similar pretraining data |
-
-The comparisons include:
-
-* pi0 fine-tuned from the pretrained base model
-* pi0 trained from scratch on the task data
-* OpenVLA
-* Octo
-* ACT
-* Diffusion Policy
-
-The main lesson is:
-
-> pi0's architecture is already strong for dexterous control, and broad robot pretraining often improves it further, especially when fine-tuning data is limited or the task is close to the pretraining distribution.
-
-The paper notes that on some tasks, prior methods trained from scratch are the strongest non-pi0 baselines. This is an important result because it shows that useful robot pretraining is still hard; simply having a pretrained robot model is not enough.
-
-## 19. Complex Multi-Stage Tasks
-
-The final evaluation studies long, difficult tasks:
-
-| Task            | Main challenge                                     |
-| :-------------- | :------------------------------------------------- |
-| Laundry folding | deformable clothing from random crumpled states    |
-| Mobile laundry  | laundry folding with mobile base control           |
-| Dryer unloading | navigation, opening dryer, transferring clothes    |
-| Table bussing   | clutter, semantic sorting, unseen objects          |
-| Box building    | deformable cardboard, bimanual bracing and folding |
-| To-go box       | packing food and closing a flexible container      |
-| Packing eggs    | delicate grasping, placement, and carton closing   |
-
-These tasks combine:
-
-* long horizons
-* object diversity
-* bimanual coordination
-* physical deformation
-* partial failure recovery
-* semantic sequencing
-
-The paper reports that full pretraining plus post-training performs best across these tasks, with the largest gains on the hardest settings.
-
-A key claim is that these tasks go beyond the typical pick-and-place style benchmark and demonstrate a new level of learned dexterous manipulation.
-
-## 20. Why Flow Matching Helps
-
-Flow matching is a good fit for pi0 because robot actions are:
-
-* continuous
-* often multimodal
-* temporally correlated
-* high-frequency
-* sensitive to small errors
-
-Discrete action-token VLAs have to quantize each action dimension and predict those bins as text-like tokens. That can work well for coarse control, but dexterous tasks expose its limitations.
-
-Flow matching instead models:
+For $k=0,\ldots,9$, with $\tau_k=k/10$ and $\delta=0.1$,
 
 $$
-p(A_t \mid o_t)
+A_t^{\tau_{k+1}}=A_t^{\tau_k}
++\delta\,v_\theta(A_t^{\tau_k},o_t,\tau_k).
 $$
 
-directly in continuous action space.
+The result $A_t^1$ is a continuous action chunk. **The 10 flow steps refine the entire chunk; they are not 10 robot actions.** All flow steps for this chunk condition on the same $o_t$; observation feedback enters at the next replan.
 
-This gives pi0 a more natural interface for:
+| Robot setup | Controller rate | Actions executed before replanning | Replan interval |
+|:--|:--:|:--:|:--:|
+| UR5e / Franka | 20 Hz | 16 of the predicted 50 | 0.8 s |
+| Other evaluated robots | 50 Hz | 25 of the predicted 50 | 0.5 s |
 
-* smooth motions
-* bimanual coordination
-* action chunks
-* high-rate control
-* precise gripper and end-effector behavior
+The executed portion is open-loop at the policy level; replanning closes the observation-action loop. The paper does not aggregate overlapping chunks: temporal ensembling hurt performance in its trials.
 
-In this sense, pi0 sits between two research lines:
+With three cameras on an RTX 4090, Appendix D reports **14 ms** for image encoding, **32 ms** for the observation pass, and **27 ms total** for all ten action passes: **73 ms onboard**, or **86 ms** including offboard network latency. Therefore "50 Hz control" means playing action commands at that rate, not running the entire VLM every 20 ms.
 
-```text
-VLA models
--> pretrained visual-language semantics
+## 5. Where the Training Examples Come From
 
-diffusion / flow robot policies
--> continuous action generation
-```
+The same input/output interface supports two robot-training stages; the difference is the data distribution, not a switch from action regression to reinforcement learning.
 
-pi0's contribution is to combine them at robot-foundation-model scale.
+| Stage | Data and initialization | Purpose |
+|:--|:--|:--|
+| VLM initialization | Start from pretrained PaliGemma; initialize the action expert and new projections from scratch | Import visual-language representations before robot training |
+| Robot pre-training | PI data plus open robot datasets, using the flow-matching objective | Learn broad cross-robot behavior, including varied situations and recoveries |
+| Task post-training | Fine-tune the robot-pretrained model on curated target-task demonstrations | Favor consistent, fluent execution; reported data needs range from roughly 5 to 100+ hours per task |
 
-## 21. Comparison to Nearby VLA Models
+Important details of the pre-training mixture:
 
-| Model   | Backbone idea                                      | Action representation         | Main emphasis                                     |
-| :------ | :------------------------------------------------- | :---------------------------- | :------------------------------------------------ |
-| RT-2    | large VLM co-fine-tuned on robot and web data      | discrete action tokens        | semantic transfer from web-scale VLMs             |
-| OpenVLA | open Prismatic VLM fine-tuned on Open X-Embodiment | discrete action tokens        | open-source generalist VLA                        |
-| Octo    | transformer over flexible robot tokens             | diffusion action head         | open generalist robot policy and adaptation       |
-| SmolVLA | compact frozen VLM plus flow action expert         | continuous flow action chunks | affordable, efficient VLA training                |
-| pi0     | PaliGemma plus action expert                       | continuous flow action chunks | dexterous cross-embodiment robot foundation model |
+* **PI data:** about 10,000 hours, **903M timesteps**, **7 robot configurations**, and **68 broadly defined tasks**. The timestep count splits into 106M single-arm and 797M dual-arm samples; it is not a count of independent episodes.
+* **Open data:** OXE-based data, Bridge v2, and DROID supply **9.1% of the sampling mixture**, not 9.1% of elapsed demonstration hours. Figure 4 specifies an OXE "Magic Soup" subset, despite the overview's broader wording about the entire OXE dataset.
+* **Balancing:** sample task-robot groups with weights proportional to $n^{0.43}$, where $n$ is their sample count, reducing domination by the largest groups compared with sampling proportional to $n$.
+* **Language:** use both task names and fine-grained annotations of roughly two-second trajectory segments. This teaches the same policy to respond to whole-task prompts or intermediate subtask commands.
 
-The key difference from OpenVLA and RT-2 is the continuous action generator.
+The original paper's common interface is 18-dimensional padding plus camera masking. It does not fully specify every dataset's action normalization or conversion rules; these should not be guessed from later implementations.
 
-The key difference from Octo and Diffusion Policy is the stronger pretrained VLM backbone and the scale of cross-embodiment dexterous robot data.
+For long tasks, an **external** high-level VLM or human can supply intermediate commands, such as `pick up the napkin` and `put it in the trash`. These replace the language input to pi0's action pipeline; the original pi0 does not internally generate subtasks as pi0.5 does.
 
-## 22. Limitations
+## 6. What the Experiments Establish
 
-The paper is explicit that pi0 is not a solved general robot brain.
+| Evaluation | Main result | How to interpret it |
+|:--|:--|:--|
+| Direct prompting after robot pre-training | Strongest results on the five evaluated tasks versus OpenVLA/Octo; the 160k-update pi0 comparison also outperforms those baselines | No task post-training, but these task families occur in pre-training; not evidence that every task is unseen |
+| Language guidance | Full pi0 benefits more from intermediate instructions than pi0-small without VLM initialization | Supports the usefulness of VLM priors; pi0-small also differs architecturally, so this is not a perfectly isolated initialization ablation |
+| New-task fine-tuning | Broad robot pre-training often improves adaptation, particularly with limited data or related skills | Distinguish robot-pretrained pi0 from task-only training with VLM initialization |
+| Complex multi-stage tasks | Pre-training plus post-training generally beats either alone; all reported task scores exceed half the maximum | Scores measure task progress over 10 trials, not necessarily full-task success rates |
 
-Main limitations include:
+The main model uses **700k robot pre-training updates**; the paper separately reports a **160k-update comparison** with the baselines. Its results support the combined architecture and data recipe, not a clean claim that flow matching alone explains all gains.
 
-* the best composition and weighting of pretraining data is still unclear
-* not all evaluated tasks work reliably
-* it is hard to predict how much data a new task will require
-* the system is still focused on manipulation, not all embodied domains
-* positive transfer across very different domains remains open
-* complex tasks still often require post-training
-* high-level planning may still need a separate VLM or human-specified intermediate commands
+Remaining limitations include imperfect reliability, uncertain data requirements for new tasks, and the need for task-specific post-training or external planning on difficult tasks. VLM priors and continuous generation do not by themselves guarantee correct language following, safe actions, or successful long-horizon execution.
 
-The authors specifically leave open whether this style of universal robot pretraining extends to domains such as autonomous driving, navigation, and legged locomotion.
+## 7. Compact Mental Model
 
-## 23. Practical Takeaways
+**Demonstration window -> observation prefix + noisy action tokens -> two-expert attention -> flow-velocity loss. At inference: cache the observation -> refine noise into 50 actions -> execute a prefix -> observe again.**
 
-The main engineering lessons are:
-
-1. **Continuous action heads matter**
-
-   * dexterous control is a poor fit for pure text-token prediction
-2. **Action chunks matter**
-
-   * predicting a short trajectory is more practical than predicting one action at a time for high-frequency control
-3. **VLM pretraining matters**
-
-   * it improves language following and semantic grounding
-4. **Pretraining and post-training solve different problems**
-
-   * pretraining gives robustness and breadth
-   * post-training gives fluent task execution
-5. **Cross-embodiment learning needs boring interfaces**
-
-   * padding action vectors and masking missing cameras are simple, but necessary
-6. **Generalist policies still need data curation**
-
-   * more robot data helps, but task balance and data quality are central
-
-## 24. Mental Model
-
-The shortest way to remember pi0 is:
-
-```text
-PaliGemma gives pi0 visual-language understanding.
-The action expert gives pi0 continuous robot control.
-Flow matching gives pi0 smooth high-frequency action chunks.
-Pretraining gives pi0 broad physical experience.
-Post-training gives pi0 task fluency.
-```
-
-So pi0 is not just "a VLM for robots."
-
-It is better understood as:
-
-> a robot foundation model recipe that combines pretrained VLM semantics, continuous flow-based action generation, cross-embodiment robot data, and task-specific post-training.
+The crucial distinction is that the action expert learns and samples **with observation conditioning throughout**; it is neither an unconditional denoiser nor an autoregressive text-action decoder.
