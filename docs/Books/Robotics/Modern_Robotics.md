@@ -8,19 +8,19 @@
 
 | Chapter | Topic | Note status |
 |:--:|:--|:--:|
-| 1 | Preview | Not started |
+| 1 | Preview | Skipped |
 | 2 | [Configuration Space](#chapter-2-configuration-space) | Complete |
 | 3 | [Rigid-Body Motions](#chapter-3-rigid-body-motions) | Complete |
 | 4 | [Forward Kinematics](#chapter-4-forward-kinematics) | Complete |
 | 5 | [Velocity Kinematics and Statics](#chapter-5-velocity-kinematics-and-statics) | Complete |
 | 6 | [Inverse Kinematics](#chapter-6-inverse-kinematics) | Complete |
 | 7 | Kinematics of Closed Chains | Skipped |
-| 8 | [Dynamics of Open Chains](#chapter-8-dynamics-of-open-chains) | Sections 8.1-8.5 complete |
+| 8 | [Dynamics of Open Chains](#chapter-8-dynamics-of-open-chains) | Sections 8.1-8.5 complete; Other sections skipped |
 | 9 | [Trajectory Generation](#chapter-9-trajectory-generation) | Complete |
-| 10 | Motion Planning | Not started |
-| 11 | Robot Control | Not started |
-| 12 | Grasping and Manipulation | Not started |
-| 13 | Wheeled Mobile Robots | Not started |
+| 10 | Motion Planning | Skipped |
+| 11 | [Robot Control](#chapter-11-robot-control) | Sections 11.1-11.4 complete; 11.5-11.6 postponed |
+| 12 | Grasping and Manipulation | Skipped |
+| 13 | Wheeled Mobile Robots | Skipped |
 
 ## Chapter 2 Catalog
 
@@ -138,6 +138,31 @@ Sections 9.1-9.6 follow the book's organization; the final review aids are addit
 | 9.6 | [Software and Worked Implementation](#96-software-and-worked-implementation) |
 | Review | [Common Confusions](#chapter-9-common-confusions) |
 | Review | [Understanding Checklist](#chapter-9-understanding-checklist) |
+
+## Chapter 11 Catalog
+
+Only book Sections 11.1-11.4 are covered. Sections 11.5-11.6 are postponed; Sections 11.7 onward are outside the current scope. Review aids are not additional book sections.
+
+| Book section | Topic | Status |
+|:--|:--|:--|
+| 11.1 | [Control System Overview](#111-control-system-overview) | Complete |
+| 11.2 | [Error Dynamics](#112-error-dynamics) | Complete |
+| 11.2.1 | [Error Response](#1121-error-response) | Complete |
+| 11.2.2 | [Linear Error Dynamics](#1122-linear-error-dynamics) | Complete |
+| 11.3 | [Motion Control with Velocity Inputs](#113-motion-control-with-velocity-inputs) | Complete |
+| 11.3.1 | [Motion Control of a Single Joint](#1131-motion-control-of-a-single-joint) | Complete |
+| 11.3.2 | [Motion Control of a Multi-joint Robot](#1132-motion-control-of-a-multi-joint-robot) | Complete |
+| 11.3.3 | [Task-Space Motion Control](#1133-task-space-motion-control) | Complete |
+| 11.4 | [Motion Control with Torque or Force Inputs](#114-motion-control-with-torque-or-force-inputs) | Complete |
+| 11.4.1 | [Motion Control of a Single Joint](#1141-motion-control-of-a-single-joint) | Complete |
+| 11.4.2 | [Motion Control of a Multi-joint Robot](#1142-motion-control-of-a-multi-joint-robot) | Complete |
+| 11.4.3 | [Task-Space Motion Control](#1143-task-space-motion-control) | Complete |
+| 11.5 | Force Control | Postponed |
+| 11.6 | Hybrid Motion-Force Control | Postponed |
+| Review | [Worked Implementation](#chapter-11-worked-implementation) | Added |
+| Review | [Common Confusions](#chapter-11-common-confusions) | Added |
+| Review | [Formula Sheet](#chapter-11-formula-sheet) | Added |
+| Review | [Understanding Checklist](#chapter-11-understanding-checklist) | Added |
 
 ---
 
@@ -4144,3 +4169,594 @@ After this chapter, you should be able to:
 * explain why bottlenecks require earlier braking and additional tangent switches;
 * state the assumptions and practical limitations of the time-optimal algorithm;
 * use the chapter's trajectory generators without assuming they check IK, collisions, or torque limits.
+
+---
+
+## Chapter 11: Robot Control
+
+**Scope:** Sections 11.1-11.4 of the supplied May 2017 book PDF, printed pp. 404-434. Chapter 10 is skipped. **11.5 Force Control and 11.6 Hybrid Motion-Force Control are postponed**, and later sections are not covered here.
+
+[Chapter 9](#chapter-9-trajectory-generation) supplies a desired trajectory; it does not make the robot follow it. Control closes that gap by comparing desired and measured motion and choosing commands that drive the tracking error toward zero. The controller uses the [kinematic maps of Chapter 5](#chapter-5-velocity-kinematics-and-statics) and, when commanding effort, the [dynamics of Chapter 8](#chapter-8-dynamics-of-open-chains).
+
+The logical progression is **choose the control interface -> specify good error dynamics -> derive a control law that produces those dynamics**. Velocity inputs first expose the roles of feedforward and feedback without inertia. Torque inputs then introduce inertia, gravity, and joint coupling, motivating computed torque. Finally, the same design is expressed in task coordinates, with careful frame handling.
+
+### 11.1 Control System Overview
+
+A physical control loop consists of a reference trajectory, controller, amplifier/actuator/transmission, robot and environment, and sensors returning measured motion. An inner motor loop may regulate current or torque; the outer robot controller uses motion error to request its next command.
+
+For this chapter, idealize the actuator interface as delivering the requested **joint velocity** in 11.3 or **joint torque/force** in 11.4. A revolute joint receives torque, a prismatic joint force; both are entries of the joint-effort vector $\tau$. A torque input is not an instantaneous position or velocity change: dynamics converts it into acceleration.
+
+| Quantity | Meaning |
+|:--|:--|
+| $\theta,\dot\theta$ | Measured joint configuration and velocity; scalars for one joint, $n$-vectors for a robot |
+| $\theta_d,\dot\theta_d,\ddot\theta_d$ | Desired motion and its derivatives from the trajectory generator |
+| $\theta_e=\theta_d-\theta$ | Position tracking error, abbreviated $e$ below |
+| $\dot e=\dot\theta_d-\dot\theta$ | Velocity tracking error |
+| $z(t)=\int_0^t e(\sigma)\,d\sigma$ | Accumulated error, with zero initial integral unless specified |
+| $K_p,K_i,K_d$ | Proportional, integral, and derivative gains; units depend on the commanded quantity |
+| $M,h$ and $\widetilde M,\widetilde h$ | True inertia/bias dynamics and their controller estimates |
+
+The book analyzes continuous-time control with ideal sensing and rigid mechanisms. Its implementations instead sample and update at a finite servo period $\Delta t$. Velocity may be estimated by differencing position samples, usually with filtering because differentiation amplifies sensor noise. Saturation, delays, quantization, backlash, and structural flexibility limit usable gains even when the ideal continuous-time equations are stable.
+
+These sections concern **motion tracking**. Choosing torque as the actuator command does not make the objective contact-force control; that different objective belongs to the postponed Section 11.5.
+
+### 11.2 Error Dynamics
+
+Rather than judging a controller only by its command formula, substitute it into the robot model and derive the differential equation for $e$. This **closed-loop error dynamics** tells us whether initial error decays, whether disturbances leave an offset, and how gains affect the transient.
+
+#### 11.2.1 Error Response
+
+The book's unit error response starts with $e(0)=1$ and all higher initial error derivatives zero. Three quantities summarize it:
+
+* **Steady-state error:** $e_{\mathrm{ss}}=\lim_{t\to\infty}e(t)$, when the limit exists.
+* **2% settling time:** the earliest $T_s$ after which $\lvert e(t)-e_{\mathrm{ss}}\rvert\leq0.02\lvert e(0)-e_{\mathrm{ss}}\rvert$ for every $t\geq T_s$. Merely crossing the band once is not settling.
+* **Overshoot:** how far the error crosses beyond its final value. For $e(0)>e_{\mathrm{ss}}$, report the positive magnitude $(e_{\mathrm{ss}}-e_{\min})/(e(0)-e_{\mathrm{ss}})\times100\%$ if it crosses below $e_{\mathrm{ss}}$, otherwise zero.
+
+We want a small final error and a fast transient without excessive overshoot. These goals compete with actuator limits and noise sensitivity. Also, a standard unit response specifies **all** initial conditions; a real controller's integral state can imply a different initial $\dot e$, so the measured curve need not equal the standard response exactly.
+
+#### 11.2.2 Linear Error Dynamics
+
+For constant coefficients and constant forcing $c$,
+
+$$
+a_p e^{(p)}+a_{p-1}e^{(p-1)}+\cdots+a_1\dot e+a_0e=c.
+$$
+
+If the dynamics is stable and $a_0\ne0$, the equilibrium is $e_{\mathrm{ss}}=c/a_0$. Subtracting this equilibrium leaves a homogeneous equation. A trial mode $e^{st}$ gives the **characteristic polynomial** $a_ps^p+\cdots+a_0=0$. Its roots describe the transient, not the forced equilibrium.
+
+Equivalently, define $x=(e,\dot e,\ldots,e^{(p-1)})^T$ for the homogeneous system. Then $\dot x=Ax$, where $A$ has ones above the diagonal and last row $(-a_0/a_p,\ldots,-a_{p-1}/a_p)$, and $x(t)=e^{At}x(0)$. Asymptotic stability requires every root/eigenvalue to have a **strictly negative real part**. Such a matrix is called Hurwitz; this is not the same as requiring a nonsymmetric $A$ to be negative definite. A positive-real-part root is unstable; imaginary-axis roots require separate analysis and do not ensure decay.
+
+For a monic polynomial, positive coefficients are necessary for strict stability, but sufficient only through order two. For a cubic
+
+$$
+s^3+a_2s^2+a_1s+a_0,
+\qquad
+\boxed{a_2,a_1,a_0>0,\quad a_2a_1>a_0.}
+$$
+
+This extra inequality will explain why excessive integral gain can destabilize torque PID control.
+
+**First order.** For $\dot e+e/T_c=0$,
+
+$$
+e(t)=e(0)e^{-t/T_c},\qquad
+T_s=-T_c\ln(0.02)\approx3.912T_c.
+$$
+
+The positive time constant $T_c$ is the time to retain $e^{-1}\approx37\%$ of the initial error. There is no overshoot in this homogeneous response.
+
+**Second order.** The mass-spring-damper analogy $m\ddot e+b\dot e+ke=0$ gives
+
+$$
+\ddot e+2\zeta\omega_n\dot e+\omega_n^2e=0,
+\qquad
+\omega_n=\sqrt{k/m},\quad \zeta=\frac{b}{2\sqrt{km}},
+$$
+
+$$
+s_{1,2}=-\zeta\omega_n\pm\omega_n\sqrt{\zeta^2-1}.
+$$
+
+$\omega_n$ is natural frequency and $\zeta$ is damping ratio. With $\omega_n>0$, asymptotic stability requires $\zeta>0$.
+
+| Regime | Roots and response |
+|:--|:--|
+| Overdamped, $\zeta>1$ | Two distinct negative real roots; $e=c_1e^{s_1t}+c_2e^{s_2t}$. The slower mode dominates late decay. |
+| Critically damped, $\zeta=1$ | Repeated root $-\omega_n$; $e=(c_1+c_2t)e^{-\omega_nt}$. For the unit response, $e=(1+\omega_nt)e^{-\omega_nt}$. |
+| Underdamped, $0<\zeta<1$ | Roots $-\zeta\omega_n\pm j\omega_d$, with $\omega_d=\omega_n\sqrt{1-\zeta^2}$. Decaying oscillation. |
+
+The constants follow from the initial conditions. For the underdamped unit response,
+
+$$
+e(t)=e^{-\zeta\omega_nt}\left[\cos(\omega_dt)+
+\frac{\zeta}{\sqrt{1-\zeta^2}}\sin(\omega_dt)\right],
+$$
+
+$$
+t_{\mathrm{peak}}=\frac{\pi}{\omega_d},\qquad
+\text{overshoot}=100e^{-\pi\zeta/\sqrt{1-\zeta^2}}\%.
+$$
+
+For example, $\zeta=0.5$ gives about 16.3% overshoot. At $\zeta=0$ the oscillation does not decay. Zero overshoot for critical/overdamping refers to the standard unit response, not every possible initial velocity.
+
+![Pole locations and corresponding second-order error responses](../../../assets/Modern_Robotics/ch11_error_dynamics.png)
+
+*Figure 11.5, printed p. 412: real and imaginary parts of the poles determine decay and oscillation. The standard unit response distinguishes over-, critical, and underdamping; poles in the right half-plane produce growing modes.*
+
+The book uses the useful estimate $T_s\approx4/(\zeta\omega_n)$ for underdamped responses and roughly four slow time constants for real poles. These are **approximations**, especially for repeated poles: the critical unit response solves $(1+\omega_nT_s)e^{-\omega_nT_s}=0.02$, giving $T_s\approx5.834/\omega_n$, not exactly $4/\omega_n$.
+
+We can now design controllers by matching their derived error equations to these first- and second-order forms. The first question is what physical quantity our controller can command.
+
+### 11.3 Motion Control with Velocity Inputs
+
+Assume a sufficiently fast inner velocity loop realizes $u=\dot\theta$ exactly. The outer-loop plant is therefore an integrator, $\dot\theta=u$. This approximation hides motor/robot dynamics; it is useful only while the inner loop can deliver the requested velocity.
+
+#### 11.3.1 Motion Control of a Single Joint
+
+**Feedforward alone:** command $u=\dot\theta_d$. Then $\dot e=0$. Perfect initial alignment is preserved, but initial offsets and accumulated disturbances are not corrected. A reference derivative predicts needed motion; it does not measure tracking success.
+
+**P feedback:** command $u=K_pe$. For a fixed setpoint,
+
+$$
+\dot e=\dot\theta_d-u=-K_pe,
+\qquad T_c=1/K_p.
+$$
+
+Thus $K_p>0$ gives exponential convergence. But for a constant reference velocity $\dot\theta_d=v_d$,
+
+$$
+\dot e+K_pe=v_d,
+\qquad
+e(t)=\frac{v_d}{K_p}+\left(e(0)-\frac{v_d}{K_p}\right)e^{-K_pt}.
+$$
+
+The steady lag $e_{\mathrm{ss}}=v_d/K_p$ is needed to generate the commanded velocity. For $v_d=0.2$ rad/s and $K_p=4\ \mathrm{s}^{-1}$, it is $0.05$ rad. Increasing $K_p$ shrinks the lag but raises velocity demands and sensitivity to finite sampling.
+
+**PI feedback:** store $\dot z=e$ and command $u=K_pe+K_iz$. For the same constant-velocity reference,
+
+$$
+\dot e+K_pe+K_iz=v_d
+\quad\Longrightarrow\quad
+\boxed{\ddot e+K_p\dot e+K_ie=0.}
+$$
+
+The accumulated error supplies the continuing velocity after the instantaneous error vanishes: at equilibrium $e=0$ and $K_iz=v_d$. Comparing with the standard second-order form,
+
+$$
+\omega_n=\sqrt{K_i},\qquad
+\zeta=\frac{K_p}{2\sqrt{K_i}},\qquad
+K_i=K_p^2/4\ \text{for critical damping}.
+$$
+
+Both gains must be positive. Here **$K_p$ acts as damping and $K_i$ as stiffness in the error equation**. Those roles will differ when the commanded quantity is torque.
+
+For the book's fixed $K_p=20$, the roots are $-10\pm\sqrt{100-K_i}$. As $K_i$ rises, the slow real root moves left until the roots meet at $K_i=100$; larger values produce oscillations with real part $-10$. Increasing integral gain then increases oscillation rather than improving the exponential decay rate. For a varying reference velocity, the differentiated equation has forcing $\ddot\theta_d$, so PI alone need not eliminate tracking error.
+
+**Feedforward plus PI feedback:** do not wait for error to supply known reference motion:
+
+$$
+\boxed{u=\dot\theta_d+K_pe+K_iz,\qquad \dot z=e.}
+$$
+
+Now $\dot e=-K_pe-K_iz$, independent of the reference trajectory. Under the ideal velocity interface, setting $K_i=0$ already gives exponential tracking with no constant-velocity lag. Integral feedback is useful for persistent bias; for example, if actual velocity is $u+d$ with constant unknown $d$, a stable PI loop can settle to $e=0$, $K_iz=-d$.
+
+The formula explains the division of work: feedforward supplies the nominal motion; feedback removes mismatch. In this velocity law, $K_p$ has units $\mathrm{s}^{-1}$ and $K_i$ has units $\mathrm{s}^{-2}$.
+
+#### 11.3.2 Motion Control of a Multi-joint Robot
+
+Use the same law with vectors and diagonal gain matrices:
+
+$$
+\dot\theta_{\mathrm{cmd}}=\dot\theta_d+K_p(\theta_d-\theta)+K_iz.
+$$
+
+With independent ideal velocity inputs, each joint follows the scalar error analysis. The book commonly uses $K_p=k_pI$, $K_i=k_iI$; different diagonal entries allow different rates per joint. This decoupling follows from the **ideal velocity interface**, not from the physical robot having a diagonal mass matrix.
+
+#### 11.3.3 Task-Space Motion Control
+
+The target may be a tool pose rather than joint angles. Let $X=T_{sb}$ be the actual pose and $X_d=T_{sd}$ the desired pose. Their body twists satisfy $[V_b]=X^{-1}\dot X$ and $[V_d]=X_d^{-1}\dot X_d$, with angular components first. We need both a geometric pose error and a common frame before adding feedback to feedforward.
+
+Use the [matrix-logarithm pose error from inverse kinematics](#66-numerical-ik-on-se3):
+
+$$
+E=X^{-1}X_d=T_{bd},\qquad
+X_e=\bigl(\log E\bigr)^\vee\in\mathbb R^6,
+\qquad U=\operatorname{Ad}_E V_d.
+$$
+
+The vee operator converts an $se(3)$ matrix to its six-vector. $X_e$ is the constant body twist that would take $X$ to $X_d$ in unit time. It is not the matrix difference $X_d-X$. $U$ transforms the desired twist from the desired tool frame into the **actual** tool frame, so it can be combined with $X_e$.
+
+The book's body-frame controller and its joint command are
+
+$$
+\boxed{V_{b,\mathrm{cmd}}=U+K_pX_e+K_i\int_0^tX_e(\sigma)\,d\sigma,\qquad
+\dot\theta_{\mathrm{cmd}}=J_b^\dagger(\theta)V_{b,\mathrm{cmd}}.}
+$$
+
+At $X=X_d$, $E=I$, so the feedforward term reduces to $V_d$. Use the **body Jacobian** with body-frame commands; a space Jacobian would require space-frame quantities instead. The pseudoinverse realizes the command exactly only when it lies in the Jacobian's attainable range. Near singularities, joint rates can become excessive; at a singularity, some requested directions cannot be realized. Redundancy permits additional null-space motion as discussed in [Chapter 6](#68-inverse-velocity-kinematics-and-redundancy).
+
+**Representation changes the motion.** A minimal local task coordinate $x$ can use $\dot x_{\mathrm{cmd}}=\dot x_d+K_p(x_d-x)+K_i\int(x_d-x)dt$, with its matching analytic Jacobian. Such coordinates may have representation singularities.
+
+Alternatively, separate orientation and position with $X=(R,p)$ and velocity $(\omega_b,\dot p)$:
+
+$$
+\begin{bmatrix}\omega_{b,\mathrm{cmd}}\\\dot p_{\mathrm{cmd}}\end{bmatrix}
+=\begin{bmatrix}R^TR_d\omega_d\\\dot p_d\end{bmatrix}
++K_p\begin{bmatrix}\bigl(\log(R^TR_d)\bigr)^\vee\\p_d-p\end{bmatrix}
++K_i\int_0^t\begin{bmatrix}\bigl(\log(R^TR_d)\bigr)^\vee\\p_d-p\end{bmatrix}d\sigma.
+$$
+
+Here angular velocity is body-expressed while position/linear velocity are space-expressed. The corresponding Jacobian is $\operatorname{diag}(I,R)J_b$, because $\dot p=Rv_b$. For a fixed goal, no integral term, and an isotropic position gain, $\dot p=k_p(p_d-p)$ gives a straight positional path. Full $SE(3)$ log feedback generally couples rotation and translation and can follow a curved path instead. These are different error choices, not interchangeable notation.
+
+The scalar joint-space error equations do not automatically become global linear equations for a finite pose logarithm. Large rotational errors, logarithm branches, singularities, and command feasibility still matter.
+
+### 11.4 Motion Control with Torque or Force Inputs
+
+With effort commands, we must explicitly account for the dynamics hidden by 11.3's ideal velocity loop. The same position error now requires an acceleration response, so damping and inertia enter controller design.
+
+#### 11.4.1 Motion Control of a Single Joint
+
+The book's example is a rigid link rotating in a vertical plane, with angle $\theta$ measured from horizontal:
+
+$$
+\boxed{\tau=M\ddot\theta+mgr\cos\theta+b\dot\theta
+=M\ddot\theta+h(\theta,\dot\theta).}
+$$
+
+$M$ is rotational inertia about the joint, $m$ the mass, $r$ the joint-to-center-of-mass distance, $g$ gravitational acceleration, and $b\geq0$ viscous friction. The motor must supply the positive $b\dot\theta$ term to overcome friction; friction itself opposes motion. Book simulations use $M=0.5\ \mathrm{kg\,m^2}$, $m=1$ kg, $r=0.1$ m, $b=0.1\ \mathrm{N\,m\,s/rad}$, and either $g=0$ or $9.81\ \mathrm{m/s^2}$.
+
+**Feedback PID.** The controller generates effort directly:
+
+$$
+\tau=K_pe+K_d\dot e+K_iz.
+$$
+
+Start with a fixed setpoint, horizontal motion ($g=0$), and $K_i=0$. Since $\dot\theta=-\dot e$ and $\ddot\theta=-\ddot e$, substitution gives
+
+$$
+\boxed{M\ddot e+(b+K_d)\dot e+K_pe=0,\qquad
+\omega_n=\sqrt{K_p/M},\quad
+\zeta=\frac{b+K_d}{2\sqrt{MK_p}}.}
+$$
+
+Now $K_p$ supplies virtual stiffness and $K_d$ adds damping. Stability requires $K_p>0$ and $b+K_d>0$. For a chosen natural frequency and damping ratio, select $K_p=M\omega_n^2$ and $K_d=2M\zeta\omega_n-b$, within actuator and sampling limits. Proportional torque alone can oscillate without decaying if no physical or derivative damping is present.
+
+**Why add integral action?** With gravity and PD setpoint control,
+
+$$
+M\ddot e+(b+K_d)\dot e+K_pe=mgr\cos\theta.
+$$
+
+At rest, $K_pe_{\mathrm{ss}}=mgr\cos\theta_{\mathrm{ss}}$. A nonzero position error is normally needed to create the holding torque. Integral control can retain that torque even after $e$ and $\dot e$ vanish: $K_iz_{\mathrm{ss}}=mgr\cos\theta_d$.
+
+For the book's linear analysis, replace gravity by a **constant load** $\tau_{\mathrm{load}}$:
+
+$$
+M\ddot e+(b+K_d)\dot e+K_pe+K_iz=\tau_{\mathrm{load}}.
+$$
+
+Differentiation removes the constant load but adds an order:
+
+$$
+Me^{(3)}+(b+K_d)\ddot e+K_p\dot e+K_ie=0.
+$$
+
+The cubic criterion from 11.2 therefore gives
+
+$$
+\boxed{b+K_d>0,\quad K_p>0,\quad
+0<K_i<\frac{(b+K_d)K_p}{M}.}
+$$
+
+Positive gains alone are not enough. The upper bound is strict; at equality the cubic has imaginary-axis roots. For $M=0.5$, $b=0.1$, $K_d=2$, and $K_p=2.205$, the no-gravity PD response is critically damped and the constant-load PID bound is $K_i<9.261$. Even a stable integral gain can worsen the transient.
+
+This bound belongs to the constant-load model, not a global guarantee for nonlinear gravity. Linearizing $mgr\cos(\theta_d-e)$ at a desired equilibrium replaces $K_p$ by $K_p-mgr\sin\theta_d$ in that test. Arbitrary trajectory tracking introduces additional forcing as well. In practice integral action is often small or disabled; **anti-windup** limits accumulated error when saturated actuators cannot deliver the requested effort.
+
+**Feedforward alone.** A model can predict the effort needed by the reference trajectory:
+
+$$
+\tau_{\mathrm{ff}}=\widetilde M(\theta_d)\ddot\theta_d+
+\widetilde h(\theta_d,\dot\theta_d).
+$$
+
+This is open-loop: it uses the desired state. Exact tracking requires an exact model and matching initial position and velocity. With no error correction, model mismatch or a perturbed initial state can spoil tracking.
+
+**Feedforward plus feedback linearization: computed torque.** Instead of guessing a torque correction, first specify the acceleration that would produce the desired error dynamics:
+
+$$
+a_{\mathrm{cmd}}=\ddot\theta_d+K_d\dot e+K_pe+K_iz.
+$$
+
+Use the **measured current state** to convert this acceleration into effort:
+
+$$
+\boxed{\tau=\widetilde M(\theta)a_{\mathrm{cmd}}+
+\widetilde h(\theta,\dot\theta).}
+$$
+
+With an exact model, substitution into the plant cancels $h$ and gives $\ddot\theta=a_{\mathrm{cmd}}$, hence
+
+$$
+\boxed{\ddot e+K_d\dot e+K_pe+K_iz=0.}
+$$
+
+This works along general smooth reference trajectories, not only setpoints. It is called **computed torque**, **inverse dynamics control**, or **feedback linearization**: state-dependent nonlinear effort creates simple linear joint-error dynamics. It is not merely a local Taylor linearization of the plant.
+
+![Computed torque block diagram with acceleration feedback and current-state dynamics compensation](../../../assets/Modern_Robotics/ch11_computed_torque.png)
+
+*Figure 11.18, printed p. 430: feedforward acceleration and feedback correction are summed before multiplication by the inertia model. Both inertia and bias compensation use the measured state; the PID block here outputs an acceleration correction, not torque.*
+
+With $K_i=0$, choose $K_p=\omega_n^2$ and $K_d=2\zeta\omega_n$. With $K_i>0$, the scalar stability conditions are $K_d,K_p,K_i>0$ and $K_dK_p>K_i$. These gains have acceleration-level units ($K_p:\mathrm{s}^{-2}$, $K_d:\mathrm{s}^{-1}$, $K_i:\mathrm{s}^{-3}$), unlike the direct torque PID gains. Numerical gains cannot be copied between the two laws without rescaling.
+
+The cancellation is only as good as its model. With no unmodeled external load,
+
+$$
+\ddot\theta=a_{\mathrm{cmd}}+d_a,\qquad
+d_a=M^{-1}\left[(\widetilde M-M)a_{\mathrm{cmd}}+(\widetilde h-h)\right],
+$$
+
+so the nominal error equation acquires right-hand side $-d_a$. Feedback can reduce tracking error from mismatch, but exact decoupling and the nominal pole placement no longer follow automatically. Saturation likewise breaks the cancellation.
+
+#### 11.4.2 Motion Control of a Multi-joint Robot
+
+For the open chain,
+
+$$
+\tau=M(\theta)\ddot\theta+h(\theta,\dot\theta),\qquad
+h=C(\theta,\dot\theta)\dot\theta+g(\theta)+b(\dot\theta).
+$$
+
+Here $b(\dot\theta)$ denotes a joint-friction vector, extending Chapter 8's frictionless bias. Assume no unmodeled contact load. Off-diagonal inertia and configuration-dependent bias couple the joints.
+
+**Decentralized control** runs a local controller using each joint's own measurements. It is appropriate when the dynamics is sufficiently decoupled, such as suitable Cartesian mechanisms. High gear ratios can make reflected motor inertia dominate and make the mass matrix approximately diagonal. But a diagonal $M$ alone is not sufficient for complete independence if gravity or other bias terms still couple the joints.
+
+**Centralized computed torque** uses all joints' states in $\widetilde M$ and $\widetilde h$, with the same vector-valued law derived above. Exact modeling gives independent scalar error equations when gains are diagonal, usually $K_p=k_pI$, $K_d=k_dI$, $K_i=k_iI$. With integral action, apply the scalar cubic condition per joint; arbitrary positive-definite gain matrices alone do not replace a stability check.
+
+A short example connects this to [Chapter 8's coupled 2R inertia](#81-lagrangian-formulation). At a configuration with $M=\begin{bmatrix}3&1\\1&1\end{bmatrix}$, suppose bias is exactly compensated, the robot and reference are at rest, $e=(0.1,-0.1)^T$, and $K_p=4I$. Then
+
+$$
+a_{\mathrm{cmd}}=(0.4,-0.4)^T,\qquad
+\tau-h=Ma_{\mathrm{cmd}}=(0.8,0)^T.
+$$
+
+Zero net torque at joint 2 does not imply zero acceleration there. Ignoring off-diagonal inertia would instead request $(1.2,-0.4)^T$, producing actual acceleration $(0.8,-1.2)^T$, not the intended one. Full-state dynamics compensation cancels precisely this coupling.
+
+**A simpler alternative: PD plus gravity compensation.** For slow motion or setpoint regulation, use
+
+$$
+\tau=K_pe+K_d\dot e+\widetilde g(\theta),
+$$
+
+optionally with an integral term. This is torque-level feedback; it is not computed torque with the same gains and does not cancel inertia or Coriolis coupling. Nevertheless, setpoint convergence can be established without that full cancellation.
+
+For a fixed desired configuration, exact gravity compensation, zero friction, and symmetric positive-definite $K_p,K_d$, the dynamics becomes
+
+$$
+M\ddot\theta+C\dot\theta=K_pe-K_d\dot\theta.
+$$
+
+Define a virtual error energy, using actual kinetic energy and a virtual spring:
+
+$$
+\mathcal E=\frac12e^TK_pe+\frac12\dot\theta^TM\dot\theta.
+$$
+
+Since $\dot e=-\dot\theta$, differentiation and substitution give
+
+$$
+\begin{aligned}
+\dot{\mathcal E}
+&=-\dot\theta^TK_pe+\dot\theta^TM\ddot\theta
++\tfrac12\dot\theta^T\dot M\dot\theta\\
+&=-\dot\theta^TK_d\dot\theta
++\tfrac12\dot\theta^T(\dot M-2C)\dot\theta\\
+&=-\dot\theta^TK_d\dot\theta\leq0.
+\end{aligned}
+$$
+
+The final equality uses the skew-symmetry property derived in [8.1](#81-lagrangian-formulation), with the corresponding Coriolis matrix. Nonincreasing energy alone is not yet the whole convergence argument: on $\dot{\mathcal E}=0$, $\dot\theta=0$; remaining there requires $\ddot\theta=0$, hence $K_pe=0$ and $e=0$. The largest invariant set with zero dissipation is therefore the desired rest state. LaSalle's invariance principle then gives convergence under the ideal model and usual boundedness assumptions. Joint limits, collisions, angle-coordinate choices, and saturation remain separate feasibility constraints.
+
+This is why gravity-compensated PD can regulate a coupled robot even though its transient is not a set of prescribed linear modes. Good regulation does not always require complete feedback linearization.
+
+#### 11.4.3 Task-Space Motion Control
+
+For a feasible desired tool trajectory $(X_d,V_d,\dot V_d)$ there are two routes. Both still require adequate joint range and effort; describing a task in Cartesian space does not remove kinematic singularities.
+
+**Route 1: convert the reference to joint space.** Choose a continuous IK branch and obtain
+
+$$
+T(\theta_d)=X_d,\qquad
+\dot\theta_d=J_b^\dagger(\theta_d)V_d,
+$$
+
+$$
+\ddot\theta_d=J_b^\dagger(\theta_d)
+\left(\dot V_d-\dot J_b(\theta_d,\dot\theta_d)\dot\theta_d\right).
+$$
+
+The acceleration formula follows by differentiating $V_d=J_b(\theta_d)\dot\theta_d$. The $\dot J_b\dot\theta_d$ term accounts for the changing kinematic map and cannot generally be omitted. These minimum-norm formulas assume compatibility with the chosen path; redundant IK paths can require null-space velocities and accelerations as well. IK is not a globally single-valued inverse $T^{-1}$. Feed the resulting reference to the joint-space controller, using the **actual state** in its dynamics compensation.
+
+**Route 2: compute task-space effort directly.** Section 8.6 was outside the learned Chapter 8 scope, so derive the needed dynamics here. For a square nonsingular body Jacobian $J=J_b$,
+
+$$
+V_b=J\dot\theta,\qquad
+\ddot\theta=J^{-1}(\dot V_b-\dot J\dot\theta).
+$$
+
+Substitute into $\tau=M\ddot\theta+h$ and define the equivalent actuator wrench $F_b=J^{-T}\tau$:
+
+$$
+\boxed{F_b=\Lambda\dot V_b+\eta,\qquad
+\Lambda=J^{-T}MJ^{-1},\quad
+\eta=J^{-T}h-\Lambda\dot J\dot\theta.}
+$$
+
+$\Lambda$ is the apparent task inertia; $\eta$ collects gravity, friction, and velocity-dependent terms, including the moving Jacobian. This $F_b$ is a **motion-producing command**, not a measured contact wrench or the outgoing load $F_{\mathrm{tip}}$ of Chapter 8. Mapping it back uses $\tau=J_b^TF_b$.
+
+For redundant full-row-rank tasks, the effective inertia is $(JM^{-1}J^T)^{-1}$, but bias compensation and null-space control require additional care. The square derivation must not be generalized merely by replacing every inverse with an ordinary pseudoinverse.
+
+Reuse $E=X^{-1}X_d$, $X_e=(\log E)^\vee$, and $U=\operatorname{Ad}_EV_d$ from 11.3.3. Define the **same-frame velocity error** $V_e=U-V_b$. The book's task-space computed-torque law is
+
+$$
+a_b=\frac{d}{dt}(\operatorname{Ad}_EV_d)+K_pX_e+K_dV_e
++K_i\int_0^tX_e(\sigma)\,d\sigma,
+$$
+
+$$
+\boxed{F_{b,\mathrm{cmd}}=\widetilde\Lambda a_b+\widetilde\eta,
+\qquad \tau=J_b^TF_{b,\mathrm{cmd}}.}
+$$
+
+The feedforward derivative includes the time variation of the frame transform, not only the derivative of $V_d$:
+
+$$
+\frac{d}{dt}(\operatorname{Ad}_EV_d)
+=\operatorname{Ad}_E\dot V_d-\operatorname{ad}_{V_b}U.
+$$
+
+Here $\operatorname{ad}_VW$ is the twist Lie bracket, defined by $[\operatorname{ad}_VW]=[V][W]-[W][V]$. Near the reference state this feedforward term can be approximated by $\dot V_d$ as in the book. Farther away, dropping the frame correction changes the commanded acceleration.
+
+With exact task dynamics, $\dot V_b=a_b$ and therefore $\dot V_e=-K_pX_e-K_dV_e-K_i\int X_e dt$. Locally, $\dot X_e\approx V_e$, giving the familiar joint-space-like error design. For a finite pose discrepancy, the logarithm's differential is nontrivial: **do not claim globally linear pose-error dynamics simply from exact dynamic compensation**. The derivation separates two issues: canceling mechanical dynamics and representing geometric error.
+
+### Chapter 11 Worked Implementation
+
+This standard-library Python example checks gain conditions, a coupled-inertia calculation, and computed-torque tracking for the book's single-link model. Run it in a Python 3 notebook/REPL or as `python3 <script_path>`. It uses RK4 to integrate an ideal continuous controller; it is not a sampled hardware controller, saturation model, or reproduction of a book plot.
+
+```python
+from math import cos, exp, isclose, sin
+
+
+def velocity_command(q, qd, dqd, integral, kp, ki):
+    return dqd + kp * (qd - q) + ki * integral
+
+
+def computed_torque(q, dq, qd, dqd, ddqd, integral,
+                    inertia, bias, kp, kd, ki=0.0):
+    a_cmd = ddqd + kp * (qd - q) + kd * (dqd - dq) + ki * integral
+    return inertia * a_cmd + bias(q, dq)
+
+
+def constant_load_pid_stable(inertia, friction, kp, kd, ki):
+    return (inertia > 0 and friction + kd > 0 and kp > 0
+            and 0 < ki < (friction + kd) * kp / inertia)
+
+
+def rk4_step(rhs, t, state, dt):
+    def shifted(k, scale):
+        return tuple(y + scale * v for y, v in zip(state, k))
+
+    k1 = rhs(t, state)
+    k2 = rhs(t + dt / 2, shifted(k1, dt / 2))
+    k3 = rhs(t + dt / 2, shifted(k2, dt / 2))
+    k4 = rhs(t + dt, shifted(k3, dt))
+    return tuple(y + dt * (a + 2*b + 2*c + d) / 6
+                 for y, a, b, c, d in zip(state, k1, k2, k3, k4))
+
+
+# At zero error, feedforward still commands the reference velocity.
+assert isclose(velocity_command(0, 0, 0.2, 0, 4, 0), 0.2)
+assert isclose(0.2 / 4, 0.05)  # P-only constant-velocity lag.
+assert constant_load_pid_stable(0.5, 0.1, 2.205, 2, 1)
+assert not constant_load_pid_stable(0.5, 0.1, 2.205, 2, 10)
+
+# Exact 2R inertial compensation versus a diagonal-only approximation.
+def actual_acceleration(tau):
+    return (0.5 * tau[0] - 0.5 * tau[1],
+            -0.5 * tau[0] + 1.5 * tau[1])
+
+assert all(isclose(a, b) for a, b in
+           zip(actual_acceleration((0.8, 0)), (0.4, -0.4)))
+assert all(isclose(a, b) for a, b in
+           zip(actual_acceleration((1.2, -0.4)), (0.8, -1.2)))
+
+inertia, mass, gravity, radius, friction = 0.5, 1.0, 9.81, 0.1, 0.1
+kp, kd = 16.0, 8.0  # Acceleration-level gains: omega_n=4, zeta=1.
+
+
+def bias(q, dq):
+    return mass * gravity * radius * cos(q) + friction * dq
+
+
+def closed_loop(t, state):
+    q, dq = state
+    qd, dqd, ddqd = sin(t), cos(t), -sin(t)
+    tau = computed_torque(q, dq, qd, dqd, ddqd, 0,
+                          inertia, bias, kp, kd)
+    return dq, (tau - bias(q, dq)) / inertia
+
+
+# Initial position error 0.5, initial velocity error zero.
+state, dt, max_error = (-0.5, 1.0), 0.002, 0.0
+for k in range(1000):
+    state = rk4_step(closed_loop, k * dt, state, dt)
+    t = (k + 1) * dt
+    exact_error = 0.5 * (1 + 4 * t) * exp(-4 * t)
+    max_error = max(max_error, abs(sin(t) - state[0] - exact_error))
+
+assert max_error < 1e-8
+print(f"Tracking error at 2 s: {sin(2) - state[0]:.6f} rad")
+print("Computed-torque error agrees with the critical-damping solution.")
+# Tracking error at 2 s: 0.001510 rad
+```
+
+The example succeeds because the controller and plant share the same model. To inspect mismatch, change only the controller's inertia or bias while retaining the true plant in `closed_loop`; the ideal analytic error curve will then generally no longer apply. In a sampled implementation, update the stored integral once per servo cycle with $z_{k+1}=z_k+e_k\Delta t$, estimate/measure velocity, compute the command, enforce actuator limits, and handle integrator windup.
+
+The book's software provides `ComputedTorque` for the joint-space inverse-dynamics feedback law and `SimulateControl` to compare a modeled controller with a simulated plant. Those names are useful connections to Chapter 8's inverse dynamics and Chapter 9's references; the self-contained example above requires neither package.
+
+### Chapter 11 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "Trajectory generation already controls the robot." | It supplies references; feedback decides commands from actual tracking error. |
+| "Velocity P and torque P have the same error dynamics." | Velocity drives position directly; torque first drives acceleration through inertia. |
+| "All positive PID gains guarantee stability." | A third-order error polynomial also needs the product inequality. |
+| "Integral action provides torque only while error is nonzero." | A stored nonzero integral can provide holding effort at zero current error. |
+| "Critical damping always settles in four time constants." | That is a heuristic; the critical unit response contains a polynomial factor. |
+| "Feedforward corrects initial error if the model is perfect." | Exact open-loop tracking also requires matching initial state. |
+| "Computed torque evaluates the whole model at the desired state." | Its inertia/bias compensation uses measured state; reference acceleration supplies feedforward. |
+| "Adding a PID torque to desired-state inverse dynamics is identical to computed torque." | Computed torque shapes acceleration before the inertia multiplication and cancels current-state bias. |
+| "Diagonal gains make an uncompensated robot mechanically decoupled." | Coupling remains in the mass matrix and bias unless the plant/interface or compensation removes it. |
+| "Gravity-compensated PD needs to cancel all Coriolis terms to regulate a setpoint." | Energy dissipation can establish convergence without full dynamic cancellation. |
+| "Desired and actual body twists can be subtracted directly." | They use different frames until the desired twist is transformed by the adjoint. |
+| "Task-space acceleration is just $J^\dagger\dot V$." | Differentiate the Jacobian relation and retain $\dot J\dot\theta$. |
+| "Task-space motion wrench is a contact-force objective." | It produces motion here; environmental force regulation is postponed. |
+| "Stable continuous-time poles guarantee a stable hardware implementation." | Sampling, delay, saturation, and unmodeled dynamics can invalidate that conclusion. |
+
+### Chapter 11 Formula Sheet
+
+| Purpose | Equation / condition |
+|:--|:--|
+| Error and integral | $e=\theta_d-\theta$, $\dot e=\dot\theta_d-\dot\theta$, $\dot z=e$ |
+| First-order response | $\dot e+e/T_c=0$, $T_s=-T_c\ln0.02$ |
+| Second-order parameters | $\ddot e+2\zeta\omega_n\dot e+\omega_n^2e=0$ |
+| Velocity feedforward + PI | $\dot\theta_{\mathrm{cmd}}=\dot\theta_d+K_pe+K_iz$ |
+| Velocity PI poles | $s^2+K_ps+K_i=0$; critical at $K_i=K_p^2/4$ |
+| Torque PD, horizontal setpoint | $M\ddot e+(b+K_d)\dot e+K_pe=0$ |
+| Torque PID, constant-load stability | $b+K_d>0$, $K_p>0$, $0<K_i<(b+K_d)K_p/M$ |
+| Computed torque | $\tau=\widetilde M(\theta)(\ddot\theta_d+K_pe+K_d\dot e+K_iz)+\widetilde h(\theta,\dot\theta)$ |
+| Exact computed-torque error | $\ddot e+K_d\dot e+K_pe+K_iz=0$ |
+| PD + gravity, setpoint energy | $\mathcal E=\tfrac12e^TK_pe+\tfrac12\dot\theta^TM\dot\theta$, $\dot{\mathcal E}=-\dot\theta^TK_d\dot\theta$ |
+| Body pose and velocity errors | $X_e=(\log(X^{-1}X_d))^\vee$, $V_e=\operatorname{Ad}_{X^{-1}X_d}V_d-V_b$ |
+| Task acceleration kinematics | $\dot V_b=J_b\ddot\theta+\dot J_b\dot\theta$ |
+| Task dynamics, square nonsingular $J$ | $\Lambda=J^{-T}MJ^{-1}$, $\eta=J^{-T}h-\Lambda\dot J\dot\theta$, $F_b=\Lambda\dot V_b+\eta$ |
+
+### Chapter 11 Understanding Checklist
+
+After Sections 11.1-11.4, you should be able to:
+
+* separate trajectory generation, the outer motion controller, and the inner actuator loop;
+* derive error dynamics by substituting a control law into its actual plant model;
+* interpret roots, time constants, damping, overshoot, and settling time without treating heuristics as exact formulas;
+* explain why velocity P control tracks a fixed setpoint but lags a moving reference;
+* show how integral action supplies persistent commands and how feedforward supplies known reference motion;
+* distinguish velocity-level, direct torque-level, and acceleration-level gain units;
+* derive the torque PID cubic stability bound and state its constant-load assumption;
+* explain initial-condition/model requirements for feedforward-only tracking;
+* derive computed torque from a desired acceleration and show the exact-model error cancellation;
+* explain what changes with dynamics mismatch, saturation, or joint coupling;
+* reproduce the gravity-compensated PD energy argument, including the zero-dissipation invariant set;
+* construct a body-frame pose error and transform desired twist into the actual tool frame;
+* compare joint-space conversion with direct task-space dynamics control, retaining $\dot J\dot\theta$ and frame-derivative terms;
+* state the feasibility and local-coordinate limitations of task-space tracking.
+
+**Deferred:** 11.5 Force Control and 11.6 Hybrid Motion-Force Control. No force-feedback or hybrid-controller derivations are included in this installment.
