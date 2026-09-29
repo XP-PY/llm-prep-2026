@@ -16,7 +16,7 @@
 | 6 | [Inverse Kinematics](#chapter-6-inverse-kinematics) | Complete |
 | 7 | Kinematics of Closed Chains | Skipped |
 | 8 | [Dynamics of Open Chains](#chapter-8-dynamics-of-open-chains) | Sections 8.1-8.5 complete |
-| 9 | Trajectory Generation | Not started |
+| 9 | [Trajectory Generation](#chapter-9-trajectory-generation) | Complete |
 | 10 | Motion Planning | Not started |
 | 11 | Robot Control | Not started |
 | 12 | Grasping and Manipulation | Not started |
@@ -117,6 +117,27 @@ Only book Sections 8.1-8.5 are covered. The review aids below do not represent a
 | Review | [Formula Sheet](#chapter-8-formula-sheet) |
 | Review | [Software Map](#chapter-8-software-map) |
 | Review | [Understanding Checklist](#chapter-8-understanding-checklist) |
+
+## Chapter 9 Catalog
+
+Sections 9.1-9.6 follow the book's organization; the final review aids are additional notes.
+
+| Book section | Topic |
+|:--|:--|
+| 9.1 | [Definitions: Path, Time Scaling, and Trajectory](#91-definitions-path-time-scaling-and-trajectory) |
+| 9.2 | [Point-to-Point Trajectories](#92-point-to-point-trajectories) |
+| 9.2.1 | [Straight-Line Paths](#921-straight-line-paths) |
+| 9.2.2 | [Time Scaling a Straight-Line Path](#922-time-scaling-a-straight-line-path) |
+| 9.3 | [Polynomial Via Point Trajectories](#93-polynomial-via-point-trajectories) |
+| 9.4 | [Time-Optimal Time Scaling](#94-time-optimal-time-scaling) |
+| 9.4.1 | [The Phase Plane](#941-the-phase-plane) |
+| 9.4.2 | [The Time-Scaling Algorithm](#942-the-time-scaling-algorithm) |
+| 9.4.3 | [Searching the Velocity Limit Curve](#943-searching-the-velocity-limit-curve) |
+| 9.4.4 | [Assumptions and Caveats](#944-assumptions-and-caveats) |
+| 9.5 | [Summary and Formula Sheet](#95-summary-and-formula-sheet) |
+| 9.6 | [Software and Worked Implementation](#96-software-and-worked-implementation) |
+| Review | [Common Confusions](#chapter-9-common-confusions) |
+| Review | [Understanding Checklist](#chapter-9-understanding-checklist) |
 
 ---
 
@@ -3574,3 +3595,552 @@ After Sections 8.1-8.5, you should be able to:
 * simulate a state update without confusing explicit Euler with a velocity-first update.
 
 This completes the requested coverage through Section 8.5. No notes for Chapter 7 or Sections 8.6 onward are included.
+
+---
+
+## Chapter 9: Trajectory Generation
+
+**Source:** Chapter 9, especially Sections 9.1-9.6, printed pages 325-347 of the supplied May 2017 book PDF. The examples below explain the constructions without requiring the source figures or exercises to be looked up separately.
+
+[Chapter 8](#chapter-8-dynamics-of-open-chains) answered: **what effort produces a specified motion?** This chapter asks the preceding design question: **what motion should the controller be asked to follow?** The answer must specify position over time, with sufficiently smooth derivatives and feasible velocities, accelerations, and actuator efforts.
+
+The progression is important. First choose **where to move**, then choose **how quickly to move along that path**. Simple point-to-point profiles satisfy kinematic limits. Timed via points allow intermediate requirements to shape the trajectory. Finally, substituting the path into the dynamics replaces approximate acceleration limits with **state-dependent limits derived from actual actuator capabilities**. Obstacle-avoiding path search belongs to Chapter 10; tracking the resulting trajectory belongs to control.
+
+### 9.1 Definitions: Path, Time Scaling, and Trajectory
+
+A **path** $\theta(s)$ specifies configurations indexed by a scalar progress variable $s\in[0,1]$. A **time scaling** $s(t)$ specifies progress at time $t\in[0,T]$. Their composition is the **trajectory**:
+
+$$
+\theta:[0,1]\rightarrow\Theta,\qquad
+s:[0,T]\rightarrow[0,1],\qquad
+\theta(t)=\theta(s(t)).
+$$
+
+$\Theta$ is configuration space and $T$ is the total duration. The parameter $s$ is dimensionless progress, not necessarily distance or normalized arc length. Usually $s(0)=0$, $s(T)=1$, and $\dot s\geq0$ so the robot does not reverse along the path.
+
+Let primes denote differentiation with respect to $s$ and dots differentiation with respect to time. Applying the chain rule gives
+
+$$
+\boxed{\dot\theta=\theta'(s)\dot s,\qquad
+\ddot\theta=\theta'(s)\ddot s+\theta''(s)\dot s^2.}
+$$
+
+The two acceleration terms have different origins: $\theta'\ddot s$ changes progress speed; $\theta''\dot s^2$ comes from the path's changing tangent. Therefore **constant path speed does not generally mean zero joint acceleration**. For a circular Cartesian path, this is the familiar centripetal-acceleration effect.
+
+This separation lets us change duration without changing geometry, but timing cannot repair an unreachable configuration or a collision already present in the path. Twice-differentiable paths and time scalings give well-defined accelerations. Several ideal profiles below are only piecewise smooth: their acceleration jumps are deliberate limitations, not a claim of global smoothness.
+
+### 9.2 Point-to-Point Trajectories
+
+The basic task is to move from rest at a start configuration to rest at a goal. Specifying those endpoints still leaves two choices: the connecting path and its time scaling.
+
+#### 9.2.1 Straight-Line Paths
+
+##### Joint-space interpolation
+
+Define $\Delta\theta=\theta_{\mathrm{end}}-\theta_{\mathrm{start}}$. The simplest joint-space path is
+
+$$
+\theta(s)=\theta_{\mathrm{start}}+s\Delta\theta,\qquad
+\theta'=\Delta\theta,\qquad\theta''=0.
+$$
+
+All joints share the same progress variable, so their displacements stay synchronized. Within a chosen joint-coordinate branch, box limits $\theta_{i,\min}\leq\theta_i\leq\theta_{i,\max}$ form a convex set: interpolation between allowed endpoints respects those limits. This says **nothing about collision avoidance**, and revolute-joint wrapping must be chosen consistently.
+
+Forward kinematics is nonlinear, so a straight joint-space path generally creates a curved end-effector path. Conversely, a Cartesian straight line may require a curved joint path, cross a singularity, or leave the reachable workspace despite having reachable endpoints. [Inverse kinematics](#66-numerical-ik-on-se3) must supply a continuous feasible joint branch; a sequence of unrelated IK solutions can jump between branches.
+
+##### Pose interpolation on SE(3)
+
+For homogeneous poses $X_{\mathrm{start}},X_{\mathrm{end}}\in SE(3)$, elementwise linear interpolation is invalid in general: the interpolated rotation need not remain orthonormal. Use the [matrix exponential and logarithm](#33-rigid-body-motions-and-twists) instead.
+
+**Constant screw path:** express the relative displacement in the start frame and follow its twist:
+
+$$
+\Xi=\log(X_{\mathrm{start}}^{-1}X_{\mathrm{end}})\in se(3),\qquad
+\boxed{X(s)=X_{\mathrm{start}}\exp(\Xi s).}
+$$
+
+Postmultiplication is required because $\Xi$ is expressed in the start frame. The screw axis is constant, but the frame origin generally follows a curved path. After time scaling, the body twist satisfies $[V_b]=X^{-1}\dot X=\Xi\dot s$: the axis remains fixed while the twist magnitude follows $\dot s$.
+
+**Decoupled Cartesian path:** if a straight line of the frame origin is required, interpolate translation separately from rotation:
+
+$$
+p(s)=p_{\mathrm{start}}+s(p_{\mathrm{end}}-p_{\mathrm{start}}),\qquad
+R(s)=R_{\mathrm{start}}\exp\!\left(\log(R_{\mathrm{start}}^TR_{\mathrm{end}})s\right).
+$$
+
+![Constant screw motion and decoupled straight-line translation with rotation](../../../assets/Modern_Robotics/ch09_screw_cartesian_paths.png)
+
+*Book Figure 9.2: the same endpoint poses admit different geometric paths. The lower path keeps the origin on a Cartesian straight line; the upper path follows one fixed screw. Neither implies constant speed in time until $s(t)$ is chosen.*
+
+Both constructions stay in $SE(3)$, but neither guarantees joint feasibility. A consistent rotation-logarithm branch is also needed; a principal logarithm alone does not specify a deliberate multi-turn rotation.
+
+#### 9.2.2 Time Scaling a Straight-Line Path
+
+For the joint line, geometry is now fixed and $\theta''=0$, so
+
+$$
+\dot\theta=\Delta\theta\dot s,\qquad
+\ddot\theta=\Delta\theta\ddot s.
+$$
+
+Suppose joint limits are symmetric constants $|\dot\theta_i|\leq\bar v_i$ and $|\ddot\theta_i|\leq\bar a_i$. The most restrictive moving joint sets scalar path limits:
+
+$$
+v_{\max}=\min_{i:\Delta\theta_i\ne0}\frac{\bar v_i}{|\Delta\theta_i|},\qquad
+a_{\max}=\min_{i:\Delta\theta_i\ne0}\frac{\bar a_i}{|\Delta\theta_i|}.
+$$
+
+These are limits on $\dot s$ and $|\ddot s|$, with units $\mathrm{s}^{-1}$ and $\mathrm{s}^{-2}$. Stationary joints impose no bound through these ratios. If every joint is stationary, no motion profile is needed.
+
+**Running example:** use two revolute coordinates, $\theta_{\mathrm{start}}=(0,0)$, $\theta_{\mathrm{end}}=(1,0.5)\,\mathrm{rad}$, $\bar v=(1,0.75)\,\mathrm{rad}/\mathrm{s}$, and $\bar a=(2,1)\,\mathrm{rad}/\mathrm{s}^2$. Then $v_{\max}=1$ and $a_{\max}=2$. We will change the timing while preserving the same line in joint space.
+
+##### Cubic: enforce endpoint positions and velocities
+
+Let $s(t)=a_0+a_1t+a_2t^2+a_3t^3$. The four constraints $s(0)=0$, $s(T)=1$, and $\dot s(0)=\dot s(T)=0$ determine its four coefficients. With normalized time $u=t/T$:
+
+$$
+s=3u^2-2u^3,\qquad
+\dot s=\frac{6u(1-u)}{T},\qquad
+\ddot s=\frac{6-12u}{T^2}.
+$$
+
+The peak speed occurs at $u=1/2$, and the largest acceleration magnitude occurs at the endpoints:
+
+$$
+\max\dot s=\frac{3}{2T},\qquad
+\max|\ddot s|=\frac{6}{T^2},\qquad
+\boxed{T\geq\max\!\left(\frac{3}{2v_{\max}},\sqrt{\frac6{a_{\max}}}\right).}
+$$
+
+For the running example, the shortest duration **within this cubic family** is $T=\sqrt3\approx1.732$ s. It is not the fastest trajectory among all possible time scalings.
+
+The drawback appears when joining this motion to stationary intervals: acceleration jumps from zero to $6/T^2$ at the start and back to zero at the end. The derivative of acceleration, **jerk**, contains ideal impulses at those joins, which can excite vibration.
+
+##### Quintic: also enforce endpoint accelerations
+
+Adding $\ddot s(0)=\ddot s(T)=0$ gives six constraints, requiring a fifth-degree polynomial:
+
+$$
+s=10u^3-15u^4+6u^5,\qquad
+\dot s=\frac{30u^2(1-u)^2}{T},\qquad
+\ddot s=\frac{60u(1-u)(1-2u)}{T^2}.
+$$
+
+Its maximum speed is $15/(8T)$ at $u=1/2$. Its acceleration extrema occur at $u=(3\mp\sqrt3)/6$ and have magnitude $10/(\sqrt3T^2)$. Thus
+
+$$
+\boxed{T\geq\max\!\left(\frac{15}{8v_{\max}},
+\sqrt{\frac{10}{\sqrt3\,a_{\max}}}\right).}
+$$
+
+For the same example, $T_{\min}=1.875$ s. The quintic is smoother at the boundaries, but its higher peak speed at a fixed duration can require more time. Acceleration is continuous when joined to rest; jerk remains finite but can jump. Smoothness and time optimality are different design objectives.
+
+##### Trapezoidal and triangular velocity profiles
+
+To finish as quickly as possible under **constant path-speed and path-acceleration bounds**, accelerate at $a$, coast at $v$, then decelerate at $-a$, choosing $a=a_{\max}$ and $v=v_{\max}$. Let $t_a=v/a$. The area under $\dot s(t)$ must equal the normalized path length 1:
+
+$$
+1=v(T-t_a),\qquad
+T=\frac1v+\frac va,\qquad
+t_v=T-2t_a=\frac1v-\frac va.
+$$
+
+A nonnegative coasting duration requires $v^2/a\leq1$. For this case,
+
+$$
+s(t)=\begin{cases}
+\tfrac12at^2,&0\leq t\leq t_a,\\
+vt-\tfrac{v^2}{2a},&t_a\leq t\leq T-t_a,\\
+1-\tfrac12a(T-t)^2,&T-t_a\leq t\leq T.
+\end{cases}
+$$
+
+The corresponding velocities are $at$, $v$, and $a(T-t)$; accelerations are $a$, $0$, and $-a$. In the running example, $t_a=0.5$ s, $t_v=0.5$ s, and $T=1.5$ s, faster than either polynomial family but with acceleration jumps.
+
+If $v_{\max}^2/a_{\max}>1$, there is not enough distance to reach the speed limit and stop. The profile is **triangular**, with
+
+$$
+v_{\mathrm{peak}}=\sqrt{a_{\max}},\qquad
+t_a=\frac1{\sqrt{a_{\max}}},\qquad
+T=\frac2{\sqrt{a_{\max}}}.
+$$
+
+These formulas use unit path length in $s$. At equality, the trapezoid has zero coasting time. For a prescribed duration, $v$, $a$, and $T$ cannot all be selected independently: they must satisfy the area constraint and the joint limits.
+
+##### S-curve: bound jerk instead of stepping acceleration
+
+Acceleration jumps motivate an additional constraint $|s^{(3)}|\leq J$. A symmetric seven-stage S-curve uses jerk values
+
+$$
+(+J,\ 0,\ -J,\ 0,\ -J,\ 0,\ +J).
+$$
+
+These stages ramp acceleration up, hold positive acceleration, ramp it to zero, coast, ramp to negative acceleration, hold it, and ramp back to zero. Position, velocity, and acceleration are continuous; jerk changes by finite steps.
+
+For a profile that reaches both $a$ and $v$, let $t_J$ be each jerk-ramp duration, $t_A$ each constant-acceleration duration, and $t_V$ the coast duration. Integrating acceleration and requiring unit travel gives
+
+$$
+t_J=\frac aJ,\qquad t_A=\frac va-\frac aJ,\qquad
+t_V=\frac1v-\frac va-\frac aJ,\qquad
+T=4t_J+2t_A+t_V.
+$$
+
+These full-profile formulas require $t_A,t_V\geq0$. Negative values mean the assumed peak acceleration or speed cannot be attained: remove the corresponding stage and solve for reduced peaks, rather than accepting a negative duration.
+
+To construct each segment from initial $(s_0,v_0,a_0)$ and constant jerk $j$, integrate over local time $h$:
+
+$$
+a(h)=a_0+jh,\quad
+v(h)=v_0+a_0h+\tfrac12jh^2,\quad
+s(h)=s_0+v_0h+\tfrac12a_0h^2+\tfrac16jh^3.
+$$
+
+Use each segment's endpoint as the next segment's initial state. For the running example, adding $J=8\,\mathrm{s}^{-3}$ gives $t_J=t_A=t_V=0.25$ s and $T=1.75$ s. On a joint-space line, joint jerk is $\Delta\theta\,s^{(3)}$; curved paths introduce additional geometric terms, so these scalar bounds alone are not sufficient for arbitrary paths.
+
+These four profiles solve a fixed-path timing problem. If intermediate positions must instead be reached at specified times, it is often simpler to construct the coordinate histories directly.
+
+### 9.3 Polynomial Via Point Trajectories
+
+A **via point** specifies an intermediate configuration and its arrival time. The book constructs each joint history independently; use $\beta$ for one joint coordinate. Given $(\beta_j,\dot\beta_j)$ at time $T_j$ and $(\beta_{j+1},\dot\beta_{j+1})$ at $T_{j+1}$, define $h_j=T_{j+1}-T_j>0$ and local time $r=t-T_j$.
+
+Four endpoint constraints determine one cubic segment:
+
+$$
+\beta(T_j+r)=a_{j0}+a_{j1}r+a_{j2}r^2+a_{j3}r^3,
+\qquad 0\leq r\leq h_j,
+$$
+
+$$
+\begin{aligned}
+a_{j0}&=\beta_j,& a_{j1}&=\dot\beta_j,\\
+a_{j2}&=\frac{3(\beta_{j+1}-\beta_j)}{h_j^2}
+-\frac{2\dot\beta_j+\dot\beta_{j+1}}{h_j},\\
+a_{j3}&=-\frac{2(\beta_{j+1}-\beta_j)}{h_j^3}
++\frac{\dot\beta_j+\dot\beta_{j+1}}{h_j^2}.
+\end{aligned}
+$$
+
+Adjacent segments share the same position and velocity at their common via, making the trajectory $C^1$. Their accelerations generally differ: the preceding segment ends at $2a_{j2}+6a_{j3}h_j$, while the next begins at $2a_{j+1,2}$. Using quintics with a shared specified acceleration at each via makes the joins $C^2$.
+
+**Example of why via velocities matter:** let times be $(0,1,2)$, positions $(0,1,0)$, and velocities $(0,1,0)$. The segments are
+
+$$
+\beta(t)=2t^2-t^3\quad(0\leq t\leq1),\qquad
+\beta(1+r)=1+r-5r^2+3r^3\quad(0\leq r\leq1).
+$$
+
+At $t=1$, both give position 1 and velocity 1, but acceleration jumps from $-2$ to $-10$. The positive via velocity also forces overshoot before reversing: $\beta(1.1)=1.053>1$. Thus **legal via positions do not guarantee legal interpolated positions**, unlike joint-space straight-line interpolation inside a box.
+
+Via timing and velocity choices therefore determine the path between vias as well as its speed. With only two points and zero endpoint velocities, this construction reduces to cubic time scaling of a straight line. With more points, check the whole trajectory for joint limits, collisions, velocities, and accelerations. B-spline control-point curves offer a convex-hull property, but generally do not pass through every control point; a convex hull containing an obstacle is not a collision-free guarantee.
+
+### 9.4 Time-Optimal Time Scaling
+
+The simple profiles assumed constant acceleration limits. [Chapter 8's dynamics](#81-lagrangian-formulation) explains why this is only an approximation: gravity, inertia, velocity coupling, and available actuator torque change with posture and speed.
+
+Now assume a joint path $\theta(s)$ has already been chosen. The goal is to find its **fastest feasible timing**, not a faster alternative geometric path. In the book's no-tip-load model,
+
+$$
+M(\theta)\ddot\theta+c(\theta,\dot\theta)+g(\theta)=\tau,\qquad
+\tau_i^{\min}(\theta,\dot\theta)\leq\tau_i\leq\tau_i^{\max}(\theta,\dot\theta).
+$$
+
+Torque bounds may depend on speed; for example, an electric motor's available torque can fall as its speed rises. No motor model from the skipped Section 8.9 is required below: the bounds are inputs to the calculation.
+
+#### Reduce the dynamics to one progress coordinate
+
+Substitute the chain-rule expressions from Section 9.1. Because $c(\theta,\dot\theta)$ is quadratic in joint velocity, all velocity-product terms acquire a factor $\dot s^2$:
+
+$$
+\boxed{\tau=m(s)\ddot s+c_p(s)\dot s^2+g_p(s),}
+$$
+
+$$
+\begin{aligned}
+m(s)&=M(\theta(s))\theta'(s),\\
+(c_p)_i(s)&=(M(\theta(s))\theta''(s))_i
++\sum_{j,k}\Gamma_{ijk}(\theta(s))\theta'_j(s)\theta'_k(s),\\
+g_p(s)&=g(\theta(s)).
+\end{aligned}
+$$
+
+The book writes $c(s)$ and $g(s)$; subscripts here distinguish path coefficients from the earlier full dynamics functions. The $M\theta''$ term is essential: a curved path demands acceleration even at constant $\dot s$. The Christoffel term accounts for configuration-dependent inertial coupling; it can remain nonzero even on a straight joint-space path with $\theta''=0$.
+
+Although $M$ is positive definite, **$m=M\theta'$ is an $n$-vector**, not a positive mass matrix: its components can be positive, negative, or zero. The scalar kinetic-energy coefficient along the path is instead $\theta'^TM\theta'$. This distinction determines the signs of the actuator inequalities.
+
+#### Convert each torque limit into an acceleration interval
+
+At a specified $(s,\dot s)$, set $b_i=(c_p)_i\dot s^2+(g_p)_i$. For $m_i\ne0$, actuator $i$ imposes
+
+$$
+L_i=\min\!\left(\frac{\tau_i^{\min}-b_i}{m_i},
+\frac{\tau_i^{\max}-b_i}{m_i}\right),\qquad
+U_i=\max\!\left(\frac{\tau_i^{\min}-b_i}{m_i},
+\frac{\tau_i^{\max}-b_i}{m_i}\right).
+$$
+
+Taking the min/max handles reversal of the inequality when $m_i<0$. Every actuator must be satisfied simultaneously, so intersect the intervals:
+
+$$
+\boxed{L(s,\dot s)=\max_iL_i(s,\dot s),\qquad
+U(s,\dot s)=\min_iU_i(s,\dot s),\qquad
+L\leq\ddot s\leq U.}
+$$
+
+For example, if two actuators reduce locally to $-2\leq2\ddot s+1\leq4$ and $-1\leq-\ddot s\leq2$, their intervals are $[-1.5,1.5]$ and $[-2,1]$. The shared feasible interval is **$[-1.5,1]$**, not the union. The negative coefficient in the second actuator is why blindly dividing bounds without reordering fails.
+
+If $m_i=0$, do not divide. Its torque is independent of $\ddot s$ at that state: check $\tau_i^{\min}\leq b_i\leq\tau_i^{\max}$ directly. Failure excludes the state; satisfaction leaves acceleration to the other actuators. This does not imply a singular robot mass matrix.
+
+We have now converted an $n$-joint dynamics problem into a scalar timing problem with state-dependent acceleration limits. The remaining question is how to choose accelerations now while preserving the ability to slow down later.
+
+#### 9.4.1 The Phase Plane
+
+Plot $s$ horizontally and $\dot s$ vertically. A rest-to-rest trajectory moves rightward from $(0,0)$ to $(1,0)$. Its time-domain tangent is
+
+$$
+\frac{d}{dt}\begin{bmatrix}s\\\dot s\end{bmatrix}
+=\begin{bmatrix}\dot s\\\ddot s\end{bmatrix},\qquad L\leq\ddot s\leq U.
+$$
+
+Thus the vectors $(\dot s,L)$ and $(\dot s,U)$ bound a **motion cone**. For $\dot s>0$, the phase-curve slope is $d\dot s/ds=\ddot s/\dot s$, not simply $\ddot s$.
+
+* $L<U$: a range of accelerations is available.
+* $L=U$: exactly one acceleration remains; the cone collapses to one direction.
+* $L>U$: no acceleration satisfies every actuator; the state is inadmissible.
+
+Under the book's regularity assumptions, feasible speeds at each $s$ form an interval from zero to a **velocity limit curve** $\dot s_{\lim}(s)$. This ceiling is induced by dynamics and torque limits, not just a separately specified motor-speed limit.
+
+![Feasible motion cones and a phase-plane curve that demands excessive deceleration](../../../assets/Modern_Robotics/ch09_motion_cones.png)
+
+*Book Figure 9.11: the gray region is inadmissible. On the boundary the cone collapses; below it, a candidate trajectory is feasible only if its tangent lies inside the local cone. The right-hand example is below the ceiling but demands more braking than is available.*
+
+The travel time can be written
+
+$$
+T=\int_0^Tdt=\int_0^1\frac{1}{\dot s(s)}\,ds.
+$$
+
+The endpoint singularities are interpreted as limits; ordinary rest-to-rest acceleration profiles have finite travel time. Larger feasible speed reduces time, but **being below the speed ceiling is not enough**: the trajectory must also be reachable from the start and able to brake to the goal.
+
+#### 9.4.2 The Time-Scaling Algorithm
+
+##### First understand the single-switch case
+
+Integrate $\ddot s=U(s,\dot s)$ forward from $(0,0)$ to find the fastest acceleration curve. Integrate $\ddot s=L(s,\dot s)$ **backward in time** from $(1,0)$ to find states from which maximum braking reaches the goal. If they intersect without violating the velocity limit curve, switch from $U$ to $L$ at the intersection.
+
+The backward integration still uses the forward-time acceleration law $L$; it does not mean negating $L$ and then running forward. At rest, $\ddot s/\dot s$ is undefined, so integrate $(\dot s,\ddot s)$ in time or use a numerical reformulation rather than dividing by zero.
+
+For the simple constant bounds $U=a$, $L=-a$, the two curves satisfy
+
+$$
+\dot s_{\mathrm{forward}}=\sqrt{2as},\qquad
+\dot s_{\mathrm{braking}}=\sqrt{2a(1-s)}.
+$$
+
+They meet at $s=1/2$, with peak speed $\sqrt a$ and total time $2/\sqrt a$: **the triangular profile reappears as a phase-plane solution**. Adding the running example's constant speed cap $\dot s\leq1$ with $a=2$ requires coasting, giving the previously derived 1.5 s trapezoid.
+
+##### Why a speed bottleneck requires additional switches
+
+A forward maximum-acceleration curve can hit an inadmissible region before reaching the final braking curve. Continuing to accelerate is impossible, and waiting until the boundary to brake may be too late. The algorithm finds an earlier braking switch that passes a bottleneck at a tangent point, then accelerates again.
+
+The book's construction, under its stated assumptions, is:
+
+1. **Build the final braking curve $F$.** Integrate $L$ backward from $(1,0)$ until $s=0$ or the velocity limit curve is reached.
+2. **Build a forward acceleration curve $A$.** From the current starting/switch state, integrate $U$. If it meets $F$ first, record the $U\rightarrow L$ switch and finish along $F$.
+3. **If $A$ reaches the ceiling first**, record the contact abscissa $s_{\lim}$ and search speeds between zero and the ceiling at that abscissa. For each test speed, integrate $L$ forward. A curve penetrating the ceiling starts too fast; a curve dropping to zero starts too slowly. Binary search for the limiting curve that just touches the ceiling, giving a tangent state $(s_{\tan},\dot s_{\tan})$.
+4. **Find where braking must start.** Integrate $L$ backward from that tangent state until it intersects the preceding $A$. This intersection is the earlier $U\rightarrow L$ switch; keep the braking segment from there to the tangent.
+5. **Accelerate after the bottleneck.** At the tangent state, switch $L\rightarrow U$ and repeat from step 2 until the final braking curve is reached.
+
+![Forward acceleration, backward braking, and tangent searches produce multiple switching points](../../../assets/Modern_Robotics/ch09_time_scaling_switches.png)
+
+*Book Figure 9.13: $F$ is the goal-reaching braking curve. The intermediate tangent requires braking before the bottleneck and acceleration afterward, producing the sequence acceleration, deceleration, acceleration, deceleration. The figure's step labels refer to the book's six-step version of the same construction.*
+
+"Maximum acceleration" means the largest **permitted path acceleration** $U$; it need not be positive at every state. Similarly, $L$ is the smallest permitted acceleration, not necessarily a fixed negative number. On regular optimal arcs, at least one actuator bound is active, but the limiting actuator can change along the path.
+
+#### 9.4.3 Searching the Velocity Limit Curve
+
+Instead of the binary search, explicitly construct $\dot s_{\lim}(s)$ and locate tangent states. At a differentiable regular boundary with $L=U$, tangency requires
+
+$$
+L(s,\dot s_{\lim})=U(s,\dot s_{\lim})
+=\dot s_{\lim}\frac{d\dot s_{\lim}}{ds}.
+$$
+
+This comes from equating the boundary slope to the motion slope $\ddot s/\dot s$. A boundary point with a different feasible tangent cannot be traversed through smoothly while remaining admissible on both sides. Tangent candidates still have to be connected to the start/goal curves; finding one does not by itself solve the trajectory.
+
+#### 9.4.4 Assumptions and Caveats
+
+The simple algorithm is not a universal planner. Its assumptions explain both its usefulness and its limits:
+
+* **Static support:** along the path, gravity compensation must lie within actuator bounds so sufficiently slow motions are feasible. Weak actuators can instead require momentum to cross certain postures; the simple algorithm does not cover that case. Boundary cases with no torque margin require additional care.
+* **One feasible speed interval:** for each $s$, all speeds below one positive ceiling are assumed admissible. Friction or more complex actuator models can produce disconnected feasible regions.
+* **Regular path dynamics:** zero-inertia components $m_i=0$ require direct speed-feasibility checks. Singular boundary arcs can require an acceleration between $L$ and $U$ that follows the boundary, rather than rapid switching between extremes.
+* **No jerk constraint in this formulation:** bang-bang acceleration can jump, so torque feasibility does not imply vibration-free motion. A boundary-following/coasting arc is also possible when additional speed constraints are active.
+* **Model and feedback margin:** model errors, friction, and disturbances matter. An actuator-saturated nominal solution may leave no effort for tracking corrections. Practical execution usually reserves margin rather than using the theoretical optimum unchanged.
+
+The central result is therefore a capability bound **for a fixed path and specified dynamics/constraints**. A different path may be faster, and a slightly slower timing may track much more reliably.
+
+### 9.5 Summary and Formula Sheet
+
+The chapter moves from geometry to progressively stronger timing requirements:
+
+| Need | Construction | Main qualification |
+|:--|:--|:--|
+| Simple endpoint motion | Joint line + cubic | Endpoint acceleration jumps when joined to rest |
+| Smooth start and stop | Joint line + quintic | Zero endpoint acceleration is not global time optimality |
+| Fast motion with constant speed/acceleration limits | Trapezoid or triangle | Acceleration discontinuities; fixed joint-space line |
+| Bounded jerk | S-curve | Some stages disappear on short motions |
+| Timed intermediate configurations | Piecewise via-point polynomials | Check overshoot and derivative continuity |
+| Fastest traversal under actuator limits | Path dynamics + phase-plane time scaling | Requires a feasible fixed path and the algorithm's assumptions |
+
+| Concept | Formula |
+|:--|:--|
+| Path to trajectory | $\theta(t)=\theta(s(t))$ |
+| Velocity and acceleration | $\dot\theta=\theta'\dot s$, $\ddot\theta=\theta'\ddot s+\theta''\dot s^2$ |
+| Joint line | $\theta(s)=\theta_{\mathrm{start}}+s\Delta\theta$ |
+| Screw path | $X(s)=X_{\mathrm{start}}\exp(s\log(X_{\mathrm{start}}^{-1}X_{\mathrm{end}}))$ |
+| Cubic scaling, $u=t/T$ | $s=3u^2-2u^3$ |
+| Quintic scaling | $s=10u^3-15u^4+6u^5$ |
+| Trapezoid duration for unit progress | $T=1/v+v/a$, requiring $v^2/a\leq1$ |
+| Triangle duration | $T=2/\sqrt a$, $v_{\mathrm{peak}}=\sqrt a$ |
+| Path-constrained dynamics | $\tau=m\ddot s+c_p\dot s^2+g_p$ |
+| Shared acceleration interval | $L=\max_iL_i$, $U=\min_iU_i$ |
+| Phase-plane slope | $d\dot s/ds=\ddot s/\dot s$ for $\dot s>0$ |
+| Travel time | $T=\int_0^1(1/\dot s(s))\,ds$ |
+
+### 9.6 Software and Worked Implementation
+
+The book provides these Modern Robotics library functions:
+
+| Operation | Function and output |
+|:--|:--|
+| Cubic progress | `CubicTimeScaling(Tf, t)` returns scalar $s(t)$ |
+| Quintic progress | `QuinticTimeScaling(Tf, t)` returns scalar $s(t)$ |
+| Joint-space trajectory | `JointTrajectory(thetastart, thetaend, Tf, N, method)` returns an $N\times n$ array |
+| Constant-screw trajectory | `ScrewTrajectory(Xstart, Xend, Tf, N, method)` returns $N$ poses |
+| Decoupled Cartesian trajectory | `CartesianTrajectory(Xstart, Xend, Tf, N, method)` returns $N$ poses |
+
+`method` is `3` or `5` for cubic or quintic scaling. Samples include both endpoints, with spacing `Tf / (N - 1)` and `N >= 2`. The pose generators do not solve IK or check collisions, and these functions do not automatically select a feasible duration or implement the torque-constrained time-optimal algorithm.
+
+The following standalone NumPy example implements the chapter's polynomial formulas and via-point coefficients. Run the block in a Python notebook/REPL with NumPy installed, or as `python3 <script_path>`. It checks the running example's endpoints and kinematic limits; it is **not** a general trajectory planner or a test of torque feasibility.
+
+```python
+import numpy as np
+
+
+def polynomial_scaling(t, duration, order=5):
+    t = np.asarray(t, dtype=float)
+    if duration <= 0 or np.any(t < 0) or np.any(t > duration):
+        raise ValueError("Require duration > 0 and 0 <= t <= duration")
+    u = t / duration
+    if order == 3:
+        s = 3 * u**2 - 2 * u**3
+        ds = 6 * u * (1 - u) / duration
+        dds = (6 - 12 * u) / duration**2
+    elif order == 5:
+        s = 10 * u**3 - 15 * u**4 + 6 * u**5
+        ds = 30 * u**2 * (1 - u)**2 / duration
+        dds = 60 * u * (1 - u) * (1 - 2 * u) / duration**2
+    else:
+        raise ValueError("order must be 3 or 5")
+    return s, ds, dds
+
+
+def minimum_polynomial_duration(delta, velocity_limits,
+                                acceleration_limits, order=5):
+    delta = np.abs(np.asarray(delta, dtype=float))
+    vlim = np.asarray(velocity_limits, dtype=float)
+    alim = np.asarray(acceleration_limits, dtype=float)
+    if delta.shape != vlim.shape or delta.shape != alim.shape:
+        raise ValueError("Displacements and limits must have equal shapes")
+    if np.any(vlim <= 0) or np.any(alim <= 0):
+        raise ValueError("Limits must be positive")
+    if order == 3:
+        peak_v, peak_a = 1.5, 6.0
+    elif order == 5:
+        peak_v, peak_a = 15 / 8, 10 / np.sqrt(3)
+    else:
+        raise ValueError("order must be 3 or 5")
+    return max(np.max(peak_v * delta / vlim),
+               np.max(np.sqrt(peak_a * delta / alim)))
+
+
+def cubic_via_coefficients(p0, p1, v0, v1, duration):
+    if duration <= 0:
+        raise ValueError("Via times must strictly increase")
+    h = duration
+    return np.array([p0, v0,
+                     3 * (p1 - p0) / h**2 - (2 * v0 + v1) / h,
+                     -2 * (p1 - p0) / h**3 + (v0 + v1) / h**2])
+
+
+start = np.array([0.0, 0.0])
+goal = np.array([1.0, 0.5])
+vlim = np.array([1.0, 0.75])
+alim = np.array([2.0, 1.0])
+delta = goal - start
+T3 = minimum_polynomial_duration(delta, vlim, alim, order=3)
+T5 = minimum_polynomial_duration(delta, vlim, alim, order=5)
+assert np.isclose(T3, np.sqrt(3))
+assert np.isclose(T5, 1.875)
+
+for order, duration in [(3, T3), (5, T5)]:
+    t = np.linspace(0, duration, 1001)
+    s, ds, dds = polynomial_scaling(t, duration, order)
+    theta = start + s[:, None] * delta
+    dtheta = ds[:, None] * delta
+    ddtheta = dds[:, None] * delta
+    assert np.allclose(theta[[0, -1]], [start, goal])
+    assert np.allclose(dtheta[[0, -1]], 0)
+    assert np.all(np.abs(dtheta) <= vlim + 1e-10)
+    assert np.all(np.abs(ddtheta) <= alim + 1e-10)
+    if order == 5:
+        assert np.allclose(ddtheta[[0, -1]], 0)
+    print(f"order={order}, duration={duration:.6f} s")
+
+left = cubic_via_coefficients(0, 1, 0, 1, 1)
+right = cubic_via_coefficients(1, 0, 1, 0, 1)
+assert np.allclose(left, [0, 0, 2, -1])
+assert np.allclose(right, [1, 1, -5, 3])
+assert np.isclose(np.polynomial.polynomial.polyval(0.1, right), 1.053)
+print("Via accelerations:", 2 * left[2] + 6 * left[3], 2 * right[2])
+# order=3, duration=1.732051 s
+# order=5, duration=1.875000 s
+# Via accelerations: -2.0 -10.0
+```
+
+The duration calculation uses analytic extrema, so its kinematic bound is stronger than merely observing that a finite sample grid passed. A zero-displacement request returns zero minimum duration; hold the configuration rather than calling the time-scaling function with $T=0$.
+
+### Chapter 9 Common Confusions
+
+| Confusion | Clarification |
+|:--|:--|
+| "A path specifies the motion speed." | A path specifies geometry; the time scaling supplies speed. |
+| "Constant $\dot s$ means no acceleration." | Curvature contributes $\theta''\dot s^2$. |
+| "Straight in joint space is straight in task space." | Nonlinear forward kinematics generally bends the endpoint path. |
+| "Linear interpolation of transformation matrices is valid." | It generally leaves $SE(3)$; use exponential/logarithmic interpolation. |
+| "A constant screw path has constant angular speed." | Its axis is fixed; time-domain speed depends on $\dot s$. |
+| "Quintic is always faster than cubic because it is smoother." | Endpoint smoothness and peak velocity/acceleration are separate constraints. |
+| "Every trapezoid reaches its requested top speed." | Short motions become triangular; the velocity ceiling may never be reached. |
+| "Passing through legal vias guarantees a legal path." | Polynomial segments may overshoot or cross obstacles. |
+| "Positive-definite $M$ makes every $m_i$ positive." | $m=M\theta'$ is a vector and may have negative or zero components. |
+| "A point below the speed ceiling is part of a feasible trajectory." | Its incoming/outgoing slopes must also respect the local motion cone. |
+| "$L=U$ is the same as $L>U$." | Equality permits one acceleration; strict inequality permits none. |
+| "Time-optimal timing solves motion planning and tracking." | It optimizes a given path under a model; neither collision search nor feedback is supplied. |
+
+### Chapter 9 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* distinguish a path, a time scaling, and their composed trajectory;
+* derive velocity and acceleration by the chain rule and explain the curvature term;
+* choose between joint-space, screw, and decoupled Cartesian paths, identifying their feasibility risks;
+* derive cubic and quintic scalings from endpoint constraints and select a duration from analytic extrema;
+* construct a trapezoidal profile, detect its triangular limit, and explain why an S-curve adds jerk ramps;
+* compute cubic via-point coefficients and check position, velocity, acceleration, and overshoot at joins;
+* reduce Chapter 8's dynamics to $m\ddot s+c_p\dot s^2+g_p=\tau$;
+* obtain $L,U$ from all actuator limits, including negative and zero coefficients;
+* interpret motion cones and explain why the highest locally admissible speed may still be impossible to brake from;
+* connect a triangular profile to forward acceleration and backward braking curves;
+* explain why bottlenecks require earlier braking and additional tangent switches;
+* state the assumptions and practical limitations of the time-optimal algorithm;
+* use the chapter's trajectory generators without assuming they check IK, collisions, or torque limits.
