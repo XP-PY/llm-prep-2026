@@ -14,10 +14,10 @@
 | I | 4 | [Dynamic Programming](#chapter-4-dynamic-programming) | Complete |
 | I | 5 | [Monte Carlo Methods](#chapter-5-monte-carlo-methods) | Complete |
 | I | 6 | [Temporal-Difference Learning](#chapter-6-temporal-difference-learning) | Complete |
-| I | 7 | [n-step Bootstrapping](#chapter-7-n-step-bootstrapping) | 7.1-7.3 and 7.6 complete; 7.4-7.5 skimmed |
+| I | 7 | [n-step Bootstrapping](#chapter-7-n-step-bootstrapping) | 7.1-7.3 Complete; 7.4-7.5 Skimmed; 7.6 Skipped |
 | I | 8 | Planning and Learning with Tabular Methods | Skipped |
 | II | 9 | [On-policy Prediction with Approximation](#chapter-9-on-policy-prediction-with-approximation) | Complete |
-| II | 10 | On-policy Control with Approximation | Not started |
+| II | 10 | [On-policy Control with Approximation](#chapter-10-on-policy-control-with-approximation) | Complete |
 | II | 11 | Off-policy Methods with Approximation | Not started |
 | II | 12 | Eligibility Traces | Not started |
 | II | 13 | Policy Gradient Methods | Not started |
@@ -144,7 +144,7 @@ Sections 7.1-7.3 and 7.6 are covered in detail. Sections 7.4-7.5 are **skimmed**
 | 7.3 | [n-step Off-policy Learning](#73-n-step-off-policy-learning) | Complete |
 | 7.4 | [Per-decision Methods with Control Variates](#74-per-decision-methods-with-control-variates-skimmed) | Skimmed |
 | 7.5 | [Off-policy Learning Without Importance Sampling: Tree Backup](#75-off-policy-learning-without-importance-sampling-tree-backup-skimmed) | Skimmed |
-| 7.6 | [A Unifying Algorithm: n-step Q(sigma)](#76-a-unifying-algorithm-n-step-qsigma) | Complete |
+| 7.6 | [A Unifying Algorithm: n-step Q(sigma)](#76-a-unifying-algorithm-n-step-qsigma-skipped) | Skipped |
 | Review | [Python Examples](#chapter-7-python-examples) | Added |
 | Review | [Common Confusions](#chapter-7-common-confusions) | Added |
 | Review | [Formula Sheet](#chapter-7-formula-sheet) | Added |
@@ -177,6 +177,23 @@ Sections 9.1-9.12 follow the book. Chapter 8 is skipped; the implementation and 
 | Review | [Common Confusions](#chapter-9-common-confusions) |
 | Review | [Formula Sheet](#chapter-9-formula-sheet) |
 | Review | [Understanding Checklist](#chapter-9-understanding-checklist) |
+
+## Chapter 10 Catalog
+
+Sections 10.1-10.6 follow the book; the implementation and review aids below are additional notes.
+
+| Book section | Topic |
+|:--|:--|
+| 10.1 | [Episodic Semi-gradient Control](#101-episodic-semi-gradient-control) |
+| 10.2 | [Semi-gradient n-step Sarsa](#102-semi-gradient-n-step-sarsa) |
+| 10.3 | [Average Reward: A New Problem Setting for Continuing Tasks](#103-average-reward-a-new-problem-setting-for-continuing-tasks) |
+| 10.4 | [Deprecating the Discounted Setting](#104-deprecating-the-discounted-setting) |
+| 10.5 | [Differential Semi-gradient n-step Sarsa](#105-differential-semi-gradient-n-step-sarsa) |
+| 10.6 | [Summary](#106-summary) |
+| Review | [Python Examples](#chapter-10-python-examples) |
+| Review | [Common Confusions](#chapter-10-common-confusions) |
+| Review | [Formula Sheet](#chapter-10-formula-sheet) |
+| Review | [Understanding Checklist](#chapter-10-understanding-checklist) |
 
 ---
 
@@ -3367,85 +3384,7 @@ Equivalently, this is the 7.4 baseline-plus-correction form with $\rho_{k+1}$ re
 
 No transition model or simulated alternative path is required: the unsampled branches use stored Q-estimates. No importance ratios are needed either, although data coverage still matters. When the sampled action has zero target probability, **only the deeper sampled branch is cut off**, rather than discarding the entire earlier update. With a deterministic greedy target, this truncates the backup at a nongreedy action. Products of small target probabilities can also make the effective backup much shorter than $n$.
 
-### 7.6 A Unifying Algorithm: n-step Q(sigma)
-
-#### Two independent choices: horizon and sampling degree
-
-$n$ chooses how far to look; $\sigma_k\in[0,1]$ controls how the sampled continuation at step $k$ is combined with action expectations. The book's conceptual backup diagrams contrast sampling every action, averaging only the endpoint, branching at every state, and mixing these choices along a backup.
-
-![Four-step backup diagrams comparing Sarsa, tree backup, Expected Sarsa, and Q sigma](../../../assets/Reinforcement_Learning_An_Introduction/ch07_backup_comparison.png)
-
-*Book Figure 7.5, printed p. 155: open circles are states and filled circles are actions; branches denote target-policy action expectations. Labels $\rho$ identify sampled action choices needing off-policy correction. These diagrams motivate the interpolation; the precise control-variate recursion in this supplied PDF is given below.*
-
-#### Interpolate the correction coefficient
-
-The skim summaries have exposed the same structure with two coefficients: $\rho_k$ for the importance-corrected continuation, and $\pi(A_k\mid S_k)$ for tree backup. Book Equation (7.17) interpolates between them:
-
-$$
-c_k=\sigma_k\rho_k+(1-\sigma_k)\pi(A_k\mid S_k),
-$$
-
-$$
-\boxed{G^\sigma_{k:h}=R_{k+1}+\gamma\left[
-\bar V(S_{k+1})+c_{k+1}
-\bigl(G^\sigma_{k+1:h}-Q(S_{k+1},A_{k+1})\bigr)\right].}
-$$
-
-Compute it backward with the same boundaries as 7.4:
-
-$$
-G^\sigma_{h:h}=Q(S_h,A_h)\quad(h<T),
-\qquad G^\sigma_{T-1:T}=R_T\quad(h=T).
-$$
-
-Then update the origin pair **without another outer importance product**:
-
-$$
-\boxed{Q(S_t,A_t)\leftarrow Q(S_t,A_t)+\alpha
-[G^\sigma_{t:h}-Q(S_t,A_t)].}
-$$
-
-The ratios are already inside the recursive target. Multiplying by 7.3's product again would double-correct the sampled actions. Store states, actions, rewards, $\sigma_k$, and ratios, and use the same delayed-update and terminal-flush schedule as before. Direct computation is $O(n|\mathcal A|)$ for a finite action set because each visited state needs an action expectation.
-
-#### Read the endpoints from the actual equation
-
-| Choice | Result for Equation (7.17) in the supplied PDF |
-|:--|:--|
-| $\sigma_k=0$ everywhere | $c_k=\pi(A_k\mid S_k)$: n-step tree backup |
-| $\sigma_k=1$ everywhere | $c_k=\rho_k$: the **control-variate action-value recursion of 7.4** |
-| $0<\sigma_k<1$ | Interpolate the sampled continuation correction and tree-backup weighting at that depth |
-| $n=1$ | Expected Sarsa for every $\sigma$; with a greedy target, Q-learning |
-
-**Important source distinction:** the opening discussion motivates $Q(\sigma)$ as interpolating ordinary Sarsa and tree backup. But the supplied PDF's Equation (7.17) and p. 156 pseudocode explicitly use the control-variate form. At the final nonterminal state, $G^\sigma_{h:h}-Q(S_h,A_h)=0$, so the final backup is $R_h+\gamma\bar V(S_h)$ regardless of $\sigma_h$. Consequently, its $\sigma=1$ endpoint is not generally the same sample-by-sample target as the ordinary n-step Sarsa equation in 7.2. The note and code follow the printed recursion rather than treating those different formulas as identical.
-
-The distinction persists on-policy. When $\rho=1$, the recursive continuation is $G_{k+1:h}+\bar V(S_{k+1})-Q(S_{k+1},A_{k+1})$, not just $G_{k+1:h}$. A deterministic on-policy action makes the last two terms cancel, but a stochastic policy need not. Thus "on-policy means every correction disappears" is not true for this action-value control-variate formulation.
-
-#### Continue the two-step example
-
-At the intermediate state $S_{t+1}$, suppose the sampled action has Q-value 2, the other action 0, and $\pi=(0.5,0.5)$. Thus $\bar V(S_{t+1})=1$. Retain $b(A_{t+1}\mid S_{t+1})=0.25$, giving $\rho_{t+1}=2$. At the endpoint, the earlier values give $\bar V(S_{t+2})=3$.
-
-First compute the deepest backup:
-
-$$
-G^\sigma_{t+1:t+2}=2+0.9(3)=4.7.
-$$
-
-Then propagate its correction to the root:
-
-$$
-c_{t+1}=0.5+1.5\sigma_{t+1},\qquad
-G^\sigma_{t:t+2}=1+0.9[1+c_{t+1}(4.7-2)].
-$$
-
-| $\sigma_{t+1}$ | $c_{t+1}$ | Target |
-|:--:|:--:|:--:|
-| 0 | 0.5 | 3.115 |
-| 0.5 | 1.25 | 4.9375 |
-| 1 | 2 | 6.76 |
-
-These targets already contain their off-policy treatment and therefore need not match the unweighted targets 6.04 and 5.23 from 7.2. The coefficient can exceed 1 because an importance ratio can. Reducing $\sigma$ reduces its ratio contribution, but deeper sampled evidence is then attenuated by target-policy branch probabilities; this is a design tradeoff, not a guarantee that one fixed $\sigma$ is best.
-
-As a source-consistency check, change to on-policy behavior so $\rho_{t+1}=1$ and set $\sigma=1$. Equation (7.17) gives $1+0.9[1+(4.7-2)]=4.33$, different from both ordinary two-step Sarsa (6.04) and endpoint-only Expected Sarsa (5.23). The difference is the intermediate control-variate term, not an indexing error.
+### 7.6 A Unifying Algorithm: n-step Q(sigma) (Skipped)
 
 ### Chapter 7 Python Examples
 
@@ -4305,3 +4244,444 @@ After this chapter, you should be able to:
 * form and solve a small LSTD system, including the terminal feature convention;
 * distinguish parametric RBFs, local memory-based regression, normalized kernel averaging, and a kernel expansion with learned coefficients;
 * reproduce the four-state interest/emphasis example and explain why a zero-interest bootstrap successor may need a positive update weight.
+
+---
+
+## Chapter 10: On-policy Control with Approximation
+
+**Source:** Chapter 10, Sections 10.1-10.6, printed pp. 243-256 of the supplied Sutton and Barto PDF.
+
+[Chapter 9](#chapter-9-on-policy-prediction-with-approximation) estimated the value of a fixed policy with shared parameters. Control adds a feedback loop: **estimate action values, act approximately greedily, then learn from the new policy's experience**. This extends [Sarsa](#64-sarsa-on-policy-td-control) naturally to large or continuous state spaces.
+
+The chapter then asks a different question: when interaction never ends, what should the policy maximize? A long-run **reward rate** supplies the objective; **differential values** measure the temporary advantage of a state or action relative to that rate. These lead to continuing-task versions of the same one-step and n-step algorithms.
+
+### 10.1 Episodic Semi-gradient Control
+
+#### From state-value prediction to action-value prediction
+
+A state value tells us how good a state is under a policy, but without a model it does not directly tell us which action to take. Instead represent
+
+$$
+\hat q(s,a,\mathbf w)\approx q_\pi(s,a),
+\qquad \mathbf w\in\mathbb R^d.
+$$
+
+Here $q_\pi(s,a)$ is the expected episodic return after taking $a$ in $s$ and subsequently following $\pi$. Given a target $U_t$, the action-value counterpart of Chapter 9's update is
+
+$$
+\mathbf w_{t+1}=\mathbf w_t+
+\alpha\bigl[U_t-\hat q(S_t,A_t,\mathbf w_t)\bigr]
+\nabla_{\mathbf w}\hat q(S_t,A_t,\mathbf w_t).
+$$
+
+The input is now a **state-action pair**, not just a state. A Monte Carlo target uses the complete return; Sarsa instead uses
+
+$$
+U_t=R_{t+1}+\gamma\hat q(S_{t+1},A_{t+1},\mathbf w_t),
+\qquad
+\delta_t=U_t-\hat q(S_t,A_t,\mathbf w_t).
+$$
+
+At a terminal successor, the bootstrap value is zero and $U_t=R_{t+1}$. The target is treated as constant when differentiating, even though its bootstrap term also depends on $\mathbf w_t$: this is a **semi-gradient**, not full differentiation of the squared TD error. The book's one-step pseudocode specializes to undiscounted episodes; retaining $\gamma$ here also covers discounted episodes.
+
+#### From prediction to control
+
+For a small finite action set, evaluate $\hat q(s,a,\mathbf w)$ for each action and use an $\varepsilon$-greedy policy. If $\mathcal G(s)$ contains all maximizing actions, choose each action with probability
+
+$$
+\pi(a\mid s)=\frac{\varepsilon}{|\mathcal A(s)|}
++\begin{cases}
+(1-\varepsilon)/|\mathcal G(s)|,&a\in\mathcal G(s),\\
+0,&a\notin\mathcal G(s).
+\end{cases}
+$$
+
+The same policy generates behavior and supplies the next action in the target, so the method remains **on-policy**. Its interaction order matters:
+
+1. Initialize $S,A$ using the current $\varepsilon$-greedy policy.
+2. Execute $A$ and observe $R,S'$.
+3. If $S'$ is terminal, update toward $R$ and end the episode.
+4. Otherwise select $A'$ from the current policy **before** updating the weights.
+5. Compute $\delta=R+\gamma\hat q(S',A',\mathbf w)-\hat q(S,A,\mathbf w)$ and update $\mathbf w\leftarrow\mathbf w+\alpha\delta\nabla\hat q(S,A,\mathbf w)$.
+6. Carry forward $S\leftarrow S'$ and $A\leftarrow A'$; execute that stored action next.
+
+Resampling the next action after the update would break the correspondence between the sampled Sarsa target and the action actually taken. Replacing its value with $\max_a\hat q(S',a,\mathbf w)$ would instead give a Q-learning target.
+
+This is [generalized policy iteration](#49-generalized-policy-iteration) with shared parameters: evaluation changes action preferences, which changes the policy and the data distribution. Fixed-policy linear prediction results do **not** establish convergence to optimal control under this moving policy. Parameter sharing can also interfere with previously learned decisions. For continuous action spaces, maximizing $\hat q$ requires another mechanism; enumerating actions is no longer sufficient.
+
+#### Linear action features and Mountain Car
+
+Use Chapter 9's [feature construction](#95-feature-construction-for-linear-methods) with action-dependent features:
+
+$$
+\hat q(s,a,\mathbf w)=\mathbf w^T\mathbf x(s,a),
+\qquad
+\nabla_{\mathbf w}\hat q(s,a,\mathbf w)=\mathbf x(s,a).
+$$
+
+For example, place state features in a separate block for each action. Similar states then share information within an action, while accelerating left and accelerating right can have different values at the same state. One-hot features for each state-action pair recover tabular Sarsa.
+
+**Mountain Car (Example 10.1)** makes the need for generalization and delayed credit clear. The state is continuous position and velocity, $s_t=(x_t,\dot x_t)$; the action is throttle $A_t\in\{-1,0,+1\}$. The engine cannot overcome gravity by continually pushing toward the goal. The car must first move away from the goal to build momentum.
+
+The book's dynamics are
+
+$$
+\begin{aligned}
+\dot x_{t+1}
+&=\operatorname{clip}\bigl(\dot x_t+0.001A_t-0.0025\cos(3x_t),-0.07,0.07\bigr),\\
+x_{t+1}&=\operatorname{clip}(x_t+\dot x_{t+1},-1.2,0.5).
+\end{aligned}
+$$
+
+At the left boundary, reset velocity to zero; reaching $x=0.5$ terminates the episode. Start with $x_0$ uniform in $[-0.6,-0.4)$ and $\dot x_0=0$. Every transition, including the final one, earns $-1$. With $\gamma=1$, the return is the negative number of remaining steps, so maximizing return means reaching the goal quickly, not moving toward it at every instant.
+
+The book uses eight offset tilings of position and velocity, with action included in the feature index. Each tile spans one eighth of each coordinate's range. With eight distinct active binary features,
+
+$$
+\Delta\hat q(S_t,A_t)=8\alpha\delta_t.
+$$
+
+Thus a reported step size $\alpha=0.5/8$ moves the current prediction halfway toward its target. This is the same active-feature scaling as in [Section 9.6](#96-selecting-step-size-parameters-manually), now applied to action values.
+
+Zero initialization is optimistic because all true returns are negative. After visiting a region, its estimates decrease; unexplored alternatives can become preferable even when $\varepsilon=0$. This explains the book's exploration behavior, but is not a general exploration guarantee. Its learned cost-to-go is $-\max_a\hat q(s,a,\mathbf w)$, approximately the remaining number of steps under good actions.
+
+### 10.2 Semi-gradient n-step Sarsa
+
+One-step Sarsa propagates a reward through one transition at a time. To transmit observed consequences farther before bootstrapping, replace its target with the [n-step Sarsa return](#72-n-step-sarsa), now evaluated by the approximator.
+
+Let $T$ be the terminal-state time, $t<T$, and $m=\min(n,T-t)$. Using the weights $\mathbf w$ available when the delayed update is performed,
+
+$$
+G_{t:t+n}=
+\sum_{k=1}^{m}\gamma^{k-1}R_{t+k}
++\begin{cases}
+\gamma^n\hat q(S_{t+n},A_{t+n},\mathbf w),&t+n<T,\\
+0,&t+n\ge T.
+\end{cases}
+$$
+
+Then update the **earlier** pair $(S_t,A_t)$:
+
+$$
+\mathbf w\leftarrow\mathbf w+
+\alpha\bigl[G_{t:t+n}-\hat q(S_t,A_t,\mathbf w)\bigr]
+\nabla_{\mathbf w}\hat q(S_t,A_t,\mathbf w).
+$$
+
+For an update before termination, the book writes these current weights as $\mathbf w_{t+n-1}$. Do not use a stale prediction saved at time $t$: intermediate updates may already have changed it through shared features. The endpoint action, however, is the action actually selected and stored during interaction.
+
+**Implementation timing:** after collecting transition $k\to k+1$, update $\tau=k-n+1$ if $\tau\ge0$. Store states, actions, and rewards in a buffer of length $n+1$. When the episode ends, stop interacting but continue the shortened-return updates until $\tau=T-1$. Otherwise the final $n-1$ state-action pairs can lose their updates.
+
+**Example:** with $n=3$, $\gamma=1$, three rewards of $-1$, and a nonterminal endpoint estimate of $-5$, the target is $-3-5=-8$. If termination occurs after only two transitions, the target is $-2$, with no endpoint action or bootstrap value. The same rule covers $n=1$ and Monte Carlo targets when the horizon reaches termination.
+
+Longer returns transmit actual rewards faster and rely less on an inaccurate endpoint estimate, but introduce more sampled variability and delay updates. The book's Mountain Car experiments show that eight-step Sarsa learns faster than one-step Sarsa at their selected step sizes (Figure 10.3); the first-50-episode parameter study favors an intermediate horizon, $n=4$ (Figure 10.4). Neither result makes a particular $n$ universally best: **tune $n$ and $\alpha$ together**.
+
+### 10.3 Average Reward: A New Problem Setting for Continuing Tasks
+
+#### Why a reward rate replaces episode return
+
+Mountain Car has a natural stopping point. A server controller or continuously operating robot may not. Summing rewards forever with $\gamma=1$ generally diverges; introducing episode boundaries would change the problem. Instead evaluate a policy by its long-run expected reward **per time step**:
+
+$$
+r(\pi)=\lim_{h\to\infty}\frac1h
+\mathbb E_\pi\left[\sum_{t=1}^{h}R_t\mid S_0=s\right].
+$$
+
+The chapter assumes conditions making this rate independent of the initial state. In a finite ergodic Markov chain induced by a stationary policy, the limiting state distribution $\mu_\pi$ exists and satisfies
+
+$$
+\begin{aligned}
+\mu_\pi(s')&=\sum_s\mu_\pi(s)\sum_a\pi(a\mid s)p(s'\mid s,a),\\
+r(\pi)&=\sum_s\mu_\pi(s)\sum_a\pi(a\mid s)
+\sum_{s',r}p(s',r\mid s,a)r.
+\end{aligned}
+$$
+
+Here $p(s',r\mid s,a)$ is the environment's transition/reward distribution. The stationarity equation says that one more transition leaves $\mu_\pi$ unchanged. Importantly, **the policy changes both action choices and how often states occur**. Optimizing immediate rewards at the current state ignores the second effect.
+
+The objective is $r_* = \max_\pi r(\pi)$. Policies with the same maximal rate are all optimal under this criterion, even if their initial transients differ. Ergodicity is sufficient, not necessary: alternating rewards $1,0,1,0,\ldots$ still have average $1/2$, even though their one-step expected reward does not converge. If policies lead to distinct recurrent classes, start-state independence needs separate justification.
+
+#### Why we still need state and action values
+
+A single rate ranks policies but cannot distinguish taking a good action from a bad action **now**. Measure the transient excess or shortfall relative to that policy's normal rate:
+
+$$
+G_t=\sum_{k=1}^{\infty}\bigl(R_{t+k}-r(\pi)\bigr),
+\qquad
+q_\pi(s,a)=\mathbb E_\pi[G_t\mid S_t=s,A_t=a].
+$$
+
+This is the book's **differential return** and differential action value; $v_\pi(s)$ is the corresponding state value. The same symbols $v_\pi,q_\pi$ now mean excess reward relative to a baseline, not discounted total reward.
+
+There is a mathematical qualification: centering rewards does not make every infinite sampled sum converge. Values are understood through limits of expected centered sums under suitable conditions. For periodic cases, the book gives the regularized definition
+
+$$
+v_\pi(s)=\lim_{\gamma\uparrow1}
+\sum_{k=0}^{\infty}\gamma^k
+\bigl(\mathbb E_\pi[R_{k+1}\mid S_0=s]-r(\pi)\bigr).
+$$
+
+Here the limiting discount is a way to define the differential value, **not** a replacement objective. The finite-step learning updates below do not require constructing an infinite return.
+
+Splitting off the first centered reward gives the differential Bellman equations:
+
+$$
+\begin{aligned}
+v_\pi(s)&=\sum_a\pi(a\mid s)\sum_{s',r}p(s',r\mid s,a)
+\bigl[r-r(\pi)+v_\pi(s')\bigr],\\
+q_\pi(s,a)&=\sum_{s',r}p(s',r\mid s,a)
+\left[r-r(\pi)+\sum_{a'}\pi(a'\mid s')q_\pi(s',a')\right].
+\end{aligned}
+$$
+
+Relative to the discounted equations, remove $\gamma$ and replace reward by reward minus its rate. Under the chapter's assumptions, optimal differential action values satisfy
+
+$$
+q_*(s,a)=\sum_{s',r}p(s',r\mid s,a)
+\left[r-r_*+\max_{a'}q_*(s',a')\right].
+$$
+
+Both sides are unchanged in their equality if the same constant is added to every value. These equations therefore determine values only **up to an additive constant**; action rankings and value differences are what matter. A normalization such as fixing a reference state's value can select a particular offset.
+
+#### From the Bellman equation to differential Sarsa
+
+Neither the environment model nor $r(\pi)$ is known. Replace the expected next action value by its on-policy sample and maintain a scalar estimate $\bar R_t$ of the current reward rate:
+
+$$
+\boxed{\delta_t=R_{t+1}-\bar R_t
++\hat q(S_{t+1},A_{t+1},\mathbf w_t)
+-\hat q(S_t,A_t,\mathbf w_t).}
+$$
+
+Use this **same pre-update error** in both updates:
+
+$$
+\begin{aligned}
+\bar R_{t+1}&=\bar R_t+\beta\delta_t,\\
+\mathbf w_{t+1}&=\mathbf w_t+
+\alpha\delta_t\nabla_{\mathbf w}\hat q(S_t,A_t,\mathbf w_t).
+\end{aligned}
+$$
+
+$\alpha$ controls value learning; $\beta$ controls reward-rate tracking. Select $A_{t+1}$ before these updates and execute it next, just as in episodic Sarsa. There is no terminal reset and no discount factor. With a fixed exploratory policy, the rate is that policy's rate, not the rate of a separate greedy evaluation policy.
+
+Why update $\bar R$ using $\delta$ rather than just $R-\bar R$? Under a fixed stationary policy, the expected successor-minus-current value is zero, so the TD correction still has mean $r(\pi)-\bar R$. It can also explain predictable reward fluctuations. For the deterministic cycle
+
+$$
+A\xrightarrow{0}B\xrightarrow{0}C\xrightarrow{1}A,
+$$
+
+the rate is $1/3$. Taking $v(A)=-1/3$, $v(B)=0$, and $v(C)=1/3$ makes each differential TD error zero when the rate is correct. By contrast, $R-\bar R$ cycles through $-1/3,-1/3,2/3$. The value correction removes that predictable oscillation; it is not a universal variance-reduction guarantee for every approximate value function.
+
+**Numerical update:** if $R=4$, $\bar R=2$, $\hat q(S,A)=3$, and $\hat q(S',A')=2$, then $\delta=1$. With $\beta=0.05$, the new rate estimate is $2.05$. A one-hot current feature and $\alpha=0.1$ change its value from $3$ to $3.1$. Recomputing $\delta$ after changing $\bar R$ would implement a different update.
+
+#### Access control: why reject an immediately profitable request?
+
+In Example 10.2 there are ten servers and an inexhaustible queue. Each step presents a customer whose priority is uniformly sampled from four levels, paying $1,2,4,$ or $8$ if accepted. Acceptance occupies a free server; rejection pays zero. Each busy server becomes free with probability $0.06$ per step. The state is **(free-server count, current priority)**; the action is accept or reject, with rejection forced when no server is free.
+
+An accepted low-priority customer gives positive immediate reward but can prevent accepting a later high-priority customer. Differential action values account for that opportunity cost. The learned policy therefore becomes more selective when few servers are free, while the reward-rate estimate measures overall throughput value.
+
+![Access-control policy and differential action values](../../../assets/Reinforcement_Learning_An_Introduction/ch10_access_control.png)
+
+*Book Figure 10.5, printed p. 252: the upper panel shows priority-dependent acceptance thresholds; the lower panel shows the estimated differential value of the best action. The right-edge decline reflects poorly sampled states, not evidence that extra free servers are intrinsically harmful.*
+
+The book uses a tabular representation, equivalently one-hot linear features, with $\alpha=\beta=0.01$ and $\varepsilon=0.1$. After two million steps, $\bar R\approx2.31$. This is **reward per step**; the plotted differential values are transient excess rewards, can be negative, and have an arbitrary offset. They are not another estimate of $2.31$.
+
+### 10.4 Deprecating the Discounted Setting
+
+Why does the book introduce average reward rather than simply keep discounted Sarsa forever? In a continuing system with no privileged start time, a natural scalar score averages discounted values over the policy's own stationary state distribution.
+
+Write $v_\pi^\gamma$ for the **discounted** value here, to distinguish it from the differential value above. For bounded rewards and $0\le\gamma<1$, define
+
+$$
+J_\gamma(\pi)=\sum_s\mu_\pi(s)v_\pi^\gamma(s).
+$$
+
+Substitute the discounted Bellman equation and then use stationarity:
+
+$$
+\begin{aligned}
+J_\gamma(\pi)
+&=r(\pi)+\gamma\sum_{s'}
+\underbrace{\left[\sum_s\mu_\pi(s)\sum_a\pi(a\mid s)p(s'\mid s,a)\right]}_{\mu_\pi(s')}
+v_\pi^\gamma(s')\\
+&=r(\pi)+\gamma J_\gamma(\pi),\\
+\therefore\quad J_\gamma(\pi)&=\frac{r(\pi)}{1-\gamma}.
+\end{aligned}
+$$
+
+Thus **this objective ranks policies exactly by average reward**, for every fixed $\gamma<1$. Discounting rescales the score without changing the desired ordering. Each reward appears in successive overlapping returns with total weight $1+\gamma+\gamma^2+\cdots$, which gives the same intuition.
+
+Two distinctions prevent overinterpreting this argument:
+
+* **Objective versus update:** ordinary discounted semi-gradient control is not gradient ascent on $J_\gamma$. The policy-dependent $\mu_\pi$, approximate values, and changing greedy decisions matter. The identity does not guarantee that running discounted Sarsa optimizes average reward; even setting $\gamma=0$ does not justify greedily maximizing immediate reward.
+* **Scope of the criticism:** the identity assumes weighting by each policy's stationary distribution. It does not say that $v_\pi^\gamma(s_0)$ for a specified start state, or an objective under a fixed start distribution, has a discount-independent ranking. Discounted objectives remain mathematically meaningful; the book advocates average reward for continuing tasks without a distinguished starting point.
+
+The deeper issue is shared approximation: changing weights to improve estimates at some states can damage estimates elsewhere, so greedy changes based on them lose the exact policy-improvement guarantee. Switching to average reward clarifies the objective but does **not** restore that guarantee. Approximate control can oscillate between policies rather than converge monotonically. Discounting may still be used inside a solution method, but its algorithmic role should not be confused with the task's reward-rate objective.
+
+### 10.5 Differential Semi-gradient n-step Sarsa
+
+Section 10.2 extended one-step episodic learning by accumulating several rewards. Apply the same construction to **centered rewards** in a continuing task. At the update of $(S_t,A_t)$ after observing $n$ transitions, use the current weights and rate estimate:
+
+$$
+\begin{aligned}
+G_{t:t+n}^{\mathrm{diff}}
+&=\sum_{k=1}^{n}(R_{t+k}-\bar R)
++\hat q(S_{t+n},A_{t+n},\mathbf w),\\
+\delta_t^{(n)}&=G_{t:t+n}^{\mathrm{diff}}-\hat q(S_t,A_t,\mathbf w),\\
+\bar R&\leftarrow\bar R+\beta\delta_t^{(n)},\\
+\mathbf w&\leftarrow\mathbf w+
+\alpha\delta_t^{(n)}\nabla_{\mathbf w}\hat q(S_t,A_t,\mathbf w).
+\end{aligned}
+$$
+
+Three details follow from this construction:
+
+* Subtract the **same current** $\bar R$ from all $n$ rewards, giving $\sum R-n\bar R$. The book writes it as $\bar R_{t+n-1}$, not a sequence of historical baseline estimates.
+* There is no $\gamma^n$ and no terminal flush in the continuing algorithm. After the initial $n$ transitions, perform one delayed update per interaction using an $n+1$ buffer. For $n=1$, recover differential one-step Sarsa.
+* The book's rate update is $\beta\delta^{(n)}$, **not** $\beta\delta^{(n)}/n$. Its effective scale therefore depends on $n$. Under a fixed stationary policy and fixed estimates, the expected error is $n[r(\pi)-\bar R]$, because the endpoint value difference cancels in expectation. Retune $\beta$ when changing the horizon.
+
+For example, rewards $(1,4,2)$, $\bar R=2$, endpoint value $5$, and current value $3$ give
+
+$$
+G^{\mathrm{diff}}=(1+4+2)-3\cdot2+5=6,
+\qquad \delta^{(3)}=6-3=3.
+$$
+
+With $\beta=0.05$, update the rate to $2.15$, then use the already computed error $3$ for the weight update. Subtracting the baseline only once would instead give the incorrect target $10$.
+
+Because policy improvement changes the reward rate, a lifetime sample average can eventually adapt too slowly. A constant $\beta$ retains tracking ability, while a small $\beta$ also prolongs initialization effects. This is a separate tuning issue from selecting the value step size $\alpha$ and the return horizon $n$.
+
+### 10.6 Summary
+
+The full progression is: **approximate action values enable action selection; on-policy action selection closes the control loop; n-step targets change credit propagation; average reward defines continuing performance; centering rewards gives differential versions of the same updates.**
+
+| Setting | Learning signal | Additional state | Main implementation concern |
+|:--|:--|:--|:--|
+| Episodic one-step Sarsa | $R+\gamma\hat q'-\hat q$ | Current weights | Zero bootstrap at termination; carry the sampled next action |
+| Episodic n-step Sarsa | $G_{t:t+n}-\hat q$ | Transition buffer | Update earlier pairs with current weights; flush at termination |
+| Differential one-step Sarsa | $R-\bar R+\hat q'-\hat q$ | Reward-rate estimate | Update rate and weights with the same error |
+| Differential n-step Sarsa | $\sum_{k=1}^nR_{t+k}-n\bar R+\hat q'-\hat q$ | Rate estimate and buffer | Use one current baseline; tune its step size with $n$ |
+
+All four use $\alpha\delta\nabla\hat q$ to change the current estimate and a next action sampled from the behavior policy when bootstrapping. Approximation enables generalization but does not turn these control updates into guaranteed descent on a fixed global loss.
+
+### Chapter 10 Python Examples
+
+The following standard-library code isolates the update arithmetic. It is not a full Mountain Car trainer: action selection and delayed transition buffering follow the procedures above. Run the block with Python 3. Features use one action block per action, so a value update can generalize across states without conflating different actions.
+
+```python
+from math import isclose
+
+
+def dot(w, x):
+    if len(w) != len(x):
+        raise ValueError("weights and features must have the same length")
+    return sum(wi * xi for wi, xi in zip(w, x))
+
+
+def action_features(state_features, action, n_actions):
+    if not 0 <= action < n_actions:
+        raise ValueError("invalid action index")
+    return [value if a == action else 0.0
+            for a in range(n_actions) for value in state_features]
+
+
+def episodic_target(rewards, gamma, next_q=0.0, terminal=False):
+    # The caller supplies n rewards, or a shorter sequence ending at terminal.
+    if not rewards:
+        raise ValueError("at least one transition is required")
+    target = sum(gamma ** k * r for k, r in enumerate(rewards))
+    if not terminal:
+        target += gamma ** len(rewards) * next_q
+    return target
+
+
+def linear_update(w, x, target, alpha):
+    delta = target - dot(w, x)
+    return [wi + alpha * delta * xi for wi, xi in zip(w, x)], delta
+
+
+def differential_update(w, x, next_x, rewards, average_reward, alpha, beta):
+    if not rewards:
+        raise ValueError("at least one transition is required")
+    target = (sum(rewards) - len(rewards) * average_reward
+              + dot(w, next_x))
+    # Both updates use the error computed from the old weights and baseline.
+    new_w, delta = linear_update(w, x, target, alpha)
+    return new_w, average_reward + beta * delta, delta
+
+
+if __name__ == "__main__":
+    x = action_features([1.0, 0.5], action=1, n_actions=3)
+    w, delta = linear_update([0.0] * 6, x, target=-1.0, alpha=0.1)
+    assert w == [0.0, 0.0, -0.1, -0.05, 0.0, 0.0]
+    assert isclose(dot(w, x), -0.125)  # Change = alpha * delta * ||x||^2.
+
+    assert episodic_target([-1, -1, -1], 1.0, next_q=-5) == -8
+    assert episodic_target([-1, -1], 1.0, next_q=99, terminal=True) == -2
+    assert isclose(episodic_target([1, 2], 0.5, next_q=4), 3.0)
+
+    current_x, next_x = [1.0, 0.0], [0.0, 1.0]
+    new_w, rate, delta = differential_update(
+        [3.0, 2.0], current_x, next_x, [4], 2.0, 0.1, 0.05)
+    assert isclose(delta, 1.0) and isclose(rate, 2.05)
+    assert isclose(new_w[0], 3.1) and new_w[1] == 2.0
+
+    new_w, rate, delta = differential_update(
+        [3.0, 5.0], current_x, next_x, [1, 4, 2], 2.0, 0.1, 0.05)
+    assert isclose(delta, 3.0) and isclose(rate, 2.15)
+    assert isclose(new_w[0], 3.3)
+
+    # Adding c to every reward and to the rate leaves the error unchanged.
+    _, shifted_rate, shifted_delta = differential_update(
+        [3.0, 5.0], current_x, next_x, [11, 14, 12], 12.0, 0.1, 0.05)
+    assert isclose(shifted_delta, delta)
+    assert isclose(shifted_rate, rate + 10.0)
+    print("All Chapter 10 update checks passed.")
+```
+
+### Chapter 10 Common Confusions
+
+| Confusion | Correction |
+|:--|:--|
+| Function approximation makes Sarsa off-policy. | On-policy refers to the relation between behavior and target policy, not to the value representation. |
+| A small TD error guarantees an optimal policy. | It concerns consistency with sampled targets; approximation error, exploration, and policy changes still matter. |
+| Average reward means taking the largest immediate reward. | Actions change future state occupancy; rejecting a low-paying customer can increase long-run reward rate. |
+| Differential learning is ordinary Sarsa with only $\gamma=1$. | It also subtracts an estimated reward rate at every step and learns that baseline. |
+| $\bar R$ and $\hat q$ estimate the same quantity. | $\bar R$ estimates reward per step; $\hat q$ estimates transient excess reward after a state-action pair. |
+| Negative differential values imply negative raw rewards. | Values are relative to the average rate and have an undetermined common offset. |
+| Larger $n$ is always better. | Longer returns reduce bootstrap dependence but add sampling variability, delay, and step-size sensitivity. |
+| Section 10.4 proves all discounted control is invalid. | Its ranking identity is for a stationary on-policy weighted objective, not every possible discounted task. |
+
+### Chapter 10 Formula Sheet
+
+Here $\hat q$ refers to the pair being updated and $\hat q'$ to the sampled bootstrap endpoint, both evaluated with current weights.
+
+| Concept | Formula |
+|:--|:--|
+| Semi-gradient action-value update | $\mathbf w\leftarrow\mathbf w+\alpha(U-\hat q)\nabla\hat q$ |
+| Linear action-value approximation | $\hat q(s,a)=\mathbf w^T\mathbf x(s,a)$, $\nabla\hat q=\mathbf x(s,a)$ |
+| Episodic one-step target | $U=R+\gamma\hat q'$; $\hat q'=0$ at termination |
+| Episodic n-step target, before termination | $U=\sum_{k=1}^n\gamma^{k-1}R_{t+k}+\gamma^n\hat q'$ |
+| Average-reward objective | $r(\pi)=\lim_{h\to\infty}\frac1h\mathbb E_\pi[\sum_{t=1}^hR_t]$ |
+| Differential one-step error | $\delta=R-\bar R+\hat q'-\hat q$ |
+| Differential n-step error | $\delta^{(n)}=\sum_{k=1}^nR_{t+k}-n\bar R+\hat q'-\hat q$ |
+| Reward-rate update | $\bar R\leftarrow\bar R+\beta\delta$; reuse that error for the weights |
+| Stationary discounted score | $\sum_s\mu_\pi(s)v_\pi^\gamma(s)=r(\pi)/(1-\gamma)$ |
+
+### Chapter 10 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* derive semi-gradient Sarsa from approximate prediction and explain why it uses action values;
+* describe the selection-update-execution order, including terminal transitions;
+* construct action-dependent linear features and scale the step size for active tiles;
+* explain why Mountain Car sometimes requires moving away from the goal;
+* form delayed n-step targets with current weights and flush updates after termination;
+* define reward rate, stationary state occupancy, and the assumptions behind start-state independence;
+* distinguish differential values from reward rate and explain the common-offset ambiguity;
+* derive the differential Bellman and Sarsa equations by centering rewards;
+* explain the opportunity cost of accepting a low-priority customer;
+* derive the stationary discounted-score identity without mistaking it for an algorithmic convergence result;
+* implement differential n-step updates with one current baseline and correctly scaled rate learning;
+* explain why approximation removes general policy-improvement guarantees in both episodic and continuing control.
