@@ -18,13 +18,13 @@
 | I | 8 | Planning and Learning with Tabular Methods | Skipped |
 | II | 9 | [On-policy Prediction with Approximation](#chapter-9-on-policy-prediction-with-approximation) | Complete |
 | II | 10 | [On-policy Control with Approximation](#chapter-10-on-policy-control-with-approximation) | Complete |
-| II | 11 | Off-policy Methods with Approximation | Not started |
-| II | 12 | Eligibility Traces | Not started |
-| II | 13 | Policy Gradient Methods | Not started |
-| III | 14 | Psychology | Not started |
-| III | 15 | Neuroscience | Not started |
-| III | 16 | Applications and Case Studies | Not started |
-| III | 17 | Frontiers | Not started |
+| II | 11 | Off-policy Methods with Approximation | Skipped |
+| II | 12 | [Eligibility Traces](#chapter-12-eligibility-traces) | 12.1, 12.2, 12.7 Complete; all other sections Skipped |
+| II | 13 | [Policy Gradient Methods](#chapter-13-policy-gradient-methods) | Complete |
+| III | 14 | Psychology | Skipped |
+| III | 15 | Neuroscience | Skipped |
+| III | 16 | Applications and Case Studies | Skipped |
+| III | 17 | Frontiers | Skipped |
 
 ## Chapter 1 Catalog
 
@@ -194,6 +194,49 @@ Sections 10.1-10.6 follow the book; the implementation and review aids below are
 | Review | [Common Confusions](#chapter-10-common-confusions) |
 | Review | [Formula Sheet](#chapter-10-formula-sheet) |
 | Review | [Understanding Checklist](#chapter-10-understanding-checklist) |
+
+## Chapter 12 Catalog
+
+Chapter 11 is skipped. Only Sections 12.1, 12.2, and 12.7 are covered; all other Chapter 12 sections are **skipped**. The review aids concern only the selected material.
+
+| Book section | Topic | Status |
+|:--|:--|:--|
+| 12.1 | [The lambda-return](#121-the-lambda-return) | Complete |
+| 12.2 | [TD(lambda)](#122-tdlambda) | Complete |
+| 12.3 | n-step Truncated lambda-return Methods | Skipped |
+| 12.4 | Redoing Updates: Online lambda-return Algorithm | Skipped |
+| 12.5 | True Online TD(lambda) | Skipped |
+| 12.6 | Dutch Traces in Monte Carlo Learning | Skipped |
+| 12.7 | [Sarsa(lambda)](#127-sarsalambda) | Complete |
+| 12.8 | Variable lambda and gamma | Skipped |
+| 12.9 | Off-policy Traces with Control Variates | Skipped |
+| 12.10 | Watkins's Q(lambda) to Tree-Backup(lambda) | Skipped |
+| 12.11 | Stable Off-policy Methods with Traces | Skipped |
+| 12.12 | Implementation Issues | Skipped |
+| 12.13 | Conclusions | Skipped |
+| Review | [Python Examples](#chapter-12-python-examples) | Added |
+| Review | [Common Confusions](#chapter-12-common-confusions) | Added |
+| Review | [Formula Sheet](#chapter-12-formula-sheet) | Added |
+| Review | [Understanding Checklist](#chapter-12-understanding-checklist) | Added |
+
+## Chapter 13 Catalog
+
+Sections 13.1-13.8 follow the book; the implementation and review aids below are additional notes. Earlier chapter and section skip markers remain unchanged.
+
+| Book section | Topic |
+|:--|:--|
+| 13.1 | [Policy Approximation and Its Advantages](#131-policy-approximation-and-its-advantages) |
+| 13.2 | [The Policy Gradient Theorem](#132-the-policy-gradient-theorem) |
+| 13.3 | [REINFORCE: Monte Carlo Policy Gradient](#133-reinforce-monte-carlo-policy-gradient) |
+| 13.4 | [REINFORCE with Baseline](#134-reinforce-with-baseline) |
+| 13.5 | [Actor-Critic Methods](#135-actor-critic-methods) |
+| 13.6 | [Policy Gradient for Continuing Problems](#136-policy-gradient-for-continuing-problems) |
+| 13.7 | [Policy Parameterization for Continuous Actions](#137-policy-parameterization-for-continuous-actions) |
+| 13.8 | [Summary](#138-summary) |
+| Review | [Python Examples](#chapter-13-python-examples) |
+| Review | [Common Confusions](#chapter-13-common-confusions) |
+| Review | [Formula Sheet](#chapter-13-formula-sheet) |
+| Review | [Understanding Checklist](#chapter-13-understanding-checklist) |
 
 ---
 
@@ -4685,3 +4728,1007 @@ After this chapter, you should be able to:
 * derive the stationary discounted-score identity without mistaking it for an algorithmic convergence result;
 * implement differential n-step updates with one current baseline and correctly scaled rate learning;
 * explain why approximation removes general policy-improvement guarantees in both episodic and continuing control.
+
+---
+
+## Chapter 12: Eligibility Traces
+
+**Source and scope:** Sections 12.1, 12.2, and 12.7 of the supplied Sutton and Barto PDF, printed pp. 288-295 and 303-307. Chapter 11 and Sections 12.3-12.6 and 12.8-12.13 are **skipped**.
+
+[n-step methods](#chapter-7-n-step-bootstrapping) propagate information over several transitions, but require choosing one horizon and waiting for its rewards. This chapter asks: **can we combine many horizons and assign credit immediately?** The answer has two views of the same idea:
+
+* **Forward view:** choose a prediction and average its possible future n-step targets into a $\lambda$-return.
+* **Backward view:** observe a TD error now and distribute it to earlier predictions using a decaying memory, the eligibility trace.
+
+Sections 12.1 and 12.2 establish this connection for state-value prediction. Section 12.7 replaces state values by action values to extend [semi-gradient Sarsa](#101-episodic-semi-gradient-control). The setting here is on-policy learning, with constant discount $\gamma$ and trace parameter $\lambda$; the Chapter 10 average-reward formulation is not the algorithm developed here.
+
+### 12.1 The lambda-return
+
+#### Why average returns instead of choosing one horizon?
+
+Let $\hat v(s,\mathbf w)$ approximate $v_\pi(s)$ for a fixed policy $\pi$. For a state visited at time $t$, the n-step target is
+
+$$
+G_{t:t+n}=\sum_{k=1}^{n}\gamma^{k-1}R_{t+k}
++\gamma^n\hat v(S_{t+n},\mathbf w_{t+n-1}),
+\qquad t+n<T,
+$$
+
+where $T$ is the terminal-state time. When the horizon reaches termination, the target becomes the complete return
+
+$$
+G_t=\sum_{k=1}^{T-t}\gamma^{k-1}R_{t+k},
+$$
+
+with no terminal bootstrap value. Short horizons depend heavily on estimated values; long horizons depend more on sampled rewards. A **compound target** averages several such returns, for example $\tfrac12G_{t:t+2}+\tfrac12G_{t:t+4}$. The weights must be nonnegative and sum to one. This remains a value target, not an instruction to average policies or learned weights.
+
+An especially convenient mixture gives successive horizons geometrically decreasing weights:
+
+$$
+\boxed{G_t^\lambda=(1-\lambda)\sum_{n=1}^{\infty}
+\lambda^{n-1}G_{t:t+n},\qquad 0\le\lambda<1.}
+$$
+
+The weights are $1-\lambda,(1-\lambda)\lambda,(1-\lambda)\lambda^2,\ldots$ and sum to one. **$\gamma$ discounts rewards within each return; $\lambda$ determines how much weight different return lengths receive.** They are not interchangeable.
+
+#### Why the final return gets all remaining weight
+
+In an episode, every horizon $n\ge T-t$ gives the same complete return. Combining those identical terms gives the finite formula
+
+$$
+\boxed{G_t^\lambda=
+(1-\lambda)\sum_{n=1}^{T-t-1}\lambda^{n-1}G_{t:t+n}
++\lambda^{T-t-1}G_t.}
+$$
+
+The final coefficient follows from the geometric tail:
+
+$$
+\sum_{n=T-t}^{\infty}(1-\lambda)\lambda^{n-1}
+=\lambda^{T-t-1}.
+$$
+
+Using $(1-\lambda)\lambda^{T-t-1}$ for the terminal return would discard the remaining probability mass. If only one transition remains, the main sum is empty and $G_{T-1}^\lambda=R_T$ for every $\lambda$.
+
+This episodic formula also defines the endpoints without an infinite-sum ambiguity:
+
+| Parameter | Target | Interpretation |
+|:--|:--|:--|
+| $\lambda=0$ | One-step return | TD(0) target |
+| $0<\lambda<1$ | Mixture of return lengths | Intermediate bootstrapping |
+| $\lambda=1$ | Complete return $G_t$ | Monte Carlo target |
+
+Do not substitute $\lambda=1$ directly into the infinite expression and conclude the return is zero. Use the finite episodic expression or an appropriate limit. Continuing-task returns also require convergence conditions, such as bounded rewards and $\gamma<1$.
+
+#### One example to carry into the backward view
+
+Consider one episode, with rewards written on transitions:
+
+$$
+A\xrightarrow{1}B\xrightarrow{2}C\xrightarrow{3}\text{terminal}.
+$$
+
+Hold predictions fixed at $\hat v(A)=0.5$, $\hat v(B)=1$, $\hat v(C)=2$, and terminal value zero. Let $\gamma=1$ and $\lambda=0.5$. From $A$:
+
+| Horizon | Target | Mixture weight |
+|:--|:--|:--|
+| One step | $1+\hat v(B)=2$ | $1-\lambda=0.5$ |
+| Two steps | $1+2+\hat v(C)=5$ | $(1-\lambda)\lambda=0.25$ |
+| Complete return | $1+2+3=6$ | $\lambda^2=0.25$ |
+
+Thus $G_0^\lambda=0.5\cdot2+0.25\cdot5+0.25\cdot6=3.75$. The desired correction at $A$ is $3.75-0.5=3.25$, before multiplying by the step size.
+
+For a **fixed value function**, the same targets can be computed backward through an episode:
+
+$$
+G_t^\lambda=R_{t+1}+\gamma\left[(1-\lambda)\hat v(S_{t+1})
++\lambda G_{t+1}^\lambda\right],\qquad G_T^\lambda=0.
+$$
+
+To see the recursion, separate the one-step term from the mixture. Every longer return shares its first reward and then continues from $S_{t+1}$; their total weight is $\lambda$. In the example, this yields $G_2^\lambda=3$, $G_1^\lambda=4.5$, and $G_0^\lambda=3.75$. If predictions change during interaction, their time indices cannot simply be dropped; the fixed-prediction convention is essential to the derivation used here.
+
+#### The offline forward-view algorithm
+
+The book's **offline $\lambda$-return algorithm** keeps weights unchanged during an episode, computes the targets, and then makes a sequence of semi-gradient updates over the visited states:
+
+$$
+\mathbf w\leftarrow\mathbf w+
+\alpha\bigl[G_t^\lambda-\hat v(S_t,\mathbf w)\bigr]
+\nabla_{\mathbf w}\hat v(S_t,\mathbf w).
+$$
+
+The targets use the episode's frozen predictions; the weights can change as the end-of-episode updates are applied. "Offline" here means **waiting until the episode ends**, not learning from an arbitrary off-policy dataset. No gradient is taken through a bootstrap target.
+
+This supplies a clear theoretical target but still requires future data. The book's 19-state random-walk experiment finds that intermediate $\lambda$ values can outperform either endpoint, much as intermediate $n$ did in Chapter 7. To obtain the benefit without waiting for the full future, we now change how the updates are organized.
+
+### 12.2 TD(lambda)
+
+#### A short-term memory of prediction gradients
+
+An eligibility trace $\mathbf z_t\in\mathbb R^d$ has the same dimension as the weight vector. It records which parameters contributed to recent predictions, so a new error can affect those parameters immediately:
+
+$$
+\begin{aligned}
+\mathbf z_{-1}&=\mathbf0,\\
+\mathbf z_t&=\gamma\lambda\mathbf z_{t-1}
++\nabla_{\mathbf w}\hat v(S_t,\mathbf w_t),\\
+\delta_t&=R_{t+1}+\gamma\hat v(S_{t+1},\mathbf w_t)
+-\hat v(S_t,\mathbf w_t),\\
+\mathbf w_{t+1}&=\mathbf w_t+\alpha\delta_t\mathbf z_t.
+\end{aligned}
+$$
+
+Set the terminal successor value to zero. Reset traces at the start of each episode, **not** after every transition; retain the learned weights across episodes. On the terminal transition, perform the final update before resetting traces for the next episode.
+
+This is an **accumulating trace**: decay past contributions by $\gamma\lambda$, then add the current gradient. For linear prediction $\hat v(s,\mathbf w)=\mathbf w^T\mathbf x(s)$, the gradient is just the feature vector:
+
+$$
+\mathbf z_t=\sum_{k=0}^{t}(\gamma\lambda)^{t-k}\mathbf x(S_k).
+$$
+
+With tabular one-hot features, this is a decaying visit count for each state. With shared features, it is a memory of **parameter contributions**, not a separate trace for every raw state. Traces can exceed one on repeated visits, and nonbinary gradients can have negative components. They are not probabilities and need not be positive or normalized.
+
+The scalar error answers **how surprising was the new transition?** The trace vector answers **which previous predictions should receive credit or blame?** The value estimate still depends on $\mathbf w$, not directly on $\mathbf z$.
+
+#### Deriving the connection to the forward view
+
+For this derivation only, freeze $\mathbf w$ and compute every prediction and gradient at those weights. Let
+
+$$
+\delta_k=R_{k+1}+\gamma\hat v(S_{k+1})-\hat v(S_k).
+$$
+
+Subtracting $\hat v(S_t)$ from the recursive $\lambda$-return gives
+
+$$
+G_t^\lambda-\hat v(S_t)
+=\delta_t+\gamma\lambda\bigl[G_{t+1}^\lambda-\hat v(S_{t+1})\bigr]
+=\sum_{k=t}^{T-1}(\gamma\lambda)^{k-t}\delta_k.
+$$
+
+The intermediate bootstrap values telescope. Thus a forward-view error is a discounted sum of later TD errors. Summing the frozen-weight updates over the episode and exchanging the order of summation gives
+
+$$
+\begin{aligned}
+\Delta\mathbf w_{\mathrm{forward}}
+&=\alpha\sum_{t=0}^{T-1}
+\bigl[G_t^\lambda-\hat v(S_t)\bigr]\nabla\hat v(S_t)\\
+&=\alpha\sum_{k=0}^{T-1}\delta_k
+\underbrace{\sum_{t=0}^{k}(\gamma\lambda)^{k-t}\nabla\hat v(S_t)}_{\mathbf z_k}
+=\Delta\mathbf w_{\mathrm{backward}}.
+\end{aligned}
+$$
+
+This explains the trace recurrence: it efficiently accumulates exactly the earlier gradients needed for the current error. The forward view groups learning **by the state being updated**; the backward view groups it **by the TD error arriving now**.
+
+**Equivalence boundary:** the total corrections above are exactly equal when predictions and gradients are frozen and corrections are accumulated before being applied. Ordinary TD($\lambda$) changes weights every step, and the book's offline algorithm can change them between its end-of-episode updates. Those algorithms are therefore not generally identical at finite step sizes. TD($\lambda$) approximates the offline forward view, especially when weight changes are small. Do not interpret $\lambda=1$ as exact equality with every implementation of episodic Monte Carlo learning.
+
+#### Checking the same episode backward
+
+For the episode in Section 12.1, use one-hot features in the order $(A,B,C)$, still with frozen values:
+
+| Transition | TD error | Trace $\mathbf z_t$ | Correction $\Delta\mathbf w_t/\alpha$ |
+|:--|:--|:--|:--|
+| $A\to B$ | $1+1-0.5=1.5$ | $(1,0,0)$ | $(1.5,0,0)$ |
+| $B\to C$ | $2+2-1=3$ | $(0.5,1,0)$ | $(1.5,3,0)$ |
+| $C\to\text{terminal}$ | $3-2=1$ | $(0.25,0.5,1)$ | $(0.25,0.5,1)$ |
+
+The total correction for $A$ is $1.5+1.5+0.25=3.25$, exactly $G_0^\lambda-\hat v(A)$. For $B$ it is $3.5=4.5-1$; for $C$ it is $1=3-2$. The final reward influences **all three earlier predictions on the terminal step**, not just the last one.
+
+#### What lambda changes, and what it does not guarantee
+
+At $\lambda=0$, $\mathbf z_t=\nabla\hat v(S_t,\mathbf w_t)$ and the algorithm is ordinary semi-gradient TD(0). At $\lambda=1$, traces decay only by $\gamma$, giving the weighting associated with Monte Carlo returns. For $\gamma=\lambda=1$, traces do not fade within an episode. Discounted continuing prediction can also use TD(1), with no need to wait for an episode to end; this does not justify unbounded traces in an undiscounted, never-ending task.
+
+TD($\lambda$) uses one additional $d$-dimensional vector rather than storing a history of feature vectors for a chosen $n$. A straightforward dense implementation costs $O(d)$ work and extra memory per step, updates immediately, and has no terminal backlog to flush. Sparse current features do not guarantee sparse traces: many past features may remain active.
+
+For a repeatedly active binary feature, its accumulating trace can approach $1/(1-\gamma\lambda)$ when $\gamma\lambda<1$. This helps explain why the step size often needs retuning as $\lambda$ increases. Longer traces give more credit to distant events but can also increase variability and amplify updates. The book's random-walk comparison finds close agreement with the offline method at suitable small step sizes, but worse stability for ordinary TD($\lambda$) at overly large ones.
+
+For **fixed-policy, on-policy linear prediction** in the continuing discounted setting, under the sampling, feature-rank, and diminishing-step-size assumptions discussed in [Section 9.4](#94-linear-methods), the book gives
+
+$$
+\overline{\mathrm{VE}}(\mathbf w_\infty)
+\le\frac{1-\gamma\lambda}{1-\gamma}
+\min_{\mathbf w}\overline{\mathrm{VE}}(\mathbf w),
+\qquad
+\overline{\mathrm{VE}}(\mathbf w)
+=\sum_s\mu_\pi(s)\bigl[v_\pi(s)-\hat v(s,\mathbf w)\bigr]^2.
+$$
+
+Here $\mu_\pi$ is the stationary on-policy state distribution and $\gamma<1$. The multiplier decreases from $1/(1-\gamma)$ to $1$ as $\lambda$ approaches one. This is an **asymptotic approximation-error bound**, not a finite-data learning-speed claim. It neither makes $\lambda=1$ universally best nor guarantees convergence for nonlinear approximation or changing control policies.
+
+### 12.7 Sarsa(lambda)
+
+#### From state traces to state-action traces
+
+To choose actions without a model, replace $\hat v(s,\mathbf w)$ by $\hat q(s,a,\mathbf w)$. The forward view mixes the action-value n-step returns from [Section 10.2](#102-semi-gradient-n-step-sarsa):
+
+$$
+G_{t:t+n}^{q}=\sum_{k=1}^{n}\gamma^{k-1}R_{t+k}
++\gamma^n\hat q(S_{t+n},A_{t+n},\mathbf w_{t+n-1}),
+\qquad t+n<T.
+$$
+
+Use the same geometric mixture and final-return tail as in Section 12.1. Its backward-view implementation is **Sarsa($\lambda$)**:
+
+$$
+\begin{aligned}
+\mathbf z_{-1}&=\mathbf0,\\
+\mathbf z_t&=\gamma\lambda\mathbf z_{t-1}
++\nabla_{\mathbf w}\hat q(S_t,A_t,\mathbf w_t),\\
+\delta_t&=R_{t+1}+\gamma\hat q(S_{t+1},A_{t+1},\mathbf w_t)
+-\hat q(S_t,A_t,\mathbf w_t),\\
+\mathbf w_{t+1}&=\mathbf w_t+\alpha\delta_t\mathbf z_t.
+\end{aligned}
+$$
+
+For linear approximation, the trace stores state-action features $\mathbf x(S_t,A_t)$, so different actions at the same state can receive different credit. With one-hot state-action features, the method reduces to tabular Sarsa($\lambda$).
+
+The interaction order remains on-policy:
+
+1. Start an episode, set $\mathbf z=0$, and choose $A$ from the policy, typically $\varepsilon$-greedy with respect to $\hat q$.
+2. Execute $A$ and observe $R,S'$. If nonterminal, select $A'$ using the **pre-update** weights; otherwise set the bootstrap value to zero without selecting a terminal action.
+3. Decay and increment the trace for $(S,A)$, compute the TD error with the current weights, and update all weights according to their traces.
+4. If terminal, end the episode after the update. Otherwise carry forward the already selected $(S',A')$ and repeat.
+
+The next action in the target is the one actually executed next, not a maximizing substitute. Exploratory actions are part of the on-policy trajectory: **ordinary Sarsa($\lambda$) does not clear traces merely because an action was exploratory**. At $\lambda=0$, these updates reduce to one-step semi-gradient Sarsa.
+
+#### Why traces accelerate delayed credit
+
+![Gridworld credit propagation with one-step Sarsa, n-step Sarsa, and eligibility traces](../../../assets/Reinforcement_Learning_An_Introduction/ch12_gridworld_credit.png)
+
+*Book Example 12.1, printed p. 304: a trajectory reaches a rewarding goal after otherwise zero rewards. One-step Sarsa credits the final action; ten-step Sarsa credits a finite suffix, including its pending terminal updates; Sarsa($\lambda$) distributes credit over the earlier path with recency-dependent strength.*
+
+Suppose all estimates are initially zero, only the final transition earns $+1$, and $\gamma=1$. For a state-action pair visited once $k$ steps before the final pair, accumulating Sarsa($\lambda$) gives a terminal correction proportional to $\alpha\lambda^k$. All still-eligible pairs receive their correction on that same transition. One-step Sarsa must wait for subsequent experience to propagate the learned value farther back; n-step Sarsa has a chosen finite reach.
+
+The important benefit is not knowing a future reward early. It is **using the reward immediately once it arrives**, with a record of which earlier decisions might deserve credit.
+
+#### Accumulating versus replacing traces
+
+Repeated visits can cause accumulating traces to grow. For **binary linear features** $x_{i,t}\in\{0,1\}$, Section 12.7 also offers replacing traces:
+
+$$
+z_{i,t}=\begin{cases}
+1,&x_{i,t}=1,\\
+\gamma\lambda z_{i,t-1},&x_{i,t}=0.
+\end{cases}
+$$
+
+In implementation, first decay the vector, then set active components to one instead of adding one. For the same feature active on three successive steps and $\gamma\lambda=0.8$, accumulating traces are $1,1.8,2.44$; replacing traces are $1,1,1$. Replacing limits repeated-visit amplification, while inactive components still decay and can receive later credit.
+
+This rule is not a general operation of clipping arbitrary gradients to one: it is presented for binary features. Nor does it automatically clear features for unselected actions; that is a distinct variant mentioned in the book. Replacing traces also do not inherit the accumulating-trace forward-view derivation unchanged.
+
+The Mountain Car comparison in Section 12.7 uses the Chapter 10 setup with **replacing** traces and finds better early learning than the compared n-step configurations at suitable parameters. This is an empirical comparison, not a guarantee that traces or replacing traces always win.
+
+#### The true-online variant introduced in this section
+
+Section 12.7 also gives **true online Sarsa($\lambda$)** for linear approximation. Its role is to match a particular online forward-view algorithm exactly, rather than merely approximate it. The derivations in Sections 12.4-12.6 are skipped here; the following is only the action-value update presented in 12.7.
+
+Let $\mathbf x=\mathbf x(S,A)$ and $\mathbf x'=\mathbf x(S',A')$, with $\mathbf x'=0$ at termination. Before updating, compute
+
+$$
+Q=\mathbf w^T\mathbf x,\qquad Q'=\mathbf w^T\mathbf x',\qquad
+\delta=R+\gamma Q'-Q.
+$$
+
+Initialize $\mathbf z=0$ and the scalar $Q_{\mathrm{old}}=0$ each episode. Then apply, in order,
+
+$$
+\begin{aligned}
+\mathbf z&\leftarrow\gamma\lambda\mathbf z
++\bigl[1-\alpha\gamma\lambda\mathbf z^T\mathbf x\bigr]\mathbf x,\\
+\mathbf w&\leftarrow\mathbf w+
+\alpha(\delta+Q-Q_{\mathrm{old}})\mathbf z
+-\alpha(Q-Q_{\mathrm{old}})\mathbf x,\\
+Q_{\mathrm{old}}&\leftarrow Q'.
+\end{aligned}
+$$
+
+The trace line uses the **old trace** everywhere on its right-hand side; the weight line uses the newly computed trace. $Q_{\mathrm{old}}$ stores the preceding transition's pre-update successor estimate, not the current estimate recomputed after the weights change. The modified trace is called a *Dutch trace*; it and the weight correction are both required for the true-online algorithm. It still uses $O(d)$ computation and storage per step. Exact forward-view matching does not imply convergence to an optimal control policy.
+
+### Chapter 12 Python Examples
+
+Run this standard-library block with Python 3. The first functions compute forward targets and **frozen-weight** backward corrections to check the derivation. The final function performs one ordinary linear TD($\lambda$) or Sarsa($\lambda$) update, depending on whether its inputs are state or state-action features. It is not the true-online variant.
+
+```python
+from math import isclose
+
+
+def dot(a, b):
+    if len(a) != len(b):
+        raise ValueError("vector dimensions must match")
+    return sum(x * y for x, y in zip(a, b))
+
+
+def lambda_returns(rewards, values, gamma, lam):
+    # values contains frozen predictions for S_0,...,S_T, including terminal 0.
+    if len(values) != len(rewards) + 1 or values[-1] != 0.0:
+        raise ValueError("supply one more value than rewards, ending in zero")
+    targets = [0.0] * len(rewards)
+    future = 0.0
+    for t in range(len(rewards) - 1, -1, -1):
+        future = rewards[t] + gamma * (
+            (1.0 - lam) * values[t + 1] + lam * future)
+        targets[t] = future
+    return targets
+
+
+def frozen_backward(rewards, features, w, gamma, lam):
+    # Accumulate corrections without applying them to w during the episode.
+    if len(features) != len(rewards) + 1:
+        raise ValueError("include a terminal feature vector")
+    z, correction = [0.0] * len(w), [0.0] * len(w)
+    for t, reward in enumerate(rewards):
+        delta = reward + gamma * dot(w, features[t + 1]) - dot(w, features[t])
+        z = [gamma * lam * zi + xi for zi, xi in zip(z, features[t])]
+        correction = [ci + delta * zi for ci, zi in zip(correction, z)]
+    return correction  # Multiply by alpha when applying the correction.
+
+
+def trace_step(w, z, x, reward, next_x, alpha, gamma, lam,
+               terminal=False, replacing=False):
+    if not (len(w) == len(z) == len(x) == len(next_x)):
+        raise ValueError("vector dimensions must match")
+    if replacing and any(xi not in (0.0, 1.0) for xi in x):
+        raise ValueError("replacing traces here require binary features")
+    next_value = 0.0 if terminal else dot(w, next_x)
+    delta = reward + gamma * next_value - dot(w, x)
+    decayed = [gamma * lam * zi for zi in z]
+    if replacing:
+        new_z = [1.0 if xi == 1.0 else zi for zi, xi in zip(decayed, x)]
+    else:
+        new_z = [zi + xi for zi, xi in zip(decayed, x)]
+    new_w = [wi + alpha * delta * zi for wi, zi in zip(w, new_z)]
+    return new_w, new_z, delta
+
+
+if __name__ == "__main__":
+    rewards = [1.0, 2.0, 3.0]
+    features = [[1, 0, 0], [0, 1, 0], [0, 0, 1], [0, 0, 0]]
+    w = [0.5, 1.0, 2.0]
+    values = [dot(w, x) for x in features]
+    targets = lambda_returns(rewards, values, gamma=1.0, lam=0.5)
+    assert targets == [3.75, 4.5, 3.0]
+    forward = [sum((target - values[t]) * features[t][i]
+                   for t, target in enumerate(targets)) for i in range(len(w))]
+    backward = frozen_backward(rewards, features, w, gamma=1.0, lam=0.5)
+    assert forward == backward == [3.25, 3.5, 1.0]
+    assert lambda_returns(rewards, values, 1.0, 0.0) == [2.0, 4.0, 3.0]
+    assert lambda_returns(rewards, values, 1.0, 1.0) == [6.0, 5.0, 3.0]
+
+    # With lambda=0, old eligibility cannot affect the update.
+    new_w, z, delta = trace_step(
+        [0.5, 1.0], [9.0, 9.0], [1, 0], 1.0, [0, 1], 0.1, 1.0, 0.0)
+    assert z == [1.0, 0.0] and isclose(new_w[0], 0.65)
+    assert new_w[1] == 1.0
+
+    # A terminal reward still updates previously eligible features.
+    new_w, z, delta = trace_step(
+        [0.0, 0.0], [1.0, 0.0], [0, 1], 1.0, [99, 99],
+        alpha=0.1, gamma=1.0, lam=0.5, terminal=True)
+    assert new_w == [0.05, 0.1] and delta == 1.0
+
+    for replacing, expected in [(False, 2.44), (True, 1.0)]:
+        w, z = [0.0], [0.0]
+        for _ in range(3):
+            w, z, _ = trace_step(w, z, [1], 0.0, [1], 0.1, 1.0, 0.8,
+                                 replacing=replacing)
+        assert isclose(z[0], expected)
+    print("All Chapter 12 trace checks passed.")
+```
+
+In a control loop, `next_x` must encode the next action already selected under the current policy, and that action must be executed next. After a terminal call, reset `z` to zeros before beginning the next episode; do not discard the final weight update.
+
+### Chapter 12 Common Confusions
+
+| Confusion | Correction |
+|:--|:--|
+| $\lambda$ is another reward discount. | It weights return horizons; $\gamma$ discounts rewards. Their product determines trace decay. |
+| The trace stores past rewards. | It stores decayed prediction gradients or features; the current TD error carries the new learning signal. |
+| A trace is one scalar per state. | That is the tabular case. With approximation, the vector has one component per weight. |
+| TD($\lambda$) needs the full $\lambda$-return before updating. | The backward view uses the current error and the current trace immediately. |
+| Online TD($\lambda$) exactly equals the offline algorithm. | Frozen-weight total corrections are equal; changing weights generally breaks that equality. |
+| $\lambda=1$ is always best because its error bound is tightest. | Asymptotic approximation error is not finite-sample performance or numerical stability. |
+| Terminal states mean no learning on the last transition. | Set only the bootstrap to zero, apply the error through all traces, then reset. |
+| Replacing traces erase every inactive component. | Inactive components decay; currently active binary components are set to one. |
+| Sarsa traces must be cleared after nongreedy actions. | Ordinary on-policy Sarsa($\lambda$) follows and learns from those actions. |
+| A Dutch trace alone gives true online Sarsa. | The corresponding weight correction and stored old estimate are also required. |
+
+### Chapter 12 Formula Sheet
+
+| Concept | Formula |
+|:--|:--|
+| Episodic $\lambda$-return | $G_t^\lambda=(1-\lambda)\sum_{n=1}^{T-t-1}\lambda^{n-1}G_{t:t+n}+\lambda^{T-t-1}G_t$ |
+| Fixed-prediction recursion | $G_t^\lambda=R_{t+1}+\gamma[(1-\lambda)\hat v(S_{t+1})+\lambda G_{t+1}^\lambda]$ |
+| Frozen-weight forward error | $G_t^\lambda-\hat v(S_t)=\sum_{k=t}^{T-1}(\gamma\lambda)^{k-t}\delta_k$ |
+| Accumulating trace | $\mathbf z_t=\gamma\lambda\mathbf z_{t-1}+\nabla\hat v(S_t,\mathbf w_t)$; start with $\mathbf z_{-1}=0$ |
+| TD($\lambda$) error | $\delta_t=R_{t+1}+\gamma\hat v(S_{t+1},\mathbf w_t)-\hat v(S_t,\mathbf w_t)$ |
+| Shared weight update | $\mathbf w_{t+1}=\mathbf w_t+\alpha\delta_t\mathbf z_t$ |
+| Sarsa($\lambda$) substitution | Replace $\hat v(S_t)$ by $\hat q(S_t,A_t)$ in both the trace and error |
+| Binary replacing trace | Active component: $z_{i,t}=1$; inactive: $z_{i,t}=\gamma\lambda z_{i,t-1}$ |
+| Linear prediction bound, $\gamma<1$ | $\overline{\mathrm{VE}}(\mathbf w_\infty)\le\frac{1-\gamma\lambda}{1-\gamma}\min_{\mathbf w}\overline{\mathrm{VE}}(\mathbf w)$ |
+
+### Chapter 12 Understanding Checklist
+
+For the three selected sections, you should be able to:
+
+* explain why a geometric mixture of n-step targets connects TD and Monte Carlo learning;
+* derive the terminal-return coefficient and handle $\lambda=0$, $\lambda=1$, and a one-transition episode;
+* distinguish the forward target's $\lambda$ weighting from the backward trace's $\gamma\lambda$ decay;
+* derive the TD-error sum and trace recurrence under frozen weights;
+* reproduce the forward and backward calculations for the three-transition example;
+* distinguish a weight vector's long-term memory from a trace vector's short-term credit assignment;
+* state precisely when forward/backward equivalence is exact and why ordinary online updates can differ;
+* explain the assumptions and limitations of the linear TD($\lambda$) error bound;
+* convert TD($\lambda$) into on-policy Sarsa($\lambda$), including next-action timing and terminal updates;
+* compare accumulating and replacing traces on repeated binary features;
+* identify the additional trace and weight corrections in the true-online Sarsa variant introduced in Section 12.7.
+
+---
+
+## Chapter 13: Policy Gradient Methods
+
+**Source:** Chapter 13, Sections 13.1-13.8, printed pp. 321-337 of the supplied Sutton and Barto PDF.
+
+[Chapter 10](#chapter-10-on-policy-control-with-approximation) learned action values and derived a policy from them. Here the policy itself is a differentiable function $\pi(a\mid s,\boldsymbol\theta)$, with parameters $\boldsymbol\theta\in\mathbb R^{d'}$. A value function $\hat v(s,\mathbf w)$ may help **train** the policy, but is not needed to select an action once the policy is learned.
+
+The organizing question is: **how can experience tell us which parameter changes improve long-term performance?** The policy-gradient theorem provides the direction; REINFORCE estimates it from complete returns; a baseline centers those returns; a critic replaces them with estimates for online learning. Eligibility traces and the average-reward setting then connect this chapter to Chapters 12 and 10.
+
+### 13.1 Policy Approximation and Its Advantages
+
+#### Learn action probabilities rather than action values
+
+For a finite action set, parameterize real-valued **preferences** $h(s,a,\boldsymbol\theta)$ and normalize them with softmax:
+
+$$
+\pi(a\mid s,\boldsymbol\theta)
+=\frac{\exp h(s,a,\boldsymbol\theta)}
+{\sum_b\exp h(s,b,\boldsymbol\theta)}.
+$$
+
+Preferences can be neural-network outputs or linear functions $h(s,a,\boldsymbol\theta)=\boldsymbol\theta^T\mathbf x(s,a)$. They are **not estimates of expected return**: only their differences matter for action probabilities. Finite preferences give positive probabilities; increasingly large preference differences can approach a deterministic policy without a separate $\varepsilon$ schedule.
+
+This representation has three important consequences:
+
+* A small parameter change changes action probabilities smoothly, unlike an $\varepsilon$-greedy policy whose preferred action can abruptly switch at a value tie.
+* The policy can learn specific stochastic action probabilities, not just choose a greedy action plus fixed exploration.
+* A policy can be simpler to represent than the complete action-value function, and its form can directly encode constraints or prior knowledge.
+
+These are advantages of a representation, not guarantees of easy optimization. Poor features still restrict what can be learned, and probabilities that become extremely small can make useful actions difficult to rediscover.
+
+#### Short corridor: why a stochastic policy can be best
+
+In Example 13.1, three nonterminal states lead to a goal, with reward $-1$ on every transition. The middle state's actions are reversed:
+
+| State | Action `left` | Action `right` |
+|:--|:--|:--|
+| $s_0$ (start) | Stay at $s_0$ | Move to $s_1$ |
+| $s_1$ | Move to $s_2$ | Move to $s_0$ |
+| $s_2$ | Move to $s_1$ | Reach the goal |
+
+The policy's features cannot distinguish the three states, so it must use the same probability $p=\pi(\text{right}\mid s)$ everywhere. Always choosing either action fails to reach the goal. This does not contradict the existence of deterministic optimal policies in fully observed finite MDPs: **the policy representation here cannot express the state-dependent deterministic solution**.
+
+Let $H_i$ be the expected remaining number of transitions from $s_i$. For $0<p<1$,
+
+$$
+\begin{aligned}
+H_0&=1+(1-p)H_0+pH_1,\\
+H_1&=1+pH_0+(1-p)H_2,\\
+H_2&=1+(1-p)H_1.
+\end{aligned}
+$$
+
+Solving these equations and using return $=-$episode length gives
+
+$$
+J(p)=-H_0=-\frac{4-2p}{p(1-p)},\qquad
+p_*=2-\sqrt2\approx0.586,
+\qquad J(p_*)=-(6+4\sqrt2)\approx-11.657.
+$$
+
+![Short-corridor return as a function of the shared right-action probability](../../../assets/Reinforcement_Learning_An_Introduction/ch13_short_corridor.png)
+
+*Book Example 13.1, printed p. 323: the best representable policy uses an intermediate right-action probability. With $\varepsilon=0.1$, the two strictly greedy-action choices give $p=0.95$ or $p=0.05$, with returns about $-44.21$ and $-82.11$, respectively.*
+
+The point is not that randomness is always desirable, but that learning the probability itself can matter. We next need a principled way to adjust that probability from sampled experience rather than solving these dynamics equations.
+
+### 13.2 The Policy Gradient Theorem
+
+#### The difficulty: actions also change future state visits
+
+For an episodic task with fixed start state $s_0$, define
+
+$$
+J(\boldsymbol\theta)=v_{\pi_\theta}(s_0)
+=\mathbb E_{\pi_\theta}[G_0],\qquad
+\boldsymbol\theta\leftarrow\boldsymbol\theta+
+\alpha\widehat{\nabla_{\boldsymbol\theta}J}.
+$$
+
+Here $G_t=\sum_{k=0}^{T-t-1}\gamma^kR_{t+k+1}$ is the return until terminal-state time $T$, with discount $0\le\gamma\le1$. The plus sign denotes **gradient ascent**. Assume a differentiable policy, environment dynamics/rewards independent of $\boldsymbol\theta$, and sufficient regularity to differentiate the expectations. In undiscounted episodes, policies must terminate with suitable finite expected returns and visit counts. A parameter-independent start distribution can replace a fixed start state.
+
+Changing $\boldsymbol\theta$ affects both action probabilities at a state and which states the agent later visits. The theorem does not ignore the second effect: it accounts for it without requiring us to differentiate the unknown environment's state distribution explicitly.
+
+#### Derivation by unrolling the value gradient
+
+Write $\pi=\pi_\theta$ and let all gradients in this subsection be with respect to $\boldsymbol\theta$. From the Bellman equations,
+
+$$
+\begin{aligned}
+v_\pi(s)&=\sum_a\pi(a\mid s)q_\pi(s,a),\\
+q_\pi(s,a)&=\sum_{s',r}p(s',r\mid s,a)
+\bigl[r+\gamma v_\pi(s')\bigr].
+\end{aligned}
+$$
+
+Differentiate the first equation, including the dependence of $q_\pi$ on the policy:
+
+$$
+\nabla v_\pi(s)
+=\underbrace{\sum_a q_\pi(s,a)\nabla\pi(a\mid s)}_{\mathbf g(s)}
++\gamma\sum_{s'}P_\pi(s'\mid s)\nabla v_\pi(s'),
+$$
+
+where $P_\pi(s'\mid s)=\sum_a\pi(a\mid s)p(s'\mid s,a)$. The second term carries all effects of changing later actions. Repeatedly substitute this equation into itself. With zero terminal value, the result at $s_0$ is
+
+$$
+\boxed{\nabla J(\boldsymbol\theta)
+=\sum_s d_\pi^\gamma(s)\sum_a q_\pi(s,a)\nabla\pi(a\mid s),}
+$$
+
+where the **unnormalized discounted visit count** is
+
+$$
+d_\pi^\gamma(s)=\sum_{t=0}^{\infty}\gamma^t
+\Pr_\pi(S_t=s,\ t<T\mid S_0=s_0).
+$$
+
+The occupancy still depends on the policy, but no $\nabla d_\pi^\gamma$ needs to be computed. Nor does the theorem say $\nabla q_\pi=0$: that term was expanded and absorbed into the occupancy-weighted expression.
+
+The book presents the proof with $\gamma=1$. Then $d_\pi^1(s)$ is its expected visit count $\eta(s)$, and the normalized on-policy distribution is $\mu_\pi(s)=\eta(s)/\sum_x\eta(x)$. Hence
+
+$$
+\nabla J
+=\mathbb E_\pi[T]\sum_s\mu_\pi(s)
+\sum_a q_\pi(s,a)\nabla\pi(a\mid s).
+$$
+
+This explains the book's proportionality sign: the missing positive factor is expected episode length. It can change with the policy; the statement is about the gradient direction at the current parameters, not a policy-independent normalization of the objective.
+
+The theorem is exact, but $q_\pi$ and the occupancy are unknown. Turning the sums into quantities sampled under the policy produces the first practical algorithm.
+
+### 13.3 REINFORCE: Monte Carlo Policy Gradient
+
+#### From an action sum to a sampled log-probability gradient
+
+For actions with positive probability,
+
+$$
+\sum_a q_\pi(s,a)\nabla\pi(a\mid s)
+=\sum_a\pi(a\mid s)q_\pi(s,a)
+\frac{\nabla\pi(a\mid s)}{\pi(a\mid s)}
+=\mathbb E_{A\sim\pi}\left[q_\pi(s,A)\nabla\log\pi(A\mid s)\right].
+$$
+
+The vector $\boldsymbol\psi(s,a)=\nabla_{\boldsymbol\theta}\log\pi(a\mid s,\boldsymbol\theta)$ is the **score**, called the *eligibility vector* in the book. It is the current log-probability gradient, not yet an eligibility trace accumulated over time.
+
+Because $\mathbb E_\pi[G_t\mid S_t,A_t]=q_\pi(S_t,A_t)$, a complete on-policy return can replace the unknown action value. Including the discounted visit weights gives the exact episodic identity
+
+$$
+\boxed{\nabla J(\boldsymbol\theta)=
+\mathbb E_\pi\left[\sum_{t=0}^{T-1}
+\gamma^tG_t\nabla\log\pi(A_t\mid S_t,\boldsymbol\theta)\right].}
+$$
+
+There are **two discount factors with different roles**: $G_t$ discounts rewards relative to time $t$, while the outer $\gamma^t$ weights that decision relative to the episode's start. For this start-state objective, dropping the outer factor when $\gamma<1$ generally changes the gradient estimator.
+
+The REINFORCE procedure is:
+
+1. Generate a full episode using the current policy.
+2. Compute returns backward: initialize $G=0$ and repeatedly set $G\leftarrow R_{t+1}+\gamma G$.
+3. Apply actor corrections $\alpha\gamma^tG_t\boldsymbol\psi(S_t,A_t)$ for the visited state-action pairs.
+
+For an **exact Monte Carlo gradient estimate at the policy that generated the episode**, evaluate all score vectors at that policy's fixed parameters, sum the corrections, and then apply them. The book gives sequential end-of-episode parameter updates; re-evaluating scores as those updates change the policy is an incremental implementation, not exactly the same frozen-policy sample gradient at a finite step size. The Python example below uses the frozen-parameter convention.
+
+Using $G_t$ rather than the entire episode return for every action avoids attributing already received rewards to later decisions. A positive return pushes toward increasing the sampled action's probability; a negative return pushes the other way. In the corridor all returns are negative, so this raw signal is poorly centered, motivating a baseline.
+
+#### Softmax score: what actually changes?
+
+For linear preferences, differentiating log-softmax gives
+
+$$
+\log\pi(a\mid s)=\boldsymbol\theta^T\mathbf x(s,a)
+-\log\sum_b e^{\boldsymbol\theta^T\mathbf x(s,b)},
+\qquad
+\boxed{\boldsymbol\psi(s,a)=\mathbf x(s,a)
+-\sum_b\pi(b\mid s)\mathbf x(s,b).}
+$$
+
+The update increases the selected action's preference relative to the policy's expected features. For separate logits, the score is the one-hot selected-action vector minus the probability vector. With $\pi=(0.6,0.4)$ and the first action selected, it is $(0.4,-0.4)$.
+
+REINFORCE requires no value model and gives an unbiased episode gradient under the conditions above. Its drawback is the variance of complete sampled returns and the need to wait for termination. Exact gradients support local ascent; stochastic samples, finite step sizes, and nonconvex parameterizations do not guarantee improvement on every episode or convergence to a global optimum.
+
+### 13.4 REINFORCE with Baseline
+
+#### Remove predictable return without removing the gradient
+
+Subtract a baseline $b(s)$ that is independent of the sampled action conditional on the state. Its expected score contribution vanishes:
+
+$$
+\begin{aligned}
+\mathbb E_{A\sim\pi}[b(s)\boldsymbol\psi(s,A)]
+&=b(s)\sum_a\pi(a\mid s)\nabla\log\pi(a\mid s)\\
+&=b(s)\nabla\sum_a\pi(a\mid s)=\mathbf0.
+\end{aligned}
+$$
+
+Therefore $G_t$ can be replaced by $G_t-b(S_t)$ without changing the expected policy gradient. The baseline need not be accurate for this cancellation, but its quality affects variance; an arbitrary poor baseline need not reduce it. A natural choice is $b(s)=\hat v(s,\mathbf w)$, an estimate of the typical return from that state.
+
+Define the advantage $A_\pi(s,a)=q_\pi(s,a)-v_\pi(s)$. With an accurate state-value baseline, $G_t-\hat v(S_t,\mathbf w)$ is a sampled advantage: **was this outcome better or worse than expected here?** In the corridor, an outcome of $-10$ relative to a baseline of $-15$ gives $+5$, allowing reinforcement of a relatively good choice despite negative raw rewards.
+
+For the book's learned Monte Carlo baseline, compute the error before either update:
+
+$$
+\begin{aligned}
+\Delta_t&=G_t-\hat v(S_t,\mathbf w),\\
+\mathbf w&\leftarrow\mathbf w+
+\alpha^w\Delta_t\nabla_{\mathbf w}\hat v(S_t,\mathbf w),\\
+\boldsymbol\theta&\leftarrow\boldsymbol\theta+
+\alpha^\theta\gamma^t\Delta_t\boldsymbol\psi(S_t,A_t).
+\end{aligned}
+$$
+
+The actor and baseline have separate parameters and step sizes. The value update fits the return; the actor update uses the already computed residual to change action probabilities. In the corridor experiment, a single scalar baseline $\hat v(s,w)=w$ substantially speeds learning.
+
+**Implementation conditions:** treat the return-minus-baseline as a fixed multiplier in the actor gradient; do not differentiate through it. The simple unbiasedness argument also assumes the baseline is not fitted to the current sampled action/return before evaluating that sample's actor correction. A frozen baseline or a pre-action estimate satisfies the intended action-independence condition; reusing data to fit a baseline can require additional care.
+
+Despite learning both a policy and a value function, this is **not actor-critic in the book's narrower terminology**: the value function only centers a complete return. It does not yet estimate the future consequence of an action. That additional use is the next step.
+
+### 13.5 Actor-Critic Methods
+
+#### Replace a complete return by a bootstrapped assessment
+
+To update after one transition, replace $G_t$ with $R_{t+1}+\gamma\hat v(S_{t+1},\mathbf w)$. Subtracting the current-state baseline produces the familiar TD error:
+
+$$
+\delta_t=R_{t+1}+\gamma\hat v(S_{t+1},\mathbf w_t)
+-\hat v(S_t,\mathbf w_t).
+$$
+
+The **critic** now assesses an action through the value of its successor; the **actor** changes the action distribution using that assessment. For episodic one-step actor-critic,
+
+$$
+\begin{aligned}
+\mathbf w_{t+1}&=\mathbf w_t+
+\alpha^w\delta_t\nabla\hat v(S_t,\mathbf w_t),\\
+\boldsymbol\theta_{t+1}&=\boldsymbol\theta_t+
+\alpha^\theta I_t\delta_t\boldsymbol\psi(S_t,A_t),
+\qquad I_t=\gamma^t.
+\end{aligned}
+$$
+
+Start each episode with $I=1$. Sample $A\sim\pi(\cdot\mid S,\boldsymbol\theta)$, execute it, compute both value predictions, the TD error, and the gradients with **pre-update parameters**, and then update both networks. Finally set $I\leftarrow\gamma I$ and advance the state. At a terminal successor, set its value to zero but retain the final updates. Unlike Sarsa, this state-value critic needs no sampled next action in its target.
+
+For a small example, let $R=1$, $\gamma=0.9$, $\hat v(S)=2$, and $\hat v(S')=3$. Then $\delta=1.7$. If $I=1$, the selected action has softmax score $(0.4,-0.4)$, and $\alpha^\theta=0.1$, the actor correction is $(0.068,-0.068)$. A one-hot critic feature with $\alpha^w=0.1$ raises the current value from $2$ to $2.17$.
+
+#### Why a critic can introduce bias while a baseline does not
+
+If the critic equals $v_\pi$, then
+
+$$
+\mathbb E_\pi[\delta_t\mid S_t=s,A_t=a]
+=q_\pi(s,a)-v_\pi(s)=A_\pi(s,a).
+$$
+
+With critic error $e(s)=\hat v(s)-v_\pi(s)$, instead
+
+$$
+\mathbb E[\delta_t\mid s,a]
+=A_\pi(s,a)+\gamma\mathbb E[e(S_{t+1})\mid s,a]-e(s).
+$$
+
+The current-state term $-e(s)$ is a baseline and cancels after averaging against the policy score. The **successor error** generally depends on which action led there, so it need not cancel. This is the source of actor-gradient bias from an approximate critic. It can occur even if that critic was trained using Monte Carlo targets; conversely, using an exact value function in a one-step target does not itself cause bias.
+
+The tradeoff is therefore lower-delay, often lower-variance updates versus possible assessment bias. Separate actor/critic step sizes let the critic track a moving policy; the theorem alone does not guarantee stability for arbitrary choices.
+
+#### Longer targets and separate eligibility traces
+
+Replace the one-step target by $G_{t:t+n}$ or $G_t^\lambda$ to vary the amount of sampled reward versus bootstrapping. The backward view uses two traces, extending [Section 12.2](#122-tdlambda): one for value gradients, one for policy scores. The book's episodic algorithm is
+
+$$
+\begin{aligned}
+\mathbf z_t^w&=\gamma\lambda^w\mathbf z_{t-1}^w
++\nabla\hat v(S_t,\mathbf w_t),\\
+\mathbf z_t^\theta&=\gamma\lambda^\theta\mathbf z_{t-1}^\theta
++I_t\boldsymbol\psi(S_t,A_t),\\
+\mathbf w_{t+1}&=\mathbf w_t+\alpha^w\delta_t\mathbf z_t^w,\\
+\boldsymbol\theta_{t+1}&=\boldsymbol\theta_t+
+\alpha^\theta\delta_t\mathbf z_t^\theta.
+\end{aligned}
+$$
+
+Initialize both traces to zero and $I_0=1$ each episode, and update $I_{t+1}=\gamma I_t$. The traces may have different dimensions and decay parameters $\lambda^w,\lambda^\theta$. They use the same pre-update TD error. With both decay parameters zero, this reduces to one-step actor-critic. With nonzero traces, a new error also changes parameters responsible for earlier values and action choices; the finite-step forward/backward caveats from Chapter 12 still matter.
+
+### 13.6 Policy Gradient for Continuing Problems
+
+#### Change the objective, not just the episode loop
+
+For a system that runs indefinitely, use the [average-reward objective](#103-average-reward-a-new-problem-setting-for-continuing-tasks):
+
+$$
+J(\boldsymbol\theta)=r(\pi_\theta)
+=\lim_{h\to\infty}\frac1h
+\mathbb E_{\pi_\theta}\left[\sum_{t=1}^{h}R_t\right].
+$$
+
+Assume a stationary distribution $\mu_\pi$ independent of the start state exists, with suitable ergodicity and differentiability conditions. Values are now **differential values**, measuring expected excess rewards relative to $r(\pi)$, not discounted totals. The differential Bellman equation is
+
+$$
+q_\pi(s,a)=\mathbb E\left[R_{t+1}-r(\pi)+v_\pi(S_{t+1})
+\mid S_t=s,A_t=a\right].
+$$
+
+As explained in Chapter 10, differential values have a common-offset ambiguity, and infinite centered returns need appropriate limiting interpretations. The reward-rate objective itself is a scalar.
+
+#### Why the theorem still holds
+
+Differentiating the differential Bellman relation yields, for each state,
+
+$$
+\nabla v_\pi(s)=\mathbf g(s)-\nabla r(\pi)
++\sum_{s'}P_\pi(s'\mid s)\nabla v_\pi(s'),
+\qquad \mathbf g(s)=\sum_a q_\pi(s,a)\nabla\pi(a\mid s).
+$$
+
+Average this identity over $s\sim\mu_\pi$. Stationarity, $\sum_s\mu_\pi(s)P_\pi(s'\mid s)=\mu_\pi(s')$, makes the two value-gradient sums cancel. Therefore
+
+$$
+\boxed{\nabla J(\boldsymbol\theta)
+=\sum_s\mu_\pi(s)\sum_a q_\pi(s,a)\nabla\pi(a\mid s)
+=\mathbb E_{\mu_\pi,\pi}[q_\pi(S,A)\boldsymbol\psi(S,A)].}
+$$
+
+Unlike the book's normalized episodic expression, this is an **equality**, with no expected-episode-length multiplier. The value-offset ambiguity is harmless: adding a common constant contributes zero through the expected score, just like a baseline.
+
+#### Continuing actor-critic with traces
+
+Maintain a reward-rate estimate $\bar R$, differential value parameters $\mathbf w$, and actor parameters $\boldsymbol\theta$. On each transition, compute
+
+$$
+\delta=R-\bar R+\hat v(S',\mathbf w)-\hat v(S,\mathbf w).
+$$
+
+Using this same pre-update error, the book's algorithm performs
+
+$$
+\begin{aligned}
+\bar R&\leftarrow\bar R+\alpha^{\bar R}\delta,\\
+\mathbf z^w&\leftarrow\lambda^w\mathbf z^w+\nabla\hat v(S,\mathbf w),\\
+\mathbf z^\theta&\leftarrow\lambda^\theta\mathbf z^\theta+\boldsymbol\psi(S,A),\\
+\mathbf w&\leftarrow\mathbf w+\alpha^w\delta\mathbf z^w,\\
+\boldsymbol\theta&\leftarrow\boldsymbol\theta+\alpha^\theta\delta\mathbf z^\theta.
+\end{aligned}
+$$
+
+Initialize traces once, then continue interacting; there are no episode resets or $I_t=\gamma^t$ factors. Decay is by $\lambda$ alone, and the reward-rate subtraction is essential. Merely setting $\gamma=1$ in discounted actor-critic without centering rewards does not implement this objective. In practice, taking $\lambda<1$ provides fading memory; $\lambda=1$ removes that decay and needs care in a continuing task.
+
+### 13.7 Policy Parameterization for Continuous Actions
+
+#### Parameterize a density instead of enumerating actions
+
+For a real-valued action, evaluating a softmax over every possible action is impossible. Instead output the parameters of a distribution, such as
+
+$$
+\pi(a\mid s,\boldsymbol\theta)
+=\frac{1}{\sigma(s,\boldsymbol\theta)\sqrt{2\pi}}
+\exp\left[-\frac{(a-\mu(s,\boldsymbol\theta))^2}
+{2\sigma(s,\boldsymbol\theta)^2}\right].
+$$
+
+Here $\pi(a\mid s,\boldsymbol\theta)$ is a **density**, not the probability of one exact real-valued action; interval probabilities are integrals, and a density may exceed one. The Gaussian mean $\mu(s,\boldsymbol\theta)$ is unrelated to the stationary state distribution $\mu_\pi(s)$ above.
+
+The book uses separate parameter blocks and features:
+
+$$
+\mu(s,\boldsymbol\theta)=\boldsymbol\theta_\mu^T\mathbf x_\mu(s),
+\qquad
+\log\sigma(s,\boldsymbol\theta)=\boldsymbol\theta_\sigma^T\mathbf x_\sigma(s).
+$$
+
+Exponentiating the second output ensures $\sigma>0$. Sampling $A=\mu+\sigma Z$, with $Z\sim\mathcal N(0,1)$, then supplies a real-valued action without an argmax search.
+
+#### Derive the score for mean and spread
+
+Holding the sampled action fixed, differentiate
+
+$$
+\log\pi(a\mid s)=-\log\sigma-\tfrac12\log(2\pi)
+-\frac{(a-\mu)^2}{2\sigma^2}.
+$$
+
+The two score components are
+
+$$
+\boxed{\begin{aligned}
+\nabla_{\boldsymbol\theta_\mu}\log\pi(a\mid s)
+&=\frac{a-\mu}{\sigma^2}\mathbf x_\mu(s),\\
+\nabla_{\boldsymbol\theta_\sigma}\log\pi(a\mid s)
+&=\left[\frac{(a-\mu)^2}{\sigma^2}-1\right]\mathbf x_\sigma(s).
+\end{aligned}}
+$$
+
+Multiplying these scores by a return, centered return, or TD error uses exactly the earlier algorithms. With positive advantage, the mean moves toward the sampled action. The log-standard-deviation increases if the action is farther than one standard deviation from the mean, and decreases if it is closer; negative advantage reverses those directions.
+
+For example, $\mu=0$, $\sigma=2$, and $a=3$ give scalar scores $0.75$ for the mean and $1.25$ for log-standard-deviation. With advantage $2$, unit features, and step size $0.1$, the corresponding parameter increments are $0.15$ and $0.25$.
+
+**Implementation boundary:** the score estimator treats the realized action as fixed when differentiating log-probability. Do not accidentally differentiate through the sampling expression $a=\mu+\sigma Z$ in this estimator. Likewise, clipping a Gaussian sample and then treating the clipped result as an ordinary Gaussian sample changes the distribution; the book's example is an unbounded scalar action policy. Bounded actions require an explicitly appropriate distribution or transformation, beyond this chapter's example.
+
+For comparison, the two-action Bernoulli-logistic policy in Exercise 13.5 has $p(s)=\operatorname{sigmoid}(\boldsymbol\theta^T\mathbf x(s))$ and score $(a-p(s))\mathbf x(s)$ for $a\in\{0,1\}$. In both discrete and continuous cases, the policy-specific part of the learning rule is the score vector.
+
+### 13.8 Summary
+
+The key progression is **parameterized policy -> exact performance gradient -> sampled return -> centered return -> critic-based assessment**. Changing the assessment changes variance, delay, and possibly bias; it does not change the basic actor update of multiplying a learning signal by a log-policy gradient.
+
+| Method | Actor signal | Value function's role | Timing and main tradeoff |
+|:--|:--|:--|:--|
+| REINFORCE | $G_t$ | None | Wait for termination; unbiased episode estimator but often high variance |
+| REINFORCE with baseline | $G_t-\hat v(S_t)$ | Center the return | Still Monte Carlo; valid action-independent baseline preserves the expected gradient |
+| One-step actor-critic | $R+\gamma\hat v(S')-\hat v(S)$ | Assess the successor and center the target | Online; approximate successor values can bias the actor signal |
+| Actor-critic with traces | TD error applied through actor and critic traces | Multi-step credit assignment | Online; tune trace lengths and both learning rates |
+| Continuing actor-critic | $R-\bar R+\hat v(S')-\hat v(S)$ | Differential values plus reward-rate tracking | Optimizes average reward; no episode-start discount factor |
+
+For discounted episodic actor updates, include the outer $\gamma^t$ directly or through the book's actor trace convention. Gaussian policies change how actions and scores are computed, not which row's learning signal is used. None of these results promises globally optimal policies with arbitrary function approximation.
+
+### Chapter 13 Python Examples
+
+Run this standard-library block with Python 3. It checks a softmax score, a frozen-parameter episodic REINFORCE-with-baseline update, and a Gaussian score. The episode must have been generated by the supplied policy; this is an update demonstration, not a full environment trainer.
+
+```python
+from math import exp, isclose, log, pi, sqrt
+
+
+def dot(a, b):
+    if len(a) != len(b):
+        raise ValueError("vector dimensions must match")
+    return sum(x * y for x, y in zip(a, b))
+
+
+def softmax_score(theta, action_features, action):
+    if not 0 <= action < len(action_features):
+        raise ValueError("invalid action index")
+    logits = [dot(theta, x) for x in action_features]
+    unnormalized = [exp(h - max(logits)) for h in logits]
+    probs = [u / sum(unnormalized) for u in unnormalized]
+    score = [action_features[action][i]
+             - sum(p * x[i] for p, x in zip(probs, action_features))
+             for i in range(len(theta))]
+    return probs, score
+
+
+def returns(rewards, gamma):
+    result, g = [0.0] * len(rewards), 0.0
+    for t in range(len(rewards) - 1, -1, -1):
+        g = rewards[t] + gamma * g
+        result[t] = g
+    return result
+
+
+def reinforce_episode(theta, w, policy_features, value_features,
+                      actions, rewards, gamma, actor_lr, value_lr):
+    length = len(rewards)
+    if not (len(actions) == len(policy_features) == len(value_features) == length):
+        raise ValueError("one action and feature set per transition is required")
+    actor_grad, value_grad = [0.0] * len(theta), [0.0] * len(w)
+    for t, g in enumerate(returns(rewards, gamma)):
+        _, score = softmax_score(theta, policy_features[t], actions[t])
+        advantage = g - dot(w, value_features[t])
+        for i in range(len(theta)):
+            actor_grad[i] += gamma ** t * advantage * score[i]
+        for i in range(len(w)):
+            value_grad[i] += advantage * value_features[t][i]
+    # Apply only after computing all scores and baselines with frozen parameters.
+    return ([p + actor_lr * g for p, g in zip(theta, actor_grad)],
+            [p + value_lr * g for p, g in zip(w, value_grad)])
+
+
+def gaussian_log_prob(action, mean, log_std):
+    variance = exp(2.0 * log_std)
+    return -log_std - 0.5 * log(2.0 * pi) - (action - mean) ** 2 / (2.0 * variance)
+
+
+def gaussian_score(action, mean, log_std):
+    variance = exp(2.0 * log_std)
+    return ((action - mean) / variance,
+            (action - mean) ** 2 / variance - 1.0)
+
+
+if __name__ == "__main__":
+    action_features = [[1.0, 0.0], [0.0, 1.0]]
+    probs, score = softmax_score([log(0.6), log(0.4)], action_features, 0)
+    assert isclose(probs[0], 0.6)
+    assert all(isclose(x, y) for x, y in zip(score, [0.4, -0.4]))
+
+    # The expected score is zero, so a fixed state baseline cancels.
+    scores = [softmax_score([log(0.6), log(0.4)], action_features, a)[1]
+              for a in range(2)]
+    for i in range(2):
+        assert isclose(sum(p * s[i] for p, s in zip(probs, scores)), 0.0,
+                       abs_tol=1e-12)
+
+    theta, w = reinforce_episode(
+        theta=[0.0, 0.0], w=[0.0, 0.0],
+        policy_features=[action_features, action_features],
+        value_features=[[1.0, 0.0], [0.0, 1.0]],
+        actions=[0, 1], rewards=[1.0, 2.0],
+        gamma=0.5, actor_lr=0.1, value_lr=0.1)
+    assert returns([1.0, 2.0], 0.5) == [2.0, 2.0]
+    assert all(isclose(x, y) for x, y in zip(theta, [0.05, -0.05]))
+    assert w == [0.2, 0.2]
+
+    action, mean, log_std = 3.0, 0.0, log(2.0)
+    analytic = gaussian_score(action, mean, log_std)
+    step = 1e-6
+    numerical = (
+        (gaussian_log_prob(action, mean + step, log_std)
+         - gaussian_log_prob(action, mean - step, log_std)) / (2 * step),
+        (gaussian_log_prob(action, mean, log_std + step)
+         - gaussian_log_prob(action, mean, log_std - step)) / (2 * step))
+    assert all(isclose(a, b, rel_tol=1e-7) for a, b in zip(analytic, numerical))
+    assert all(isclose(a, b) for a, b in zip(analytic, [0.75, 1.25]))
+
+    p = 2.0 - sqrt(2.0)
+    corridor_value = -(4.0 - 2.0 * p) / (p * (1.0 - p))
+    assert isclose(corridor_value, -(6.0 + 4.0 * sqrt(2.0)))
+    print("All Chapter 13 policy-gradient checks passed.")
+```
+
+In an automatic-differentiation implementation, gradient descent on the actor surrogate loss $-\sum_t\gamma^t\operatorname{stopgrad}(G_t-\hat v(S_t))\log\pi(A_t\mid S_t)$ produces the same ascent direction. Treat sampled actions and the advantage estimates as fixed for this score-function estimator; fit the baseline through its separate value loss.
+
+### Chapter 13 Common Confusions
+
+| Confusion | Correction |
+|:--|:--|
+| Policy preferences estimate action values. | Preferences determine relative probabilities and need not have a return scale. |
+| The theorem assumes state occupancy does not change with the policy. | It accounts for occupancy effects without requiring its derivative explicitly. |
+| A score vector is an eligibility trace. | The score is a current log-policy gradient; a trace accumulates past gradients or scores. |
+| Returns already contain all necessary discount factors. | The discounted start-state gradient also has an outer $\gamma^t$. |
+| Any learned baseline biases the gradient. | A valid action-independent baseline cancels in expectation, even if inaccurate. |
+| REINFORCE with a value baseline is automatically actor-critic. | In the book's terminology, the critic must also assess actions through estimated future values. |
+| Bootstrapping always biases the actor. | With the exact $v_\pi$, the one-step TD error has the correct conditional advantage; approximation error can cause bias. |
+| An arbitrary action-dependent baseline also cancels. | The simple cancellation proof requires action independence; other constructions need additional corrections. |
+| Gaussian $\pi(a\mid s)$ must be at most one. | It is a density; only its integral is a probability. |
+| Following a policy gradient guarantees a global optimum. | It supports local optimization under assumptions, not universal global convergence or per-update improvement. |
+
+### Chapter 13 Formula Sheet
+
+All policy gradients below are with respect to $\boldsymbol\theta$; value gradients are with respect to $\mathbf w$.
+
+| Concept | Formula |
+|:--|:--|
+| Episodic objective | $J(\boldsymbol\theta)=v_{\pi_\theta}(s_0)$ |
+| Episodic policy gradient | $\nabla J=\sum_s d_\pi^\gamma(s)\sum_a q_\pi(s,a)\nabla\pi(a\mid s)$ |
+| Score | $\boldsymbol\psi(s,a)=\nabla\log\pi(a\mid s)=\nabla\pi(a\mid s)/\pi(a\mid s)$ |
+| Linear-softmax score | $\mathbf x(s,a)-\sum_b\pi(b\mid s)\mathbf x(s,b)$ |
+| REINFORCE correction | $\alpha^\theta\gamma^tG_t\boldsymbol\psi(S_t,A_t)$ |
+| Baseline correction | $\alpha^\theta\gamma^t[G_t-b(S_t)]\boldsymbol\psi(S_t,A_t)$ |
+| Episodic actor-critic error | $\delta=R+\gamma\hat v(S')-\hat v(S)$; terminal successor value zero |
+| Continuing objective and gradient | $J=r(\pi)$, $\nabla J=\mathbb E_{\mu_\pi,\pi}[q_\pi(S,A)\boldsymbol\psi(S,A)]$ with differential $q_\pi$ |
+| Continuing actor-critic error | $\delta=R-\bar R+\hat v(S')-\hat v(S)$ |
+| Gaussian mean score | $(a-\mu)\mathbf x_\mu(s)/\sigma^2$ |
+| Gaussian log-standard-deviation score | $[(a-\mu)^2/\sigma^2-1]\mathbf x_\sigma(s)$ |
+
+### Chapter 13 Understanding Checklist
+
+After this chapter, you should be able to:
+
+* distinguish policy parameters, action preferences, value parameters, and policy scores;
+* explain why the aliased short corridor needs a stochastic policy and reproduce its optimal probability;
+* derive the policy-gradient theorem by unrolling the value gradient, including the role of occupancy;
+* distinguish normalized episodic visitation, discounted visit counts, and stationary continuing distributions;
+* derive REINFORCE from the action sum and explain both discount factors in episodic updates;
+* compute a softmax score and state when an episode gradient estimate is unbiased;
+* prove baseline cancellation and explain why a baseline changes variance rather than the expected gradient;
+* distinguish a baseline-only value model from a bootstrapped critic and locate the source of critic-induced bias;
+* implement one-step and trace-based actor-critic with pre-update errors, terminal handling, and separate learning rates;
+* derive the average-reward theorem's stationary cancellation and specify the continuing update rules;
+* derive Gaussian mean and log-standard-deviation scores while holding the sampled action fixed;
+* separate local gradient guarantees from global-optimality and finite-step stability claims.
