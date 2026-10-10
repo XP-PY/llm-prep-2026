@@ -31,6 +31,7 @@ Keep terminology consistent with neighboring documents, especially for alignment
   - robot policies: `docs/Model_Zoo/Robotics/Policies/`
   - vision models: `docs/Model_Zoo/Vision_Models/`
   - vision-language models: `docs/Model_Zoo/Vision_Language_Models/`
+  - reinforcement learning algorithms: `docs/Model_Zoo/Reinforcement_Learning/`
 - Match the structure, terminology, and level of detail of neighboring notes in the destination directory.
 - Begin with a brief description that identifies the model or method and its main contribution.
 - Explain the central method precisely. Use mathematical notation when it makes the architecture, objective, training process, or inference procedure clearer.

@@ -49,7 +49,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| Model Zoo | Language models, vision models, vision-language models, and robotics systems | DeepSeek, Gemma, DINOv2, DINOv3, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, and real-time policy inference |
+| Model Zoo | Language models, vision models, vision-language models, robotics systems, and RL algorithms | DeepSeek, Gemma, DINOv2, DINOv3, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, real-time policy inference, PPO, and SAC |
 | Book Notes | Chapter-by-chapter foundations with compact definitions, equations, and examples | Modern Robotics; Reinforcement Learning: An Introduction |
 
 ## 1. Foundations
@@ -84,6 +84,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Protocol layer: [Model Context Protocol (MCP)](./docs/Agent_Systems/MCP_Protocol.md)
 
 ## 6. Model Zoo
+- Reinforcement learning algorithms: [PPO](./docs/Model_Zoo/Reinforcement_Learning/PPO.md), [SAC](./docs/Model_Zoo/Reinforcement_Learning/SAC.md)
 - Language models: [DeepSeek-V2](./docs/Model_Zoo/Language_Models/DeepSeek_V2.md), [DeepSeek-V3](./docs/Model_Zoo/Language_Models/DeepSeek_V3.md), [DeepSeek-V3.2](./docs/Model_Zoo/Language_Models/DeepSeek_V32.md), [DeepSeek-R1](./docs/Model_Zoo/Language_Models/DeepSeek_R1.md)
 - Vision models: [DINOv2](./docs/Model_Zoo/Vision_Models/DINOv2.md), [DINOv3](./docs/Model_Zoo/Vision_Models/DINOv3.md)
 - Vision-language models: [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [PaliGemma](./docs/Model_Zoo/Vision_Language_Models/PaliGemma.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
@@ -145,6 +146,9 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |   |-- DeepSeek_V2.md
     |   |   |-- DeepSeek_V3.md
     |   |   `-- DeepSeek_V32.md
+    |   |-- Reinforcement_Learning/
+    |   |   |-- PPO.md
+    |   |   `-- SAC.md
     |   |-- Robotics/
     |   |   |-- Datasets/
     |   |   |   |-- LIBERO.md

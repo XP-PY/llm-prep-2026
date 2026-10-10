@@ -22,6 +22,30 @@
 
 ---
 
+## Model Comparison: The Six Questions
+
+Read each row from left to right: inputs determine the required representation, the backbone connects them to an action space, and the loss/data explain how the inference procedure is learned. **CE** = cross-entropy; **FM** = flow matching; **EE** = end effector; **OXE** = Open X-Embodiment. For diffusion/FM models, the action generator additionally receives the current noisy chunk and its noise/flow time.
+
+**Scope:** ACT and the original Diffusion Policy are visuomotor precursors without language conditioning. FAST is an action tokenizer, so its row uses **π0-FAST** as the policy example. RDT means **RDT-1B**; GR00T means **GR00T N1**, following the repository note's v2 paper. Other rows describe the original named methods, not later variants such as OpenVLA-OFT. Listed horizons and sampling steps are reported configurations, not universal requirements.
+
+| Model / method | 1. Input? | 2. Backbone? | 3. Action representation? | 4. Training loss? | 5. Training data? | 6. Inference procedure? |
+| :-- | :-- | :-- | :-- | :-- | :-- | :-- |
+| **[ACT](../../docs/Model_Zoo/Robotics/Policies/ACT.md)** · [paper](https://arxiv.org/abs/2304.13705) | Four RGB views + current joint positions; no language. The training-only CVAE encoder also sees the demonstrated chunk. | ResNet-18 vision encoders + Transformer encoder/decoder policy; separate CVAE posterior encoder. | Continuous target joint-position chunks, including grippers; ALOHA: 14 dimensions, typically 100 actions. | L1 action reconstruction + weighted KL to a standard Gaussian prior. | Task-specific ALOHA teleoperation: typically 50 demonstrations per real task, 100 for Thread Velcro; separate simulation demonstrations. | Discard the posterior encoder, set $z=0$, predict a chunk; repeatedly query and temporally ensemble predictions for the same execution timestep. |
+| **[Diffusion Policy](../../docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md)** · [paper](https://arxiv.org/abs/2303.04137) | Recent RGB observations + robot state, or low-dimensional observations; no language in the original method. | ResNet-18 for visual observations + conditional temporal 1D U-Net or diffusion Transformer. | Continuous action chunks; position/velocity and joint/EE representation depend on the task. | Conditional denoising MSE, commonly predicting added Gaussian noise. | Expert demonstrations for individual benchmarks: Robomimic, Push-T, Block Pushing, Franka Kitchen, and real manipulation tasks; no shared web-scale VLA pretraining recipe. | Encode observations once, iteratively denoise an entire chunk from Gaussian noise; execute a prefix and replan with fresh observations. |
+| **[RT-1](../../docs/Model_Zoo/Robotics/Policies/RT_1.md)** · [paper](https://arxiv.org/abs/2212.06817) | Six-frame RGB history + language instruction. | USE language embedding → FiLM-conditioned EfficientNet-B3 → TokenLearner → 8-layer Transformer. | One control step: 7 arm/gripper dimensions, 3 base dimensions, and a mode/termination variable; continuous dimensions use 256 bins. | Per-dimension categorical CE on demonstrated actions. | About 130k demonstrations, 13 robots, 744 instructions, collected over 17 months. | Predict action dimensions without autoregressive action-token conditioning, decode bins, execute one step, and refresh the image history; about 3 Hz control. |
+| **[RT-2](../../docs/Model_Zoo/Robotics/Policies/RT_2.md)** · [paper](https://arxiv.org/abs/2307.15818) | Current RGB image(s) + language instruction. | Pretrained PaLI-X or PaLM-E VLM; reuses its token-generation interface. | One action encoded as discrete tokens: termination, EE translation/rotation, and gripper; 256-bin continuous dimensions. | Next-token CE on robot action strings and web vision-language outputs during co-fine-tuning. | RT-1 robot trajectories mixed with the original VLM's web vision-language data, following VLM pretraining. | Autoregressively decode valid action tokens, convert to controls, execute, and observe again. |
+| **[Octo](../../docs/Model_Zoo/Robotics/Policies/Octo.md)** · [paper](https://arxiv.org/abs/2405.12213) | Short RGB history, typically two frames, with available camera masks; task specified by language or a goal image. | Image patch tokenizers + frozen T5-base language encoder + block-masked Transformer with readout tokens + small MLP diffusion head. | Continuous action chunks; pretraining standardizes delta EE motion + gripper. New action/state interfaces can be added during adaptation. | DDPM-style noise-prediction MSE on action chunks. | About 800k trajectories from 25 curated OXE datasets; target-robot demonstrations for fine-tuning. | Compute readout features, denoise a chunk with the lightweight action head (20 steps in the released setup), execute actions, and replan. |
+| **[OpenVLA](../../docs/Model_Zoo/Robotics/Policies/OpenVLA.md)** · [paper](https://arxiv.org/abs/2406.09246) | One RGB image + language instruction in the original model. | Prismatic VLM: fused DINOv2 + SigLIP visual features, MLP projector, Llama 2 7B. | One 7D action: delta EE translation/rotation + gripper; one token per dimension, 256 bins using 1st–99th percentile bounds. | Next-token CE on action outputs. | Pretrained Prismatic initialization; robot training on a curated 970k-episode OXE mixture; target demonstrations for adaptation. | Autoregressively produce seven action tokens, map bins back to continuous values, undo normalization, execute one step, and repeat. |
+| **[π0](../../docs/Model_Zoo/Robotics/Policies/Pi_0.md)** · [paper](https://arxiv.org/abs/2410.24164) | Two or three RGB views, instruction/subtask, and proprioceptive state. | PaliGemma (SigLIP + Gemma) + roughly 300M action expert; the two experts interact through layerwise attention. | Continuous 50-action chunks; embodiment-specific controls, padded to 18 dimensions in the paper. | Conditional FM velocity MSE; robot pre-training and task post-training use the same action objective. | About 10k hours of PI robot data across 7 configurations, mixed with OXE, Bridge V2, and DROID; curated task demonstrations for post-training. | Cache observation features; initialize a noisy chunk and perform 10 Euler updates; execute a prefix, then reobserve. No internal textual subtask generation in original π0. |
+| **[FAST / π0-FAST](../../docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md)** · [paper](https://arxiv.org/abs/2501.09747) | Policy: RGB views + instruction + discretized proprioceptive state. Tokenizer: continuous action chunk. | π0-FAST uses the PaliGemma VLM's autoregressive decoder; no separate flow action expert. FAST itself is normalization + DCT + quantization + BPE. | Variable-length token sequence encoding a roughly one-second continuous action chunk. | Policy: next-token CE on FAST tokens. Tokenizer: fit BPE merge rules to quantized coefficient sequences. | FAST+ tokenizer: about 1M real action chunks from multiple robots. Policy experiments: DROID/task data and the generalist π0 robot mixture; tokenizer and policy training are distinct. | Generate FAST tokens autoregressively; undo BPE, coefficient quantization, DCT, and normalization to recover a chunk; execute and replan. |
+| **[π0.5](../../docs/Model_Zoo/Robotics/Policies/Pi_0_5.md)** · [paper](https://arxiv.org/abs/2504.16054) | RGB views, overall instruction, and robot state; the low-level policy is conditioned on a predicted semantic subtask. | PaliGemma-based VLM + approximately 300M flow action expert; shared model supports semantic text and continuous control. | Training uses FAST tokens and, in post-training, continuous actions; deployment uses 50-action continuous chunks plus textual subtask outputs. | Pre-training: CE on FAST/text/grounding targets. Post-training: continued token CE + FM on action-labeled examples. | Mobile manipulation in about 100 homes, other home robots, cross-embodiment data including OXE, subtask/box labels, and web VLM data; post-training adds verbal subtask demonstrations and emphasizes successful mobile behavior. | Generate a subtask autoregressively, then condition the action expert on it and perform 10 flow updates. Execute continuous actions; refresh semantic planning less often than low-level control. |
+| **[SmolVLA](../../docs/Model_Zoo/Robotics/Policies/SmolVLA.md)** · [paper](https://arxiv.org/html/2506.01844v1) | RGB views + language + projected robot state. | Truncated SmolVLM2 (SigLIP + SmolLM2) + action expert with alternating cross-attention and causal self-attention; about 450M total parameters. | Continuous 50-action chunks in the target robot's action space. | FM velocity MSE; the reported recipe freezes the VLM and trains the action expert. | Community pretraining: 481 LeRobot datasets, 22.9k episodes, 10.6M frames; subsequent task-specific fine-tuning. | Encode context, refine the chunk with 10 flow steps, and execute/replan. Optional asynchronous inference overlaps prediction of the next chunk with execution. |
+| **[RDT-1B](../../docs/Model_Zoo/Robotics/Policies/RDT_1B.md)** · [paper](https://arxiv.org/html/2410.07864v1) · [project](https://rdt-robotics.github.io/rdt-robotics/) | Two-frame, three-camera RGB history + language + proprioception + control frequency. | Frozen SigLIP and T5-XXL encoders + 1.2B Robotics Diffusion Transformer with alternating image/language conditioning. | Continuous 64-action chunks in a physically interpretable 128D unified space, with masks for unavailable dimensions; mapped back to the robot's controls. | Diffusion denoising MSE predicting the **clean action chunk**, rather than noise, with invalid dimensions masked. | Pre-training: 1M+ episodes from 46 multi-robot datasets. Fine-tuning: 6k+ ALOHA bimanual demonstrations. | Encode conditions, initialize Gaussian noise, use 5 DPM-Solver++ steps to recover a chunk, select valid robot dimensions, and execute/replan. |
+| **[GR00T N1](../../docs/Model_Zoo/Robotics/Policies/GR00T_N1.md)** · [paper v2](https://arxiv.org/abs/2503.14734v2) | Current RGB views + instruction + proprioception; embodiment selects the state/action adapters. | Eagle-2 VLM features (SigLIP-2 + SmolLM2) condition a DiT through cross-attention; embodiment-specific MLP interfaces. | Continuous 16-action motor chunks; auxiliary video training can use continuous latent-action targets through a separate adapter. | FM velocity MSE + auxiliary target-object localization MSE. | Real robot data, human videos, physics simulation, and generated videos (about 8,376 pretraining hours in the v2 note); videos receive latent/IDM action labels. Post-training specializes to target-robot tasks. | Compute VLM features once; apply 4 flow updates to the 16-action chunk through the selected adapters; decode and execute. Video generators and action-labeling models are not needed at runtime. |
+| **[WALL-OSS](../../docs/Model_Zoo/Robotics/Policies/WALL_OSS.md)** · [paper v1](https://arxiv.org/abs/2509.11766v1) | Camera views + instruction + robot state; optional generated reasoning/subtask text conditions control. | Qwen2.5-VL-3B with shared self-attention, separate vision-language/action FFNs, and a continuous flow head. | FAST tokens in the Inspiration stage; continuous action trajectories in Integration/deployment; optional reasoning/subtask text. | Inspiration: VQA/text CE + FAST-token CE. Integration: FM for actions, with applicable semantic/VQA supervision; first fit the action branch, then train jointly. | Self-collected robot data + open datasets including DROID, BC-Z, Bridge, Agibotworld, and RH20T + general/embodied VQA; target-task fine-tuning where evaluated. | Optionally generate reasoning and a subtask, then generate continuous actions via the flow branch and refresh observations; a direct action path is also supported. The v1 paper does not specify a universal chunk horizon or solver-step count. |
+
+---
+
 # 0. What You Should Be Able to Do After This Week
 
 By the end of Week 2, you should be able to answer without notes:
@@ -326,19 +350,19 @@ No language input in the original ACT setup.
 
 Continuous future joint-position chunk:
 
-\[
+$$
 A_t=[a_t,\dots,a_{t+k-1}]
-\]
+$$
 
 ### 4. Training Objective?
 
-\[
+$$
 \mathcal L
 =
 \|A-\hat A\|_1
 +
 \beta D_{\mathrm{KL}}
-\]
+$$
 
 ### 5. Training Data?
 
@@ -346,16 +370,16 @@ Small task-specific teleoperation datasets.
 
 ### 6. Inference?
 
-- set latent \(z=0\)
+- set latent $z=0$
 - predict an action chunk
 - query every timestep
 - combine overlapping predictions with temporal ensembling
 
 ## What Later VLAs Inherit
 
-\[
+$$
 \boxed{\text{predict a trajectory chunk, not a single action}}
-\]
+$$
 
 This improves temporal consistency and reduces effective decision horizon.
 
@@ -381,14 +405,14 @@ Continuous action sequence.
 
 ### 4. Objective?
 
-\[
+$$
 \mathcal L
 =
 \mathbb E
 [
 \|\epsilon-\epsilon_\theta(O,A^k,k)\|^2
 ]
-\]
+$$
 
 ### 5. Data?
 
@@ -408,9 +432,9 @@ Gaussian action noise
 
 Diffusion Policy demonstrated that:
 
-\[
+$$
 p(A_t\mid O_t)
-\]
+$$
 
 can be modeled as a rich multimodal distribution.
 
@@ -458,9 +482,9 @@ Approximately 35M parameters.
 
 Continuous dimensions are discretized into:
 
-\[
+$$
 256
-\]
+$$
 
 bins.
 
@@ -490,9 +514,9 @@ The final design avoids expensive autoregressive action decoding.
 
 TokenLearner compresses:
 
-\[
+$$
 81\rightarrow8
-\]
+$$
 
 visual tokens per frame.
 
@@ -502,9 +526,9 @@ visual tokens per frame.
 
 RT-2 makes the key conceptual leap:
 
-\[
+$$
 \boxed{\text{robot action = another token sequence}}
-\]
+$$
 
 ## Six-Question Summary
 
@@ -524,25 +548,25 @@ Large pretrained VLMs such as:
 
 Robot actions are discretized and mapped into vocabulary tokens:
 
-\[
+$$
 a^{(m)}
 \rightarrow
 \text{one of 256 bins}
 \rightarrow
 \text{token}
-\]
+$$
 
 ### 4. Training Objective?
 
 Autoregressive next-token cross-entropy:
 
-\[
+$$
 \mathcal L
 =
 -\sum_k
 \log
 p_\theta(y_k\mid y_{<k},I,\ell)
-\]
+$$
 
 ### 5. Training Data?
 
@@ -586,9 +610,9 @@ image + instruction
 
 A pretrained VLM already models:
 
-\[
+$$
 p(y_k\mid y_{<k},x)
-\]
+$$
 
 If actions become tokens, the robot problem can reuse:
 
@@ -611,9 +635,9 @@ These weaknesses motivate later continuous-action VLAs.
 
 Octo focuses on:
 
-\[
+$$
 \boxed{\text{one reusable robot policy across datasets and embodiments}}
-\]
+$$
 
 ## Six-Question Summary
 
@@ -715,13 +739,13 @@ Important visual ingredients include:
 
 Each continuous dimension:
 
-\[
+$$
 a_i
 \rightarrow
 256\text{ bins}
 \rightarrow
 \text{token}
-\]
+$$
 
 ### 4. Objective?
 
@@ -731,9 +755,9 @@ Autoregressive cross-entropy over action tokens.
 
 Approximately:
 
-\[
+$$
 970k
-\]
+$$
 
 robot episodes from Open X-Embodiment.
 
@@ -812,47 +836,47 @@ robot action expert ~300M
 
 Total:
 
-\[
+$$
 \approx3.3B
-\]
+$$
 
 ### 3. Action Representation?
 
 Continuous action chunk:
 
-\[
+$$
 A_t=[a_t,\dots,a_{t+49}]
-\]
+$$
 
 with:
 
-\[
+$$
 H=50
-\]
+$$
 
 ### 4. Training Objective?
 
 Conditional Flow Matching:
 
-\[
+$$
 A^\tau=\tau A+(1-\tau)\epsilon
-\]
+$$
 
-\[
+$$
 v^*=A-\epsilon
-\]
+$$
 
-\[
+$$
 \mathcal L=\|v_\theta-v^*\|^2
-\]
+$$
 
 ### 5. Training Data?
 
 Over:
 
-\[
+$$
 10,000\text{ hours}
-\]
+$$
 
 of heterogeneous robot manipulation data.
 
@@ -920,9 +944,9 @@ FAST is not primarily a policy backbone.
 
 It solves:
 
-\[
+$$
 \boxed{\text{how should continuous robot trajectories be turned into tokens?}}
-\]
+$$
 
 ## Pipeline
 
@@ -946,9 +970,9 @@ Repeated coefficient patterns can be merged.
 
 Result:
 
-\[
+$$
 n_{\text{tokens}}\ll H\times D
-\]
+$$
 
 for many trajectories.
 
@@ -1017,14 +1041,14 @@ Two representations across stages:
 
 Conceptually:
 
-\[
+$$
 \mathcal L
 =
 \mathcal L_{\mathrm{token}}
 +
 \alpha
 \mathcal L_{\mathrm{flow}}
-\]
+$$
 
 ### 5. Training Data?
 
@@ -1064,9 +1088,9 @@ overall task
 
 Key idea:
 
-\[
+$$
 \boxed{\text{semantic planning + low-level continuous control}}
-\]
+$$
 
 ---
 
@@ -1090,9 +1114,9 @@ Frozen SmolVLM-2.
 
 Main scale:
 
-\[
+$$
 \approx450M
-\]
+$$
 
 ### 3. Action Representation?
 
@@ -1186,17 +1210,17 @@ Conditional diffusion / denoising objective over continuous action trajectories.
 
 Pretraining:
 
-\[
+$$
 1M+
-\]
+$$
 
 multi-robot episodes.
 
 Then:
 
-\[
+$$
 6k+
-\]
+$$
 
 self-collected bimanual episodes for fine-tuning.
 
@@ -1269,9 +1293,9 @@ You also need semantic alignment:
 
 As of 2026-09-28, NVIDIA's current open stack is:
 
-\[
+$$
 \boxed{\text{GR00T N1.7}}
-\]
+$$
 
 The architecture family is:
 
@@ -1304,17 +1328,17 @@ Flow-Matching DiT action head
 
 Base checkpoint:
 
-\[
+$$
 \approx3B
-\]
+$$
 
 ### 3. Action Representation?
 
 N1.7 emphasizes:
 
-\[
+$$
 \boxed{\text{relative end-effector action space}}
-\]
+$$
 
 shared across human and robot embodiments.
 
@@ -1333,9 +1357,9 @@ Mixture of:
 
 N1.7 adds:
 
-\[
+$$
 20,000\text{ hours}
-\]
+$$
 
 of EgoScale human video pretraining.
 
@@ -1393,9 +1417,9 @@ robot EEF control
 
 Larger idea:
 
-\[
+$$
 \boxed{\text{use non-robot embodied data to improve robot priors}}
-\]
+$$
 
 ---
 
@@ -1517,9 +1541,9 @@ This staged recipe is relevant engineering-wise:
 
 Main goal:
 
-\[
+$$
 \text{open-world long-horizon generalization}
-\]
+$$
 
 Mechanism:
 
@@ -1537,9 +1561,9 @@ flow control
 
 Main goal:
 
-\[
+$$
 \text{make VLM representations more embodied}
-\]
+$$
 
 Mechanism:
 
@@ -1953,15 +1977,15 @@ VLM pretraining supplies priors for:
 
 Robot data teaches:
 
-\[
+$$
 \text{how to act}
-\]
+$$
 
 while VLM pretraining already teaches much of:
 
-\[
+$$
 \text{what is in the world}
-\]
+$$
 
 ---
 
@@ -2026,11 +2050,11 @@ Robot performance depends strongly on:
 
 Therefore:
 
-\[
+$$
 \text{larger model}
 \not\Rightarrow
 \text{better robot policy}
-\]
+$$
 
 ---
 
@@ -2258,9 +2282,9 @@ continuous action chunk
 
 Target time:
 
-\[
+$$
 <3\text{ minutes}
-\]
+$$
 
 ---
 
@@ -2542,9 +2566,9 @@ Score:
 
 Target:
 
-\[
+$$
 \text{average}\ge2.3
-\]
+$$
 
 ---
 
@@ -2702,7 +2726,7 @@ You are ready when you can do these without notes:
 
 Week 3 will move away from paper architectures and into the part that matters most for a **VLA training engineer**:
 
-\[
+$$
 \boxed{
 \text{raw robot trajectory}
 \rightarrow
@@ -2714,6 +2738,6 @@ Week 3 will move away from paper architectures and into the part that matters mo
 \rightarrow
 \text{distributed training}
 }
-\]
+$$
 
 That is where model knowledge becomes engineering ability.

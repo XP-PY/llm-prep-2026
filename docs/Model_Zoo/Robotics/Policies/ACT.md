@@ -240,7 +240,7 @@ where:
 
 This last point matters. ACT is not smoothing adjacent actions in time. It is combining several predictions of the same action, which reduces modeling noise without directly biasing the trajectory toward neighboring timesteps.
 
-## 9. Core Idea 3: CVAE for Human Demonstrations
+## 9. Core Idea 3: Conditional Variational Autoencoder (CVAE) for Human Demonstrations
 
 Human demonstrations are noisy and multi-modal.
 

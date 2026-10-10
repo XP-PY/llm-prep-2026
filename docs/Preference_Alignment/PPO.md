@@ -1,5 +1,7 @@
 # Proximal Policy Optimization (PPO) for RLHF
 
+For the original algorithm, rollout pipeline, and paper experiments, see [PPO: Proximal Policy Optimization Algorithms](../Model_Zoo/Reinforcement_Learning/PPO.md). This note focuses on its application to LLM alignment.
+
 ## Overview
 
 **Proximal Policy Optimization (PPO)** is the classic reinforcement learning algorithm used in many RLHF pipelines. Its main idea is simple:
@@ -127,7 +129,7 @@ where:
 * $A$ is the **advantage**
 * $\epsilon$ is the clip range, often around **0.2**
 
-The clip prevents one update from changing policy probabilities too aggressively.
+Clipping removes incentives for further favorable probability changes beyond a threshold; it does not strictly constrain probability ratios or guarantee a small KL divergence.
 
 ---
 
