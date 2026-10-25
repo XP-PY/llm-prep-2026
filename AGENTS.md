@@ -29,6 +29,7 @@ Keep terminology consistent with neighboring documents, especially for alignment
 - Use the paper PDF specified by the user as the primary source. Do not substitute a web summary for the supplied paper.
 - Save the note in the appropriate model or topic directory. Current model-note locations include:
   - robot policies: `docs/Model_Zoo/Robotics/Policies/`
+  - agentic robotics systems: `docs/Model_Zoo/Robotics/Agentic_Systems/`
   - vision models: `docs/Model_Zoo/Vision_Models/`
   - vision-language models: `docs/Model_Zoo/Vision_Language_Models/`
   - reinforcement learning algorithms: `docs/Model_Zoo/Reinforcement_Learning/`

@@ -49,7 +49,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 | Adaptation & Alignment | Task adaptation and preference learning | LoRA family, SFT, RLHF, DPO, PPO, GRPO |
 | Agent Systems | Retrieval, memory, tool use, API interfaces, and task orchestration | Agent Basics, Memory Systems, RAG Systems, OpenAI API Interfaces |
 | Inference & Serving | Latency, memory, and deployment efficiency | Speculative Decoding, Continuous Batching, Quantization, TensorRT-LLM, Hallucination Mitigation |
-| Model Zoo | Language models, vision models, vision-language models, robotics systems, and RL algorithms | DeepSeek, Gemma, ViT, DINOv2, DINOv3, CLIP, SigLIP, SmolVLM, robot policies, embodied datasets, real-time policy inference, PPO, and SAC |
+| Model Zoo | Language models, vision models, vision-language models, robotics systems, and RL algorithms | DeepSeek, Gemma, ViT, DINOv2, DINOv3, CLIP, SigLIP, SmolVLM, robot policies, agentic robotics, embodied datasets, real-time policy inference, PPO, and SAC |
 | Book Notes | Chapter-by-chapter foundations with compact definitions, equations, and examples | Modern Robotics; Reinforcement Learning: An Introduction |
 
 ## 1. Foundations
@@ -91,6 +91,7 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Robotics datasets: [LIBERO](./docs/Model_Zoo/Robotics/Datasets/LIBERO.md), [Open X-Embodiment](./docs/Model_Zoo/Robotics/Datasets/Open_X_Embodiment.md)
 - Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Fast-WAM](./docs/Model_Zoo/Robotics/Policies/Fast_WAM.md), [GR00T N1](./docs/Model_Zoo/Robotics/Policies/GR00T_N1.md), [MolmoAct2](./docs/Model_Zoo/Robotics/Policies/MolmoAct2.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RDT-1B](./docs/Model_Zoo/Robotics/Policies/RDT_1B.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [WALL-OSS](./docs/Model_Zoo/Robotics/Policies/WALL_OSS.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Pi_Hi_Robot.md), [Human-to-Robot Transfer](./docs/Model_Zoo/Robotics/Policies/Pi_Human_to_Robot.md), [MEM](./docs/Model_Zoo/Robotics/Policies/Pi_MEM.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
 - Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
+- Agentic robotics systems: [Harness VLA](./docs/Model_Zoo/Robotics/Agentic_Systems/Harness_VLA.md)
 
 ## 7. Book Notes
 - Robotics: [Modern Robotics: Mechanics, Planning, and Control](./docs/Books/Robotics/Modern_Robotics.md)
@@ -150,6 +151,8 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |   |-- PPO.md
     |   |   `-- SAC.md
     |   |-- Robotics/
+    |   |   |-- Agentic_Systems/
+    |   |   |   `-- Harness_VLA.md
     |   |   |-- Datasets/
     |   |   |   |-- LIBERO.md
     |   |   |   `-- Open_X_Embodiment.md
