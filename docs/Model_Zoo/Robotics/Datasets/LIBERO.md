@@ -1,547 +1,314 @@
 # [LIBERO: Benchmarking Knowledge Transfer for Lifelong Robot Learning](https://arxiv.org/abs/2306.03310)
 
+> **Brief:** LIBERO is a simulation benchmark for **lifelong robot learning**, with a procedural task generator, **130 manipulation tasks**, and **50 human demonstrations per task**. Its central contribution is to separate spatial, object, and behavioral knowledge transfer, then measure how policies acquire new skills while retaining earlier ones. The original experiments expose a tradeoff between learning new tasks and preventing forgetting.
+
+**Source:** Liu et al., NeurIPS 2023, Datasets and Benchmarks Track; local paper [2306.pdf](../../../../tmp/2306.pdf), arXiv:2306.03310v2, October 14, 2023, including Appendices A–E. Results below follow this version's lifelong imitation-learning protocol.
+
 ## Convenient Links
-* [Paper (arXiv)](https://arxiv.org/abs/2306.03310)
-* [Project Page](https://libero-project.github.io/)
-* [Official Code](https://github.com/Lifelong-Robot-Learning/LIBERO)
-* [Official Documentation](https://lifelong-robot-learning.github.io/LIBERO/html/)
-* [Open X-Embodiment note in this repo](./Open_X_Embodiment.md)
-* [Diffusion Policy note in this repo](../Policies/Diffusion_Policy.md)
-* [OpenVLA note in this repo](../Policies/OpenVLA.md)
 
-## 1. One-Sentence Summary
+- [Paper](https://arxiv.org/abs/2306.03310), [project](https://libero-project.github.io/), [official code](https://github.com/Lifelong-Robot-Learning/LIBERO), [documentation](https://lifelong-robot-learning.github.io/LIBERO/html/)
+- Related datasets and environments: [Open X-Embodiment](./Open_X_Embodiment.md), [RoboCasa365](./RoboCasa365.md)
+- Related policies: [Diffusion Policy](../Policies/Diffusion_Policy.md), [OpenVLA](../Policies/OpenVLA.md)
 
-LIBERO is a **simulation benchmark for lifelong robot learning** that procedurally generates language-conditioned manipulation tasks, releases **130 standardized tasks** across four task suites, provides **50 human-teleoperated demonstrations per task**, and uses the benchmark to study how robot policies transfer declarative knowledge, procedural knowledge, and mixtures of both across a task stream.
+## 1. What Knowledge Must Survive Learning a New Task?
 
-## 2. Why LIBERO Matters
+Consider a robot that has learned to put a bowl on a plate. A new instruction might select an identical bowl at another location, replace the bowl with a different object, or ask the robot to open a drawer and place the bowl inside. These changes require different kinds of transfer:
 
-Most VLA and robot policy papers evaluate whether a model can solve a fixed set of tasks. LIBERO asks a different question:
+- **Declarative knowledge:** which objects exist, what they are, and how they relate spatially.
+- **Procedural knowledge:** which actions and motion sequences accomplish a goal.
 
-> What happens when a robot must keep learning new manipulation tasks over its lifetime?
+A robot can preserve object recognition while forgetting how to grasp, or retain a placing motion while selecting the wrong bowl. Consequently, classification-style continual-learning benchmarks cannot fully characterize forgetting in manipulation: small action errors can change later observations and eventually prevent task completion.
 
-That matters because robot learning is not only about recognizing objects or parsing language. It also involves **procedural knowledge**:
-
-* how to reach
-* how to grasp
-* how to place
-* how to open or close something
-* how to chain multiple object interactions
-
-The paper's core contribution is therefore not a new policy model. It is a benchmark that makes this transfer problem measurable:
-
-```text
-procedurally generated manipulation tasks
--> controlled shifts in objects, spatial layouts, and goals
--> human demonstration data
--> lifelong imitation learning protocol
--> success-rate metrics for transfer and forgetting
-```
-
-From a VLA perspective, LIBERO is useful because it exposes a weakness that pure vision-language benchmarks often hide: a model can know what the instruction means but still fail because it forgets or mislearns the **behavioral procedure** needed to complete it.
-
-## 3. Problem Setup: Lifelong Robot Learning
-
-The paper frames each manipulation task as a finite-horizon MDP:
+LIBERO frames this as **lifelong learning in decision-making (LLDM)**. A task is
 
 $$
-M = (S, A, T, H, \mu_0, R)
+\mathcal{T}^k=(\mu_0^k,g^k),
+\qquad g^k:\mathcal{S}\rightarrow\{0,1\},
 $$
 
-LIBERO uses sparse rewards and replaces the reward with a goal predicate:
+where $\mu_0^k$ specifies initial configurations and $g^k$ checks the goal. Tasks share the state space $\mathcal{S}$, action space $\mathcal{A}$, transition dynamics, and horizon in the paper's formulation. A task-conditioned policy learns tasks $1,\ldots,K$ sequentially and should remain successful on **all tasks encountered so far**.
+
+The defining constraint is data access: when task $k$ arrives, complete datasets from earlier tasks are no longer assumed available. A method may preserve parameters or an allowed replay memory. Joint training on all tasks is a separate reference setting.
+
+To determine which knowledge is lost, the benchmark must control what changes between tasks. This motivates its task generator and curated suites.
+
+## 2. Turn an Instruction into a Testable Task
+
+![LIBERO task generation from activity templates, scene configurations, and symbolic goals](../../../../assets/LIBERO/LIBERO_task_generation.png)
+
+*Paper Figure 2, cropped from PDF page 4. A language instruction is paired with objects, an initial configuration, and a conjunction of simulator-checkable goal predicates.*
+
+LIBERO builds on **robosuite** and generates tasks in three connected steps:
+
+1. **Choose a behavior and instruction.** Extract language descriptions from Ego4D human-activity annotations, summarize them into behavioral templates, and instantiate templates with simulator-supported objects.
+2. **Specify the initial distribution.** Select a compatible scene and describe objects, placement regions, and initial object states in a PDDL-based file. These choices determine $\mu_0$.
+3. **Specify success.** Construct a conjunction of unary predicates, such as an object being open, and binary predicates, such as one object being inside another.
+
+For “open the top drawer of the cabinet and put the bowl in it,” the essential goal is
 
 $$
-g: S \rightarrow \{0, 1\}
+g(s)=
+\operatorname{Open}(\text{top drawer};s)
+\land
+\operatorname{In}(\text{bowl},\text{top drawer};s).
 $$
 
-A lifelong learner sees a sequence of tasks:
+The simulator terminates successfully when all required predicates hold. The conjunction specifies a successful state; action ordering follows from the task's physical requirements and policy execution.
+
+This construction connects language to reproducible evaluation. The instruction tells the policy what to do; the symbolic specification lets the simulator determine whether it succeeded. Ego4D supplies **behavioral inspiration**, while the manipulation demonstrations used for training are collected separately in simulation.
+
+The generator is extensible, but the published benchmark fixes its task sets. An expandable generator does not make the released dataset an unlimited collection.
+
+## 3. Control the Shift, Then Add Entangled Tasks
+
+### 3.1 Four Suites, with a Separate Pretraining Split
+
+| Task collection | Tasks | Controlled change or role | Knowledge emphasized |
+|---|---:|---|---|
+| **LIBERO-Spatial** | 10 | Put a bowl on a plate; distinguish identical bowls through their spatial relations | Declarative spatial knowledge |
+| **LIBERO-Object** | 10 | Pick and place different object types | Declarative object knowledge |
+| **LIBERO-Goal** | 10 | Keep objects and spatial relations fixed while changing the requested goal | Procedural knowledge |
+| **LIBERO-100** | 100 | Vary objects, scenes, interactions, and required skills together | Entangled knowledge transfer |
+| ↳ **LIBERO-90** | 90 of the 100 | Short-horizon tasks used for robot-policy pretraining | Source experience |
+| ↳ **LIBERO-Long** | 10 of the 100 | Long-horizon tasks used for downstream lifelong evaluation | Transfer and retention under greater difficulty |
+
+The first three suites are collectively called **LIBERO-X**. In Spatial, selecting the correct bowl changes while the broad manipulation behavior remains similar. Goal reverses that emphasis: the scene remains fixed, but the robot must learn different behaviors. These controls help interpret a performance change instead of attributing every failure to a mixture of perception and control.
+
+LIBERO-100 then asks whether the same conclusions hold when knowledge types interact. Its split gives a concrete pretraining question: does experience on 90 shorter tasks help a robot sequentially learn ten longer ones?
+
+There are **130 distinct released tasks**: $10+10+10+100$. LIBERO-90 and LIBERO-Long partition the final 100; they are not additional tasks. The main lifelong comparisons use four **ten-task streams**: Spatial, Object, Goal, and Long.
+
+### 3.2 Demonstrations Supply the Learning Signal
+
+Human experts teleoperate the robot with a **3Dconnexion SpaceMouse**, providing **50 high-quality trajectories per task**. Across 130 tasks, this is $130\times50=6500$ demonstrations.
+
+A trajectory contains observations and manipulation actions. The baseline policies use an external agent-view image, an eye-in-hand image, and joint/gripper information, together with the instruction. The two views help identify the target and observe local interactions; temporal context helps resolve partial observability.
+
+These are demonstrations for **behavioral cloning (BC)**. Simulator success predicates evaluate execution, while expert actions provide the supervised training targets. The original comparisons therefore study lifelong imitation learning, even though the environment can also support other learning algorithms.
+
+## 4. How Does the Policy Learn and Execute?
+
+### 4.1 The Supervised Objective Approximates a Sequential Decision Problem
+
+Let $\mathcal{D}^k$ contain demonstrations for task $k$, $\ell_k$ be its instruction, and $h_t=o_{\le t}$ represent observation history. A task's BC loss can be written as
 
 $$
-\{T^1, T^2, \dots, T^K\}
+\mathcal{L}_{\mathrm{BC}}^k(\theta)=
+\mathbb{E}_{\tau\sim\mathcal{D}^k}
+\left[
+-\sum_t\log\pi_\theta(a_t\mid h_t,\ell_k)
+\right].
 $$
 
-Each task is defined by:
+History is introduced because a single image need not reveal the state needed for control. The implemented recurrent or temporal models summarize observation sequences rather than receiving the simulator's full state.
+
+Ideally, the learner would minimize the average loss over every task seen so far. The lifelong constraint prevents unrestricted joint access to those datasets, so the learning algorithm must approximate retention through replay, regularization, or parameter allocation.
+
+### 4.2 Compare Spatial and Temporal Representations
+
+![Three baseline policies combining vision, language, robot state, and temporal context](../../../../assets/LIBERO/LIBERO_policy_architectures.png)
+
+*Paper Figure 6, cropped from PDF page 17. Left to right: ResNet-RNN, ResNet-T, and ViT-T. All three produce action distributions through a GMM head; their visual, temporal, and language-fusion mechanisms differ.*
+
+| Policy | Visual representation | Temporal representation | Language conditioning |
+|---|---|---|---|
+| **ResNet-RNN** | ResNet | LSTM | FiLM modulation of visual features and language input to the LSTM |
+| **ResNet-T** | ResNet | Transformer decoder | ResNet uses language modulation; language also enters as a temporal token |
+| **ViT-T** | Vision Transformer | Transformer decoder | Language tokens enter both visual and temporal transformers |
+
+The default task representation is a **768-dimensional pretrained BERT embedding**. This language encoder's pretraining is separate from the LIBERO-90 robot-policy pretraining studied later.
+
+The temporal Transformers use a maximum sequence length of **10**, with four layers and six attention heads; the LSTM baseline has two layers and hidden size 1024. The paper approximately matches architecture computation at **13.5 GFLOPs**.
+
+Each baseline predicts a Gaussian mixture over continuous end-effector actions:
 
 $$
-T^k = (\mu_0^k, g^k)
-$$
-
-where:
-
-* $\mu_0^k$ is the initial state distribution
-* $g^k$ is the task goal predicate
-
-The same policy must keep learning as the stream progresses:
-
-$$
-\pi(a_t \mid s_t; T^k)
-$$
-
-The important lifelong-learning constraint is:
-
-> when learning task `k`, the agent no longer has full access to tasks `1 ... k-1`.
-
-This is what makes the benchmark different from ordinary multitask imitation learning.
-
-## 4. Lifelong Imitation Learning
-
-Sparse-reward RL is expensive, so LIBERO studies a more practical setting: the user provides a small demonstration dataset for each task.
-
-For task `k`, the dataset is:
-
-$$
-D^k = \{\tau_i^k\}_{i=1}^{N}
-$$
-
-where each trajectory is:
-
-$$
-\tau_i^k =
-(o_0, a_0, o_1, a_1, \dots, o_l)
-$$
-
-The observation includes visual input plus robot joint and gripper information. Since the observation can be non-Markovian, the paper treats the state as observation history:
-
-$$
-s_t \equiv o_{\le t} = (o_0, o_1, \dots, o_t)
-$$
-
-Training uses behavior cloning:
-
-$$
-\mathcal{L}_{\text{BC}}
+\pi_\theta(a_t\mid h_t,\ell_k)
 =
-\sum_{t}
-L\left(
-\pi(o_{\le t}; T^k),
-a_t
-\right)
+\sum_{m=1}^{M}
+w_m\,\mathcal{N}(a_t;\mu_m,\Sigma_m),
+\qquad
+w_m\geq0,\quad \sum_m w_m=1.
 $$
 
-In practice, LIBERO uses a GMM-style action head, so the policy models a multimodal distribution over continuous end-effector actions.
+For $M$ mixture components, the head produces weights $w_m$, means $\mu_m$, and covariances $\Sigma_m$ conditioned on the policy representation. During execution, the robot samples an action, acts, receives another observation, and repeats. This supports multiple plausible action choices in demonstrations. The GMM is a **baseline policy choice**, not a requirement imposed on every method evaluated in LIBERO.
 
-## 5. Benchmark Design
+## 5. What Changes When Earlier Data Disappear?
 
-LIBERO is built around a procedural generation pipeline:
+The paper compares five training strategies with the same BC backbone:
 
-```text
-Ego4D human activity annotations
--> behavior templates
--> language instructions
--> scene and object selection
--> PDDL initial-state specification
--> PDDL goal predicates
--> Robosuite simulation task
--> human teleoperation demonstrations
-```
+| Strategy | Retention mechanism | Main tradeoff |
+|---|---|---|
+| **SeqL** | Sequential fine-tuning without an explicit retention mechanism | Adapt freely, but risk overwriting previous skills |
+| **ER** | Mix current-task data with stored experience from earlier tasks | Preserve earlier behavior at a memory and replay cost |
+| **EWC** | Penalize changes to parameters estimated important for earlier tasks | Restrict forgetting, potentially restricting useful adaptation |
+| **PackNet** | Train, prune, fine-tune, and freeze task-specific parameter allocations | Protect old parameters while reducing capacity available for later tasks |
+| **MTL** | Train jointly with all task datasets available | Reference performance with broader data access |
 
-The paper emphasizes that the generation pipeline can in principle create infinitely many tasks. The released benchmark then fixes a standardized set of tasks so methods can be compared consistently.
+MTL provides a useful joint-training reference; its measured score is not a mathematical upper bound on every lifelong method.
 
-## 6. Procedural Task Generation
-
-LIBERO generates tasks in three steps.
-
-### 6.1 Behavioral Templates and Instructions
-
-The authors start from **Ego4D**, a large human activity dataset with language annotations.
-
-They extract common activity descriptions and turn them into manipulation templates such as:
-
-```text
-Open ...
-Put ... in ...
-Place ... on ...
-```
-
-Then they instantiate these templates with simulator-compatible objects and scenes.
-
-For example:
-
-```text
-Open the top drawer of the cabinet and put the bowl in it.
-```
-
-This gives LIBERO natural-language task descriptions while keeping the tasks executable inside simulation.
-
-### 6.2 Initial State Distribution
-
-Given an instruction, LIBERO selects a matching scene layout and object set.
-
-The initial state distribution $\mu_0$ is specified in **PDDL**, including:
-
-* object categories
-* object placements
-* initial object states
-* scene layout
-
-This is important because the benchmark can control what changes across tasks.
-
-For example, it can keep the objects fixed but vary their spatial relationships, or keep the layout fixed but vary which object must be manipulated.
-
-### 6.3 Goal Predicates
-
-The task goal is also specified through PDDL-style predicates.
-
-LIBERO uses unary predicates such as:
-
-```text
-Open(X)
-TurnOff(X)
-```
-
-and binary predicates such as:
-
-```text
-On(A, B)
-In(A, B)
-```
-
-The simulator terminates successfully when all goal predicates are true.
-
-This is a clean benchmark design choice: language instructions, initial states, and success criteria are tied together through an explicit symbolic task specification.
-
-## 7. Dataset and Task Suites
-
-The released LIBERO benchmark has **130 language-conditioned manipulation tasks**:
-
-| Suite | Tasks | Main Shift | Knowledge Type |
-|:---|---:|:---|:---|
-| LIBERO-Spatial | 10 | same objects and goal, different spatial relationships | declarative spatial knowledge |
-| LIBERO-Object | 10 | same layout style, different target objects | declarative object knowledge |
-| LIBERO-Goal | 10 | same objects and layout, different goals | procedural task knowledge |
-| LIBERO-100 | 100 | diverse objects, layouts, backgrounds, and behaviors | entangled declarative + procedural knowledge |
-
-The first three suites are often referred to as **LIBERO-X** in the paper. They are deliberately small and controlled so the benchmark can isolate different transfer factors.
-
-LIBERO-100 is broader. The paper further splits it into:
-
-| Split | Tasks | Role in the Paper |
-|:---|---:|:---|
-| LIBERO-90 | 90 short-horizon tasks | supervised pretraining source |
-| LIBERO-Long | 10 long-horizon tasks | downstream lifelong-learning evaluation |
-
-The data release includes:
-
-* **50 demonstrations per task**
-* collected by human experts
-* using teleoperation with a **3Dconnexion SpaceMouse**
-* inside **Robosuite**
-
-So the released demonstration count for the 130 benchmark tasks is:
+For EWC, the added penalty has the form
 
 $$
-130 \times 50 = 6500
+\mathcal{L}_{\mathrm{EWC}}^k(\theta)
+=
+\mathcal{L}_{\mathrm{BC}}^k(\theta)
++
+\frac{\lambda}{2}
+\sum_r \widetilde{F}_r
+(\theta_r-\theta_{k-1,r}^{*})^2,
 $$
 
-The paper is not trying to compete with Open X-Embodiment-scale robot data. LIBERO is much smaller, but more controlled: its value is in **diagnosing transfer and forgetting**, not in maximizing pretraining scale.
+Here, $\theta_{k-1}^{*}$ is the previous task's parameter checkpoint, and $\widetilde{F}_r$ estimates parameter $r$'s importance through a diagonal empirical Fisher estimate. The implementation uses an online moving average with decay **0.9** and $\lambda=5\times10^4$.
 
-## 8. What Each Suite Tests
+Appendix B.1 describes ER with capacity up to **1,000 trajectories** and **32 replay trajectories per update** alongside current-task training data. PackNet selects **25%** of parameters in its pruning step, fine-tunes the selected allocation for another **50 epochs**, and freezes it. The appendix specifies that its reported evaluation metrics are calculated **before this additional fine-tuning stage**.
 
-### 8.1 LIBERO-Spatial
+These choices expose the central tension: protecting previous behavior can reduce the freedom or capacity needed to learn the next task. The evaluation must therefore measure acquisition and retention separately.
 
-All tasks ask the robot to place a bowl on a plate, with the same object set.
+## 6. Measure Learning Speed and Forgetting from Rollouts
 
-The challenge is that two visually identical bowls differ by location or spatial relationship.
+### 6.1 Training and Checkpoint Selection
 
-So success depends on remembering and grounding instructions like:
+Appendix D specifies the following main protocol:
 
-```text
-the bowl on the left
-the bowl near another object
-the bowl in a particular spatial relation
-```
+| Setting | Original paper |
+|---|---|
+| Data and optimization per incoming task | 50 demonstrations, 50 training epochs |
+| Optimizer | Adam; batch size 32 |
+| Learning rate | Cosine schedule from $10^{-4}$ to $10^{-5}$ for each task |
+| Current-task evaluation | Every 5 epochs; 20 test rollouts per checkpoint |
+| Rollout limit | 600 steps |
+| Task-boundary checkpoint | Best current-task success rate |
+| Retention evaluation | At the selected checkpoint, 20 rollouts on each earlier task |
+| Repetitions | Seeds 100, 200, 300 |
+| Main comparison grid | 4 suites × 3 architectures × 5 strategies × 3 seeds = 180 runs |
 
-This suite tests transfer of **spatial declarative knowledge**.
+The selected best checkpoint is carried forward to the next task. Consequently, the reported protocol includes **rollout-based model selection**, which should be matched when comparing results.
 
-### 8.2 LIBERO-Object
+Success rate is necessary because low BC loss alone does not establish reliable control. Appendix E.2 shows that EWC can have low loss and poor execution, while ER can have higher loss and better success. A small prediction error may compound after the robot leaves demonstrated states.
 
-Each task asks the robot to pick and place a unique object.
+### 6.2 The Three Metrics Answer Different Questions
 
-The spatial layout is controlled, but the object identity changes.
+Let $c_{i,j,e}$ be success rate on task $j$ after learning $i-1$ tasks and training for $e$ epochs on incoming task $i$. Evaluations use $e\in\{0,5,\ldots,50\}$.
 
-This suite asks whether the learner can continually acquire and retain **object concepts** without confusing them as new tasks arrive.
+Define $c_{i,i}=\max_e c_{i,i,e}$ and let $e_i^*$ be the earliest epoch attaining that maximum. For earlier tasks, $c_{i,j}=c_{i,j,e_i^*}$. When computing the current-task learning curve, the paper holds $c_{i,i,e}$ at its peak for every $e\geq e_i^*$, reflecting best-checkpoint selection.
 
-### 8.3 LIBERO-Goal
+**Forward transfer (FWT)** averages success while learning each incoming task:
 
-The object set and spatial relationships remain fixed, but the task goal changes.
+$$
+\operatorname{FWT}_k
+=
+\frac{1}{11}
+\sum_{e\in\{0,5,\ldots,50\}}c_{k,k,e}.
+$$
 
-So the robot must learn different behaviors over the same scene, such as placing, opening, moving, or combining object interactions.
+Higher FWT rewards faster acquisition and higher success within the training budget. It includes training on task $k$: it is **not a zero-shot score or a gain relative to an independently trained baseline**. Even the first task contributes to FWT.
 
-This suite is the cleanest probe of **procedural knowledge transfer**.
+**Negative backward transfer (NBT)** measures the drop from a task's selected success rate after learning later tasks:
 
-### 8.4 LIBERO-100 and LIBERO-Long
+$$
+\operatorname{NBT}_k
+=
+\frac{1}{K-k}
+\sum_{i=k+1}^{K}(c_{k,k}-c_{i,k}),
+\qquad k<K.
+$$
 
-LIBERO-100 mixes the sources of variation:
+Lower is better. Because the formula uses signed differences, improvement on an earlier task can produce a negative contribution. The printed equation does not specify the endpoint convention for $k=K$, which has no subsequent tasks; a reproduction should state how it handles this endpoint.
 
-* objects
-* layouts
-* backgrounds
-* short-horizon skills
-* long-horizon skills
-* different object interactions
+**Area under the success-rate curve (AUC)** combines initial acquisition with subsequent retention:
 
-The paper uses **LIBERO-90** for pretraining and **LIBERO-Long** for downstream lifelong-learning evaluation.
+$$
+\operatorname{AUC}_k
+=
+\frac{
+\operatorname{FWT}_k+
+\sum_{i=k+1}^{K}c_{i,k}
+}{K-k+1}.
+$$
 
-This split is important because it directly tests whether ordinary supervised pretraining on many manipulation tasks helps later lifelong learning.
+The paper reports task-averaged metrics. Its AUC is this normalized combination of learning and retention scores, so it should be distinguished from final-checkpoint success.
 
-## 9. Policies and Algorithms Evaluated
+For example, suppose a bowl task is first in a three-task stream. Its learning-curve average is 0.60, its selected success is 0.80, and later success rates are 0.70 and 0.40. Then $\operatorname{NBT}_1=0.25$ and $\operatorname{AUC}_1=(0.60+0.70+0.40)/3\approx0.57$. Learning the task well initially does not prevent a low score once later training erodes that skill.
 
-LIBERO evaluates both policy architectures and lifelong-learning algorithms.
+## 7. What Do the Main Results Establish?
 
-### 9.1 Policy Architectures
+Values below are fractions in $[0,1]$. The paper's tables report means and standard errors over three seeds.
 
-The paper implements three vision-language policy architectures:
+### 7.1 Retention Can Improve While Acquisition Gets Worse
 
-| Architecture | Visual Backbone | Temporal Backbone | Language Use |
-|:---|:---|:---|:---|
-| ResNet-RNN | ResNet | LSTM | FiLM into visual features and LSTM input |
-| ResNet-T | ResNet | Transformer decoder | language as a transformer token |
-| ViT-T | Vision Transformer | Transformer decoder | language token in ViT and temporal transformer |
+Holding the policy fixed to **ResNet-T**, Table 2 gives:
 
-All three produce a latent representation at each decision step and use a **GMM action head** to model continuous manipulation actions.
+| Strategy | Long FWT ↑ | Long NBT ↓ | Long AUC ↑ | Spatial AUC ↑ | Object AUC ↑ | Goal AUC ↑ |
+|---|---:|---:|---:|---:|---:|---:|
+| SeqL | **0.54 ± 0.01** | 0.63 ± 0.01 | 0.15 ± 0.00 | 0.20 ± 0.01 | 0.26 ± 0.02 | 0.22 ± 0.00 |
+| ER | 0.48 ± 0.02 | 0.32 ± 0.04 | **0.32 ± 0.01** | 0.56 ± 0.01 | 0.44 ± 0.06 | 0.49 ± 0.02 |
+| EWC | 0.13 ± 0.02 | 0.22 ± 0.03 | 0.02 ± 0.00 | 0.06 ± 0.01 | 0.16 ± 0.02 | 0.06 ± 0.00 |
+| PackNet | 0.22 ± 0.01 | **0.08 ± 0.01** | 0.25 ± 0.00 | **0.63 ± 0.00** | **0.60 ± 0.05** | **0.75 ± 0.01** |
+| MTL reference | — | — | 0.48 ± 0.01 | 0.83 ± 0.00 | 0.54 ± 0.02 | 0.80 ± 0.01 |
 
-The language instruction is encoded with pretrained **BERT** embeddings by default.
+*Bold identifies the best sequential strategy in each displayed column; it does not assert statistical significance.*
 
-### 9.2 Lifelong-Learning Algorithms
+SeqL has the **highest FWT in all four suites**, but strong forgetting reduces its AUC. Thus, the evaluated lifelong mechanisms improve retention at an acquisition cost.
 
-The paper compares five training strategies:
+PackNet achieves high AUC on the controlled suites, but its low Long FWT limits overall Long performance. The authors hypothesize that parameter partitioning leaves insufficient capacity for harder tasks. This is an interpretation of the results, rather than a direct capacity measurement.
 
-| Method | Category | Role |
-|:---|:---|:---|
-| SEQ L | sequential finetuning | lower-bound-style baseline |
-| MTL | multitask learning | upper-bound-style baseline |
-| ER | rehearsal | replay data from previous tasks |
-| EWC | regularization | penalize movement of important parameters |
-| PackNet | dynamic architecture | prune and freeze task-specific subnetworks |
+ER offers the strongest Long AUC among these sequential methods and performs reasonably across all suites. EWC demonstrates why low forgetting alone is insufficient: a learner that acquires little has little successful behavior to preserve.
 
-This design lets the paper compare not only "which model is better", but also how model architecture and lifelong-learning algorithm interact.
+### 7.2 Architecture Conclusions Depend on the Learning Algorithm
 
-## 10. Evaluation Metrics
+To isolate architecture effects, the following subset of Table 1 holds ER fixed and reports **mean AUC**:
 
-LIBERO reports all metrics in terms of **success rate**, not behavior-cloning loss.
+| Policy | Long | Spatial | Object | Goal |
+|---|---:|---:|---:|---:|
+| ResNet-RNN | 0.08 | 0.29 | 0.17 | 0.26 |
+| ResNet-T | **0.32** | **0.56** | 0.44 | **0.49** |
+| ViT-T | 0.25 | 0.50 | **0.57** | 0.38 |
 
-That distinction matters because imitation-learning loss can improve while closed-loop rollout success gets worse. In robot control, small prediction errors can compound into task failure.
+Temporal Transformers outperform the recurrent baseline in these comparisons. Within the Transformer policies, ResNet-T is stronger under ER except on Object, where ViT-T benefits.
 
-The three main metrics are:
+Changing the lifelong algorithm changes the comparison: with PackNet, **ViT-T reaches 0.34 ± 0.01 Long AUC**, exceeding ResNet-T's **0.25 ± 0.00**. The paper finds no significant difference between these two architectures on the other three PackNet suites.
 
-| Metric | Direction | Meaning |
-|:---|:---:|:---|
-| FWT | higher is better | forward transfer: how quickly the agent learns a new task |
-| NBT | lower is better | negative backward transfer: how much it forgets old tasks |
-| AUC | higher is better | overall success-rate curve across learning |
+The supported conclusion is conditional: visual representation, temporal modeling, and the retention mechanism interact. These experiments do not establish a universally best visual encoder.
 
-At a high level:
+## 8. Do Language, Task Order, and Pretraining Change the Story?
 
-```text
-high FWT = learns new tasks fast
-low NBT = forgets old tasks less
-high AUC = better overall lifelong performance
-```
+### 8.1 Language Can Function Primarily as a Task Identifier
 
-This is the right metric mix for LIBERO because a lifelong learner can fail in two different ways:
+On Long with **ER + ResNet-T**, Table 3 compares:
 
-* it may learn the new task slowly
-* it may learn the new task but destroy performance on old tasks
+| Task embedding | Dimension | AUC |
+|---|---:|---:|
+| BERT | 768 | 0.32 ± 0.01 |
+| CLIP | 512 | 0.35 ± 0.01 |
+| GPT-2 | 768 | 0.30 ± 0.01 |
+| Task-ID through BERT | 768 | 0.33 ± 0.01 |
 
-## 11. Experimental Protocol
+“Task-ID” means encoding a string such as **“Task 5” with pretrained BERT**; it is not a one-hot vector. The paper finds no statistically significant difference among these encodings.
 
-The experiment setup is fairly controlled:
+This ablation limits what success demonstrates about language understanding. Distinct task embeddings may identify behaviors adequately in a fixed demonstrated task set, even without exploiting the full semantics of an instruction. The result does not establish generalization to unseen paraphrases or novel instruction compositions.
 
-* each task has **50 demonstration trajectories**
-* each task is trained for **50 epochs**
-* evaluation happens every **5 epochs**
-* each evaluation uses **20 test rollouts**
-* maximum rollout length is **600**
-* optimizer: **Adam**
-* batch size: **32**
-* learning rate: cosine schedule from `1e-4` to `1e-5`
-* seeds: `{100, 200, 300}`
-* total reported combinations: **180 experiments**
-* compute: single **Nvidia A100** or **A40**
+### 8.2 Task Order Changes Which Transfer Is Available
 
-The paper also matches the policy architectures by compute budget, reporting about **13.5G FLOPs** for each policy.
+Figure 4 compares ER and PackNet with ResNet-T under **five task orderings**. Performance varies for both, with statistically significant differences across orderings for PackNet.
 
-## 12. Main Experimental Results
+Ordering matters because prior skills determine the starting point for the next task. It also changes when PackNet allocates capacity and which tasks must survive the longest sequence of subsequent updates. These mechanisms explain why one ordering cannot establish robustness to an arbitrary task stream.
 
-### 12.1 Architecture Matters Almost as Much as Algorithm Choice
+### 8.3 Robot-Policy Pretraining Is a Separate Training Stage
 
-The first clear finding is that **ResNet-T** and **ViT-T** are usually much stronger than **ResNet-RNN**.
+The pretraining experiment uses this sequence:
 
-That suggests temporal Transformers are better than RNNs for this benchmark, especially when the policy must reuse information over a short observation history.
+1. **Pretrain:** jointly apply BC to the 90 short-horizon LIBERO-90 tasks for 50 epochs.
+2. **Select:** save checkpoints every five epochs and choose the best-performing checkpoint for each architecture.
+3. **Adapt sequentially:** initialize the policy from that checkpoint and learn the ten LIBERO-Long tasks under the downstream lifelong algorithm.
+4. **Compare:** evaluate against training the corresponding lifelong learner from scratch; include joint MTL as a reference.
 
-Representative AUC values from Table 1:
+Figure 5 compares five algorithm–architecture combinations. The observed result is that **basic supervised BC pretraining can hurt downstream lifelong performance**.
 
-| Suite | ER + ResNet-RNN | ER + ResNet-T | ER + ViT-T |
-|:---|---:|---:|---:|
-| LIBERO-Long | 0.08 | 0.32 | 0.25 |
-| LIBERO-Spatial | 0.29 | 0.56 | 0.50 |
-| LIBERO-Object | 0.17 | 0.44 | 0.57 |
-| LIBERO-Goal | 0.26 | 0.49 | 0.38 |
+The distinction between stages matters: Long tasks still supply demonstrations and receive training. This experiment measures the effect of initialization on subsequent learning and retention; it is not zero-shot transfer from LIBERO-90 to Long. Its negative result concerns the tested pretraining recipe, not all possible forms of robot pretraining.
 
-The exception is meaningful: **ViT-T is strongest on LIBERO-Object under ER**, which suggests that ViT-style visual processing helps when object variety is the main challenge.
+## 9. How Should LIBERO Results Be Interpreted?
 
-With PackNet, ViT-T is also notably strong on LIBERO-Long:
+A result should identify the task subset, demonstration budget, training regime, task order, checkpoint-selection rule, and reported metric. The original paper's lifelong AUC, a jointly trained policy's average success, and success on previously unseen tasks answer different questions.
 
-| Suite | PackNet + ResNet-T AUC | PackNet + ViT-T AUC |
-|:---|---:|---:|
-| LIBERO-Long | 0.25 | 0.34 |
-| LIBERO-Spatial | 0.63 | 0.59 |
-| LIBERO-Object | 0.60 | 0.56 |
-| LIBERO-Goal | 0.75 | 0.76 |
-
-So the architecture lesson is not "ViT always wins" or "ResNet always wins". The better summary is:
-
-* Transformer temporal backbones are consistently useful.
-* ViT helps when visual object variation is high.
-* ResNet-T can be stronger when the suite emphasizes spatial/procedural transfer under replay.
-* Architecture and lifelong-learning algorithm interact.
-
-### 12.2 Sequential Finetuning Learns New Tasks Fast, But Forgets
-
-Table 2 fixes the architecture to **ResNet-T** and compares lifelong-learning algorithms.
-
-The striking result is that **SEQ L has the best FWT on every suite**, but its NBT is very high.
-
-In other words:
-
-```text
-sequential finetuning
--> fast adaptation to the current task
--> severe forgetting of previous tasks
-```
-
-This is why FWT alone is not enough. A method can look good at learning the next task while being bad at lifelong learning.
-
-### 12.3 ER Is the Most Robust General Baseline
-
-The AUC comparison from Table 2 is:
-
-| Method | LIBERO-Long | LIBERO-Spatial | LIBERO-Object | LIBERO-Goal |
-|:---|---:|---:|---:|---:|
-| SEQ L | 0.15 | 0.20 | 0.26 | 0.22 |
-| ER | 0.32 | 0.56 | 0.44 | 0.49 |
-| EWC | 0.02 | 0.06 | 0.16 | 0.06 |
-| PackNet | 0.25 | 0.63 | 0.60 | 0.75 |
-| MTL | 0.48 | 0.83 | 0.54 | 0.80 |
-
-The paper's interpretation:
-
-* **ER** is robust across all task suites.
-* **PackNet** is strong on LIBERO-X, especially Spatial/Object/Goal.
-* **PackNet** is weaker on LIBERO-Long because splitting capacity across tasks can hurt forward transfer.
-* **EWC** performs poorly and can impede learning in LLDM.
-* **MTL** is still the upper-bound-style reference because it can train on all tasks jointly.
-
-This is a useful benchmark result because it says simple replay remains hard to beat when the task stream is heterogeneous.
-
-### 12.4 Language Embeddings Do Not Yet Use Semantics Well
-
-The paper compares BERT, CLIP, GPT-2, and Task-ID embeddings on LIBERO-Long using ResNet-T + ER.
-
-| Embedding | Dimension | FWT | NBT | AUC |
-|:---|---:|---:|---:|---:|
-| BERT | 768 | 0.48 | 0.32 | 0.32 |
-| CLIP | 512 | 0.52 | 0.34 | 0.35 |
-| GPT-2 | 768 | 0.46 | 0.34 | 0.30 |
-| Task-ID | 768 | 0.50 | 0.37 | 0.33 |
-
-The important result is not the small numeric differences. The paper reports no statistically significant difference.
-
-That means the language encoder is mostly serving as a task identifier, not as a rich semantic representation that improves transfer.
-
-For VLA work, this is a warning: simply plugging in pretrained language embeddings does not guarantee grounded task understanding.
-
-### 12.5 Task Ordering Matters
-
-The paper evaluates ER and PackNet under five different task orderings.
-
-The result is that the same algorithm can show noticeably different performance depending on the order in which tasks appear. The effect is especially significant for PackNet.
-
-This matters because a deployed robot does not get to choose a perfect curriculum. A useful lifelong learner should be robust to different orderings, not only strong under one convenient stream.
-
-### 12.6 Naive Supervised Pretraining Can Hurt
-
-The pretraining study is one of the paper's most interesting negative results.
-
-The authors pretrain policies on **LIBERO-90** using behavior cloning, then evaluate downstream lifelong learning on **LIBERO-Long**.
-
-The result:
-
-> basic supervised pretraining can hurt downstream lifelong-learning performance.
-
-This does **not** mean pretraining is useless for robotics. It means naive BC pretraining is not automatically aligned with the later lifelong-learning objective.
-
-For later VLA systems, this is an important distinction:
-
-* large robot pretraining can help
-* but the data mixture, objective, adaptation method, and evaluation protocol matter
-* more pretraining is not automatically better if it creates brittle or task-irrelevant features
-
-## 13. Why the Dataset Design Is the Main Contribution
-
-LIBERO's main strength is that the benchmark controls what type of knowledge changes.
-
-Many robot datasets mix everything together:
-
-```text
-new object + new layout + new goal + new background + new behavior
-```
-
-That makes failures hard to diagnose.
-
-LIBERO separates the problem:
-
-```text
-LIBERO-Spatial -> did the robot transfer spatial relations?
-LIBERO-Object  -> did the robot transfer object concepts?
-LIBERO-Goal    -> did the robot transfer procedural behavior?
-LIBERO-100     -> what happens when these factors are entangled?
-```
-
-This is why the paper is best read as a **benchmark design paper** rather than a model paper.
-
-## 14. Relation to VLA Papers
-
-LIBERO is not itself a VLA model. It is a benchmark and data-generation framework.
-
-Compared with [Open X-Embodiment](./Open_X_Embodiment.md):
-
-* Open X-Embodiment is a large real-world cross-embodiment data pool.
-* LIBERO is a controlled simulated benchmark for lifelong transfer and forgetting.
-
-Compared with [Diffusion Policy](../Policies/Diffusion_Policy.md):
-
-* Diffusion Policy focuses on action-generation structure.
-* LIBERO focuses on task-suite design and lifelong-learning evaluation.
-
-Compared with [OpenVLA](../Policies/OpenVLA.md):
-
-* OpenVLA asks how to train and adapt an open VLA.
-* LIBERO asks how to measure controlled knowledge transfer in language-conditioned robot manipulation.
-
-The papers are complementary: LIBERO gives later robot-policy and VLA work a way to test whether policies actually retain and transfer skills, not just whether they solve a static benchmark once.
-
-## 15. Limitations
-
-LIBERO is valuable, but it should be interpreted carefully.
-
-1. **It is simulation-based**
-   * Results do not automatically imply real-world robustness.
-2. **The original benchmark assumes shared low-level task structure**
-   * The formulation keeps state/action/transition/horizon shared across tasks.
-3. **The controlled suites are intentionally small**
-   * Ten tasks is enough to expose forgetting, but not enough to represent all lifelong robot learning.
-4. **Language semantics are underused by the tested policies**
-   * The embedding study suggests that task descriptions mostly behave like IDs.
-5. **Pretraining results are about naive BC pretraining**
-   * The negative result should not be read as evidence against all robot pretraining.
-
-## 16. Key Takeaways
-
-1. **LIBERO is a benchmark for lifelong decision-making, not just a manipulation dataset**
-2. **It releases 130 language-conditioned simulation tasks and 50 expert demonstrations per task**
-3. **The four suites separate spatial, object, goal, and mixed transfer**
-4. **Temporal Transformers outperform RNN-style policy backbones in most settings**
-5. **Replay is a strong robust baseline, while PackNet is strong but more capacity-sensitive**
-6. **Success rate is more meaningful than behavior-cloning loss for robot policy evaluation**
-7. **Task order and pretraining can change lifelong-learning outcomes substantially**
-8. **For VLA research, LIBERO is useful because it probes whether models retain and transfer procedural behavior, not just language-conditioned recognition**
+The released demonstrations and predicates support comparisons of other policy families, including the [Diffusion Policy](../Policies/Diffusion_Policy.md) and [OpenVLA](../Policies/OpenVLA.md) notes in this repository. Their LIBERO evaluations should be read under their own protocols. The original paper establishes simulation-based manipulation transfer under sequential imitation learning; real-world transfer, unrestricted language understanding, and robustness outside its task distributions require additional evidence.
