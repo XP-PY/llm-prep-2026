@@ -27,6 +27,7 @@ Keep terminology consistent with neighboring documents, especially for alignment
 ### Paper Notes
 
 - Use the paper PDF specified by the user as the primary source. Do not substitute a web summary for the supplied paper.
+- The primary goal is to make the paper easy to understand, not merely to record its contents. Write for a reader with relevant background who has not read the paper. The note should let that reader explain the problem, follow the method, and interpret the evidence without repeatedly reopening the PDF.
 - Save the note in the appropriate model or topic directory. Current model-note locations include:
   - robot policies: `docs/Model_Zoo/Robotics/Policies/`
   - agentic robotics systems: `docs/Model_Zoo/Robotics/Agentic_Systems/`
@@ -35,10 +36,15 @@ Keep terminology consistent with neighboring documents, especially for alignment
   - reinforcement learning algorithms: `docs/Model_Zoo/Reinforcement_Learning/`
 - Match the structure, terminology, and level of detail of neighboring notes in the destination directory.
 - Begin with a brief description that identifies the model or method and its main contribution.
-- Explain the central method precisely. Use mathematical notation when it makes the architecture, objective, training process, or inference procedure clearer.
+- Build the explanation from the problem to the proposed solution: explain what makes the problem difficult, why each design choice is introduced, how the components work together, and what the resulting behavior achieves. Introduce details when they become useful, and place secondary configuration details after the central idea. Defining terms alone does not make an explanation clear.
+- Define paper-specific terms, abbreviations, labels, and symbols at first use. Explain their operational meaning and role, rather than replacing one unfamiliar label with another. Distinguish concepts that readers might confuse, such as an action finishing versus its outcome being checked.
+- Explain the central method as a process the reader can follow. Identify its inputs, relevant state, intermediate steps, decision conditions, and outputs; make the order of training or inference stages explicit. Use a short concrete example or walkthrough where abstract descriptions would otherwise leave the mechanism unclear, and connect the example back to the general method.
+- Introduce the intuition before mathematical notation. When equations clarify the architecture, objective, training, or inference, define the symbols and assumptions and explain what the equation does in the method. Neither a formula nor a diagram replaces the surrounding reasoning.
 - Cover the aspects requested for the specific paper, such as policy structure, datasets, training settings, inference, ablations, and evaluation results. Clearly distinguish pre-training, post-training, fine-tuning, and zero-shot evaluation where applicable.
-- Keep the explanation concise and avoid duplicated sections or extensive copying from the paper.
-- Add only figures that materially improve understanding. Crop them from the paper, store them under `assets/<Note_Name>/`, reference them with repository-relative paths, and add a short descriptive caption.
+- Explain what each important experiment tests, what the comparison controls, what its metric means, and how the result supports or limits the paper's claim. Interpret selected numbers instead of presenting an unexplained catalog of tables. Distinguish reported findings from explanatory examples or your own interpretation.
+- Keep the explanation concise by removing repetition and incidental detail, not by omitting definitions, intermediate reasoning, or connections needed for understanding. Avoid extensive copying from the paper.
+- Add only figures that materially improve understanding. Crop them from the paper, store them under `assets/<Note_Name>/`, reference them with repository-relative paths, and add a short descriptive caption. Explain the necessary content in the note; source figure, equation, and section numbers are attribution, not substitutes for an explanation.
+- Before finishing, read the note as a continuous explanation: can the reader trace the method from input to outcome, understand why its steps are needed, and assess the main results? Revise unexplained jumps and dense passages as well as undefined terms, and check that equations, figures, and links render correctly.
 - Update the relevant `README.md` index and file tree when adding, renaming, moving, or removing a paper note.
 
 ### Book Notes

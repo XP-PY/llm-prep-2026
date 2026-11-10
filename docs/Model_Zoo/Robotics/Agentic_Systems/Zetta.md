@@ -1,88 +1,98 @@
 # [Zetta ζ: An Efficient Closed-Loop Embodied Harness for Self-Evolving Physical Intelligence](https://arxiv.org/abs/2608.16590)
 
-> **Brief:** Zetta improves a frozen robot policy by evolving **executable runtime critics, recovery playbooks, and tools**. Frequent code-based checks identify physical failures, bounded recoveries restore useful execution states, and rollout evidence drives validation-gated harness revisions. Its companion system, **Z-Infra**, separates simulation workers from model serving to accelerate the rollouts needed for this adaptation.
+> **Brief:** Zetta improves a frozen robot policy by changing the **software that monitors and redirects its execution**. During a task, code-based checks identify physical problems and request targeted recoveries. Between rollout batches, agents analyze recurring failures, revise those checks and recoveries, and validate the changes before reuse. **Z-Infra**, its companion infrastructure, makes the repeated simulation experiments faster.
 
-**Source:** Ding et al., 2026; supplied 47-page PDF, arXiv:2608.16590v1 dated August 17, 2026, with August 18 on the title page. These notes follow its methodology, simulation results, Z-Infra measurements, and Appendices A–D. The broad LIBERO-Pro aggregate is distinguished from the Goal-only headline result below.
+**Source:** Ding et al., 2026; supplied 47-page PDF, arXiv:2608.16590v1 dated August 17, 2026, with August 18 on the title page, including Appendices A–D. The results below distinguish the Goal-only headline from the broader LIBERO-Pro evaluation.
 
 ## Convenient Links
 
-- [Paper](https://arxiv.org/abs/2608.16590)
-- [Project](https://air-embodied-brain.github.io/zetta)
-- Related harnesses: [Harness VLA](./Harness_VLA.md), [AdaHVLA](./AdaHVLA.md), [EmbodiedRSI](./EmbodiedRSI.md), [RegenHarness](./RegenHarness.md), [Spotter](./Spotter.md)
+- [Paper](https://arxiv.org/abs/2608.16590), [project](https://air-embodied-brain.github.io/zetta)
+- Related systems: [Harness VLA](./Harness_VLA.md), [AdaHVLA](./AdaHVLA.md), [EmbodiedRSI](./EmbodiedRSI.md), [RegenHarness](./RegenHarness.md), [Spotter](./Spotter.md)
 - Policies and benchmarks: [pi0.5](../Policies/Pi_0_5.md), [GR00T N1 background](../Policies/GR00T_N1.md), [LIBERO](../Datasets/LIBERO.md), [RoboCasa365](../Datasets/RoboCasa365.md)
 - Background: [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Skill Systems](../../../Agent_Systems/Skill_Systems.md)
 
-## 1. Why Evolve the Checks Along with the Recovery?
+## 1. Why Improve the Checks as Well as the Actions?
 
-A policy can execute a plausible transport motion after dropping the object. A recovery routine helps only if the system recognizes that transport is now invalid, invokes the appropriate correction, and verifies the new grasp before continuing.
+Consider placing a wine bottle into a bowl. The robot grasps the bottle and moves toward the bowl, but loses its grasp during lifting. Continuing the transport motion now moves an empty gripper. Even a good placing routine cannot help unless the system first notices that the bottle is missing and reacquires it.
 
-Zetta therefore treats **failure detection and recovery as a coupled capability**. A frozen VLA may already use fresh observations, but that alone does not ensure explicit checks of contact, grasp retention, or task completion. Zetta adds executable monitors and learns when their evidence should redirect execution.
+A vision-language-action (**VLA**) policy maps observations and instructions to robot actions. It may already receive fresh observations during execution, yet still fail to recognize or correct this change in physical state. Zetta adds an explicit layer for deciding **whether execution remains valid, what should repair it, and when ordinary control may resume**.
 
-The design separates three timescales:
+The paper calls this surrounding software a **harness**. Its central idea is to improve both sides of a failure–recovery pair: the check that recognizes the problem and the behavior that resolves it. A fixed “retry” script cannot cover every failure, and a better detector is of little use without an appropriate correction.
 
-| Loop | What changes? | Purpose |
+Zetta separates work across three timescales:
+
+| When it operates | What happens | What changes |
 |---|---|---|
-| Within a rollout | Execution mode, physical state, recovery attempts | Detect problems and correct the active episode |
-| Between rollout batches | Candidate critic code, recovery logic, tools | Turn recurring failures into proposed improvements |
-| Candidate admission and consolidation | Validated skill packages and harness versions | Retain improvements that survive replay and new seeds |
+| During an episode | Check execution, invoke recovery, verify the resulting state | The robot's physical state and current control mode |
+| After a batch of rollouts | Analyze repeated failures and propose code changes | Candidate monitoring and recovery programs |
+| Before adopting a reusable version | Consolidate patches and test them across seeds | The validated harness used in later rollouts |
 
-“Self-evolution” concerns **external programs and execution rules**, not online gradient updates to the base policy. Likewise, a runtime critic is a monitoring function, not necessarily an RL value network.
+An **episode**, or rollout here, is one complete task attempt. A **seed** identifies a reproducible randomized environment setup. “Self-evolution” means revising external programs using this experience; the base policy's weights remain fixed.
 
-## 2. Runtime Architecture: Evidence Proposes, Adjudication Decides
+## 2. How Does Zetta Control One Episode?
 
-![Zetta execution, failure analysis, harness repair, and consolidation](../../../../assets/Zetta/Zetta_evolution.png)
+### 2.1 Separate Evidence, Decisions, and Physical Actions
 
-*Paper Figure 2. Parallel executions produce reference successes and failures. Diagnosis and repair update the harness, while consolidation packages reusable mechanisms for later rollouts.*
-
-### 2.1 Frozen Models, Evolvable Execution Context
-
-The harness is
+The harness contains three kinds of component:
 
 $$
-\mathcal{H}=(C,R,\mathcal{T}),
+\mathcal{H}=(C,R,\mathcal{T}).
 $$
 
-where $C$ contains runtime critics, $R$ contains recovery playbooks, and $\mathcal{T}$ contains executable tools. Tools can be selected, adapted, or synthesized during evolution; the design is broader than tuning a fixed list of tool arguments.
+| Component | Meaning | Bottle-to-bowl example |
+|---|---|---|
+| **Runtime critics $C$** | Executable monitoring functions that report evidence and suggest a control change | Report that the arm is moving but the bottle is no longer retained |
+| **Recovery playbooks $R$** | Procedures for responding to particular failure mechanisms | Stop transport, restage the gripper, and attempt a different grasp |
+| **Tools $\mathcal{T}$** | Callable implementations that perform monitoring, planning, or motion | Generate a feasible grasp pose or execute controlled placement |
 
-Two operators remain fixed: the action policy $\pi_\theta$ and the Orchestrator $\mathcal{A}_{\mathrm{orch}}$. The latter's available evidence and actions change as the harness changes, so a fixed reasoning operator can still produce different decisions.
+A **runtime critic** is a monitoring program; it need not be a learned reinforcement-learning value function. A **playbook** describes the recovery procedure, while a tool implements an operation that procedure needs. Evolution can add or rewrite tools as well as adjust existing ones.
 
-With task goal $g$, policy observation $o_t$, and a recent execution window $W_t$, a schematic runtime is
+Two components stay fixed: the action policy and the **Orchestrator**, the paper's name for the reasoning agent that approves control changes. The critic supplies a proposal; the Orchestrator decides whether its evidence justifies an intervention.
+
+For policy observation $o_t$, task goal $g$, and fixed parameters $\theta$, ordinary actions come from
 
 $$
-a_t=\pi_\theta(o_t,g),\qquad \theta\text{ fixed},
+a_t=\pi_\theta(o_t,g),
+\qquad \theta\text{ fixed}.
 $$
 
+The Orchestrator can change which tool controls execution without changing this policy. Its own reasoning operator also stays fixed; different critic evidence and available recovery tools can still lead it to different decisions.
+
+### 2.2 A Check Must Establish What Physically Happened
+
+An **action chunk** is a short block of motor commands executed before the next control decision. After a policy or recovery chunk, the system collects a **state window** $W_t$: recent actions, observations, and physical measurements used to judge progress.
+
+The case studies check quantities such as:
+
+- commanded versus realized end-effector motion: did the arm move as requested?
+- gripper opening, contact on both fingers, and object–gripper drift: is the object actually retained?
+- target-relative progress: is a held object moving toward the destination?
+- support, containment, and separation after release: was placement completed without disturbing the object?
+
+These checks distinguish an issued command from its physical outcome. “Close the gripper” is an action; “the bottle remains held while lifting” is evidence that acquisition worked.
+
+Formally, the critic returns a proposal $P_t$ containing evidence $e_t$ and suggested mode $\hat{\sigma}_t$. The Orchestrator selects the actual mode $\sigma_t$:
+
 $$
-P_t=C(W_t)=\langle e_t,\hat\sigma_t\rangle,
+P_t=C(W_t)=\langle e_t,\hat{\sigma}_t\rangle,
 \qquad
-\sigma_t=\mathcal{A}_{\mathrm{orch}}(P_t,R,\mathcal{T},K).
+\sigma_t=\mathcal{A}_{\mathrm{orch}}
+(P_t,R,\mathcal{T},\mathcal{K}).
 $$
 
-$e_t$ is auditable failure evidence, $\hat\sigma_t$ a suggested mode, and $K$ task knowledge such as milestones, constraints, and success conditions. Mode $\sigma_t=0$ uses the nominal policy; positive modes select specialized tools or recoveries.
+Here $\mathcal{K}$ is task knowledge: milestones, success conditions, and constraints. Mode zero means ordinary policy control; positive modes select specialized tools or recoveries. A **milestone** is an intermediate task condition, such as acquiring the bottle before transporting it.
 
-The critic **does not itself execute a repair or declare success**. The Orchestrator approves interventions, and official task predicates determine episode success. Policy observations and critic evidence are not assumed to be the same information channel.
+The runtime sequence is therefore: **execute → collect evidence → check → approve a control choice → execute the chosen policy or recovery**. It is closed-loop because measured outcomes can change which action comes next. The critic does not independently move the robot or declare success. Official task predicates—simulator rules checking the required goal—determine task completion.
 
-### 2.2 What a Critic Can Check
+The evaluated information is richer than RGB alone. Appendix critics use simulator grasp predicates, contact information, and relative object geometry; diagnosis can also inspect internal simulator state. These inputs should not be assumed available to a camera-only real robot.
 
-The case studies monitor commanded versus realized end-effector motion, gripper aperture, bilateral finger contact, object–gripper drift, grasp retention, transport progress, supported placement, and post-release separation.
+The paper describes frequent code checks, including checks at action-chunk boundaries in the appendices. It does not specify a universal frequency in Hz or establish that a large language model reasons at every motor timestep.
 
-```text
-Frozen VLA or active recovery executes an action chunk
-  -> collect state, motion, contact, and progress evidence
-  -> code-based critic proposes continue / intervene / change mode
-  -> Orchestrator adjudicates the evidence
-       normal -> keep using the VLA
-       failure -> bounded recovery/tool execution
-  -> check failure clearance and stability
-  -> return to the VLA or continue recovery
-  -> stop only on official success or the applicable failure/budget limit
-```
+### 2.3 Finishing a Recovery Is Not Enough to Hand Control Back
 
-The paper describes critics as running at action frequency or above policy-inference frequency. It does **not** report a universal critic frequency in Hz or establish hard real-time deadlines. Appendices C/D express the checks at action-chunk boundaries, so this should not be read as evidence that a frontier language model reasons at every motor timestep.
+Suppose the recovery closes the gripper again. Immediately resuming transport can repeat the failure if the new contact is unstable. Zetta therefore uses a **re-entry contract**: a condition that must hold before returning control to the base policy.
 
-### 2.3 Re-entry Is a Physical Predicate
-
-Returning control immediately after issuing a regrasp command can reproduce the original failure. Zetta specifies a re-entry contract:
+The original failure evidence must be cleared, and contact must be stable enough for normal execution. For physical state $s_t$, the paper writes
 
 $$
 \Psi(s_t)=
@@ -91,137 +101,175 @@ $$
 \mathbf{1}[\operatorname{Stability}(s_t)>\gamma].
 $$
 
-The first condition resolves the critic's original evidence; the second checks stable contact using force/torque-related signals. The paper does not fully define the stability score, threshold, or required observation duration. The inequality is an abstract acceptance condition, not an instruction to increase raw force or torque oscillations.
+$\Psi=1$ permits re-entry; the indicator terms require both conditions. $\gamma$ is an acceptance threshold for the stability measure, which uses force/torque-related physical signals.
 
-This contract supplies the link between **a recovery action being completed** and **the VLA receiving a state from which nominal execution is appropriate**. It is a specified control discipline, not a general hardware-safety proof.
+For the bottle example, this means checking retention after the regrasp before continuing toward the bowl. The formula expresses that requirement, but the paper does not fully specify the stability score, threshold, or observation duration. It is an abstract handover criterion rather than a complete contact-controller implementation.
 
-## 3. From Failure Traces to a Revised Harness
-
-### 3.1 Profile Valid Rollouts Before Changing Code
-
-Initial development rollouts establish a policy-only baseline. The system retains append-only traces containing observations/actions, semantic milestone status, and auxiliary physical signals such as contacts and collision intensity.
-
-Infrastructure-invalid attempts, such as simulator crashes or network failures, are rerun with the same logical seed. They are separated from valid policy failures so an infrastructure outage does not become evidence for a grasp-recovery patch.
-
-Successful traces form a milestone-indexed reference collection. For a failed episode, the **first missing milestone** narrows the investigation to the transition that never completed. The **earliest observable divergence** then asks when behavior first departed from the successful reference pattern.
-
-These are different localization tools: “the object never reached the bowl” identifies a missing outcome, whereas “the object separated from the fingers during lifting” identifies an earlier physical event that explains it.
-
-### 3.2 Diagnose a Mechanism, Not Merely the Final Failure
-
-Failures are clustered using divergence context, missing milestones, relative poses, and active tools. A representative medoid seed receives detailed diagnosis, followed by checks that the proposed explanation also fits other cluster members.
-
-The prescribed inspection order is:
-
-1. **Evaluation:** is the success/milestone logic wrong?
-2. **Critic:** was the event missed or falsely detected?
-3. **State:** are pose/contact representations correct?
-4. **Planning/control:** does execution fail despite correct state information?
-5. **Recovery:** is the playbook itself causing the problem?
-6. **Parameters:** do gains or thresholds need adjustment?
-
-The ordering favors the highest-level effective repair before changing low-level parameters. Diagnosis anchors visual reasoning to one selected camera view; insufficient visual evidence is checked against simulator state and physical signals instead of casually switching viewpoints.
-
-“Causal diagnosis” here is an agent-guided explanation tested through revised rollouts. The paper does not provide a formal causal-identification guarantee, nor complete definitions for the divergence distance and thresholds.
-
-### 3.3 Validate Locally, Then Generalize Across Seeds
-
-The repair agent updates the required subset of critics, recoveries, and tools. Validation first checks whether the revised critic recognizes the original divergence, then runs a **fresh closed-loop episode from the initial state**. Success must satisfy the official goal and the adjudication/re-entry rules; diagnosing a recorded failure correctly is insufficient.
-
-The generalization agent merges local patches into reusable conditions and object-relative behaviors. Its package includes:
-
-| File/directory | Role |
-|---|---|
-| `SKILL.md` | Milestones, adjudication rules, and re-entry conditions |
-| `tools/` | Executable critics and tool implementations |
-| `plans/` | Recovery procedures keyed to physical evidence |
-| `params/` | Thresholds and numerical operating boundaries |
-
-This packaging is part of Zetta's proposed method; it does not imply that arbitrary generated code becomes a safe motor skill without validation.
-
-The admission protocol requires **100% regression success on the originating failure cluster**, followed by evaluation on separate held-out seeds. The 100% criterion concerns those historical failures, not a promise of perfect held-out performance.
-
-If a held-out failure is used to modify the harness, that seed becomes development data and **new unseen seeds must replace it for final validation**. This distinction is essential: an episode cannot remain a clean test after its outcome has guided a patch.
-
-The optimization can be summarized as
-
-$$
-\mathcal{H}_{k+1}=\mathcal{A}_{\mathrm{evo}}
-(\mathcal{D}_{\mathrm{fail}}^{(k)},\mathcal{H}_k),
-\qquad
-\max_{\mathcal{H}}\mathbb{E}[\operatorname{Success}(\tau)
-\mid\pi_\theta,\mathcal{A}_{\mathrm{orch}},\mathcal{H}].
-$$
-
-The paper's “SGD-like” analogy refers to bounded updates in code/skill space. It does not introduce differentiable gradients through the simulator or optimize the VLA's weights.
-
-## 4. A Worked Grasp–Transport–Placement Example
+### 2.4 Different Problems Need Different Recoveries Within the Same Episode
 
 ![Lost grasp, re-approach, generated regrasp, resumed transport, and stable placement](../../../../assets/Zetta/Zetta_recovery_sequence.png)
 
-*Paper Figure 12. Several different recoveries can occur within one episode. An invalid regrasp proposal invokes GraspGen; near-goal risk invokes placement code. Each local repair is checked before execution proceeds.*
+*Paper Figure 12, a RoboCasa pick-and-place episode. Grasp loss leads to re-approach; an infeasible regrasp leads to grasp generation; near-goal risk leads to stable placement. These are successive physical repairs within one task attempt.*
 
-Appendices C/D make the critic–recovery connection concrete:
+Figure 12 shows why a single generic retry is insufficient:
 
-1. **Approach:** if the gripper fails to acquire the object, stop the ineffective motion, open, and restage using current object-relative geometry.
-2. **Acquire:** generate a grasp different from remembered failed proposals; execute approach and a short stability/lift check.
-3. **Transport:** verify that the object remains retained. A moving empty gripper is not valid progress. Grasp loss triggers a bounded release/restage/regrasp sequence.
-4. **Align:** if transport stalls while the grasp is stable, preserve the grasp and switch to fine arm alignment rather than repeatedly issuing coarse motion.
-5. **Place:** lower until the required support/containment condition is reached, release, and retreat until separation is verified.
+1. **The object slips.** The critic reports grasp loss, so transport is interrupted and the robot re-approaches.
+2. **The proposed regrasp is infeasible.** Repeating it would not solve the geometry problem. Recovery invokes **GraspGen**, a tool that generates a feasible grasp pose.
+3. **The new grasp is verified.** Ordinary transport can resume.
+4. **Placement becomes risky near the goal.** A placement recovery handles final alignment and release, followed by verification.
 
-Failed-grasp memory prevents retrying equivalent unsuccessful proposals within the recovery budget. Rebinding the object and destination lets the same physical logic serve related tasks without replaying a source trajectory.
+Appendices C/D spell out related procedures for stove pick-and-place and bottle-to-bowl tasks. A failed grasp causes release, restaging, and a fresh object-relative proposal. **Failed-grasp memory** records rejected attempts so recovery does not keep choosing equivalent proposals within its retry budget.
 
-For LIBERO-Pro Goal-T2, the selected internal checkpoints illustrate why the right check matters: **10%** policy-only success rises to **15%** after staging changes, then **95%** after a retained-object critic addresses grasp loss before transport. The paper calls the abrupt improvement an “Aha moment.” These are selected intermediate code versions, not a neural-model training curve or proof of an unbounded scaling law.
+If transport stalls while the grasp remains stable, the response instead preserves that grasp and switches to finer alignment. Near the destination, placement lowers the object until support or containment is established, releases, and retreats until gripper–object separation is confirmed.
 
-The broader case study also distinguishes two kinds of composition: Figure 12 chains repairs **inside one episode**, while Figure 13 adds capabilities **across successive harness revisions**. They should not be counted as the same experimental intervention.
+The control choice follows the physical evidence: losing the object calls for reacquisition; being misaligned while still holding it calls for alignment. Those conditions are what the next part of Zetta learns to recognize and repair more reliably.
 
-## 5. Z-Infra: Make Repeated Experiments Cheaper
+## 3. How Does a Failure Become a Better Harness?
+
+![Zetta execution, failure analysis, harness repair, and consolidation](../../../../assets/Zetta/Zetta_evolution.png)
+
+*Paper Figure 2. The left side executes episodes using the current harness. The right side uses their evidence to profile failures, diagnose and patch their mechanisms, then consolidate validated changes into a version used for later episodes.*
+
+### 3.1 Record Progress So the Final Failure Can Be Explained
+
+Development starts with policy-only rollouts. Their traces record observations, actions, milestone completion, and physical signals such as contact forces and collision intensity. Records are append-only so later diagnosis can inspect how a failure developed.
+
+Infrastructure failures are separated from policy failures. A simulator crash or network outage is rerun with the same logical seed instead of being treated as evidence that a grasp strategy needs repair.
+
+Successful episodes provide references indexed by milestone. Failed episodes are first localized using the **first missing milestone**. An illustrative bottle-task sequence is: approach → acquire → transport while retaining → contain in bowl → release. If acquisition happened but retained transport did not, the investigation should focus on that transition.
+
+This identifies a missing outcome, but not necessarily the event that caused it. The **earliest observable divergence** asks when the failed trace first departs from successful behavior at a comparable stage. The bottle separating from the fingers during lifting may explain why it never reached the bowl.
+
+Thus, milestone analysis narrows **where progress stopped**, while divergence analysis looks for **what went wrong earlier**. The paper describes a state-distance test for divergence, but does not fully specify its metric and numerical thresholds.
+
+### 3.2 Group Similar Mechanisms Before Proposing a Fix
+
+Failures are clustered using divergence context, missing milestones, relative poses, and active tools. This avoids treating every “object not placed” outcome as the same problem.
+
+Each cluster has a **medoid seed**: a representative actual failure near the cluster's center in its failure-feature space. Detailed diagnosis begins there, then checks whether the explanation fits the other members. One isolated success after a patch is not enough to establish that it repaired the shared mechanism.
+
+The diagnosis agent inspects layers in this order:
+
+| Layer | Question before changing code |
+|---|---|
+| Evaluation | Do the recorded milestone and success checks correctly describe the task? |
+| Critic | Was the important event missed or falsely reported? |
+| State representation | Are object poses and contact information correct? |
+| Planning/control | Does execution fail despite correct state information? |
+| Recovery | Is the recovery procedure itself causing the problem? |
+| Parameters | Do control gains or thresholds need adjustment? |
+
+The purpose is to fix the earliest effective layer rather than immediately tuning motion parameters. If the bottle is lost but the system never checks retention, changing the transport trajectory does not address the missing check.
+
+Visual diagnosis is anchored to one selected camera view. If that view is insufficient, the agent checks simulator state and physical signals rather than switching views in a way that may confuse spatial reasoning. “Causal diagnosis” here produces a mechanism hypothesis that is subsequently tested through changed execution.
+
+### 3.3 Patch Detection and Recovery, Then Test a Fresh Episode
+
+The repair agent changes the required subset of $C$, $R$, and $\mathcal{T}$. For grasp loss, that might mean adding a retention check and connecting it to a bounded release–restage–regrasp procedure.
+
+Validation has two distinct steps:
+
+1. **Diagnostic replay:** does the revised critic recognize the divergence in the original failure?
+2. **Fresh closed-loop execution:** from the initial state, does the changed harness complete the task while following the intervention and re-entry rules?
+
+The second step matters because recognizing an old failure does not show that a repair works. Intervening changes future states, and a correction can introduce a new problem.
+
+A concrete example appears in **LIBERO-Pro Goal-T2**, the bottle-to-bowl task. Selected internal versions achieve **10%** with the frozen policy, **15%** after pregrasp staging changes, and **95%** after a retained-object critic addresses grasp loss before transport.
+
+The paper calls this an **“Aha moment”**: a sharp gain after identifying the decisive physical bottleneck. These points are selected code revisions inside an evolution process. They are not neural-training checkpoints or evidence that every added revision yields such a jump.
+
+### 3.4 Replace Seed-Specific Patches with Reusable Conditions
+
+A patch that moves to one stored coordinate may work only for its original setup. The generalization agent consolidates local patches into conditions and procedures that refer to current physical relationships.
+
+For example, grasping relative to the live object's pose and placing relative to the live destination can survive changes in their positions. The system can reuse this logic by **rebinding** which object and receptacle are being manipulated, without replaying an old trajectory.
+
+The resulting versioned package separates:
+
+| Package part | What it stores |
+|---|---|
+| `SKILL.md` | Milestones, decision rules, and re-entry conditions |
+| `tools/` | Executable critics and tool implementations |
+| `plans/` | Recovery procedures selected by failure evidence |
+| `params/` | Operating thresholds and numerical settings |
+
+The prescribed admission rule requires **100% success on the originating historical failure cluster**, followed by evaluation on separate held-out seeds. The 100% requirement applies to those known failures, not to all future episodes.
+
+If a held-out failure is used to revise the harness, it becomes development data. New unseen seeds must replace it for final validation. Otherwise, tuning a patch on an episode and then counting that episode as an unseen test would conceal overfitting.
+
+Writing $\mathcal{D}_{\mathrm{fail}}^{(k)}$ for failure traces at iteration $k$, the update is
+
+$$
+\mathcal{H}_{k+1}=
+\mathcal{A}_{\mathrm{evo}}
+\bigl(\mathcal{D}_{\mathrm{fail}}^{(k)},\mathcal{H}_k\bigr).
+$$
+
+$\mathcal{A}_{\mathrm{evo}}$ comprises diagnosis, repair, and generalization agents. It proposes changes to programs; validation determines whether they are retained. The paper's analogy to gradient descent describes bounded updates in code/skill space, not gradients through the simulator or updates to policy weights.
+
+## 4. Why Does Zetta Need Its Own Rollout Infrastructure?
+
+### 4.1 Evolution Requires Many Independent Experiments
+
+The preceding process repeatedly executes baseline episodes, replays failures, tests patches, and checks unseen seeds. Slow rollout production therefore limits how much experience evolution can use.
+
+**Z-Infra** separates environment execution from neural-model serving. A simulator needs its own mutable physical state, whereas many episodes can share access to policy and perception models. Keeping these responsibilities separate permits parallel episodes without duplicating every resource for every agent.
 
 ![Z-Infra control plane, environment workers, rollout/model workers, and shared resources](../../../../assets/Zetta/Zetta_Z_Infra.png)
 
-*Paper Figure 3. Environment state and neural inference are managed by separate worker layers. The agent requests an operation without choosing the physical CPU/GPU placement.*
+*Paper Figure 3. The control plane routes requests; environment workers maintain independent simulations; rollout workers serve neural models. The agent specifies what operation it needs, while infrastructure chooses where it runs.*
 
-### 5.1 Separate Mutable Environments from Shared Model Serving
-
-The infrastructure exposes sessions, episodes, and steps through a control plane backed by Ray:
-
-| Layer | Main responsibility |
+| Layer | Responsibility |
 |---|---|
-| Control plane / Gateway | Session registry, routing, resource admission, health monitoring |
-| Environment workers | Isolated simulation state, stepping, reset, rendering, observations |
-| Rollout workers | GPU-resident policy/perception inference, compatible batching, asynchronous responses |
+| **Control plane / Gateway** | Track sessions, route requests, admit work, and monitor worker health |
+| **Environment workers** | Maintain separate simulation states; reset, step, and render environments |
+| **Rollout workers** | Run policy/perception models on GPUs and batch compatible requests |
 
-Sessions persist across episodes. `reset` starts an episode, `observe` reads without stepping, and `action_step` executes supplied actions. `policy_infer` requests actions without executing them; `policy_step` combines observe/infer/step; `run_episode` executes a complete worker-side rollout. These APIs serve different control needs rather than forcing all logic through an LLM turn.
+A **session** is a long-lived environment instance; multiple episodes can run in it, each beginning with a reset. The distinction avoids repeatedly rebuilding all resources for every attempt.
 
-Environment workers share read-only MuJoCo model structure between compatible slots while keeping each slot's `mjData` and episode state private. A C++ stepping path combines control, interpolation, physics, and rendering, releasing the Python GIL during its critical section. Resetting one slot does not reset the others.
+For a `policy_step` call, the environment worker supplies observations, a model worker returns actions, and the environment worker executes them. A routing token sends the answer to the correct session while other sessions make progress. `policy_infer` only predicts actions; `action_step` executes supplied actions; `run_episode` keeps the complete rollout inside the workers.
 
-Model workers batch requests only when model identity, modalities, and tensor shapes are compatible. Bounded channels provide backpressure, and routing tokens deliver results to the correct session. Worker failure marks affected sessions lost; recreation is not a guarantee of restoring a failed episode's exact mid-trajectory state.
+### 4.2 Share Resources Without Sharing Episode State
 
-### 5.2 Model Partitioning and Quantization Are Separate Optimizations
+Compatible MuJoCo environments reuse compiled, read-only model structure and rendering resources, while each slot retains its own mutable physics and episode state. Resetting one slot therefore does not reset another. A C++ stepping path reduces Python overhead in control, physics, and rendering.
 
-For PyTorch pi0.5, Z-Infra separates the VLM encoder and action expert into independently scheduled processes, exchanging intermediate activations through CUDA IPC. The paper reports **53% lower average inference latency** and **2.4× goodput under a 200 ms SLO** relative to monolithic serving.
+Model requests are batched only when their model identity, input modalities, and tensor shapes match. Bounded queues limit incoming work when workers are saturated. If an environment worker fails, affected sessions are marked lost and can be recreated; exact mid-episode restoration is not promised.
 
-An optional quantization path uses **W8A8 in compute-heavy prefix MLPs**, retaining other modules in BF16. On RTX 4090, the reported speedup is **1.18–1.32×** without success degradation in the tested LIBERO setting. This is not a claim that every module can be quantized equally without affecting control.
+For PyTorch pi0.5, Z-Infra also separates the **vision-language encoder**, which processes observations/instructions, from the **action expert**, which converts its representations into actions. Independent scheduling and GPU activation sharing reduce average inference latency by **53%** and improve **goodput by 2.4× under a 200 ms target**. Goodput counts requests completed within that latency target.
 
-These serving improvements accelerate rollout production. They do not themselves constitute a new recovery mechanism, so infrastructure speed and harness success should be evaluated separately.
+An optional quantization path applies **W8A8**, meaning 8-bit weights and activations, to compute-heavy prefix multilayer perceptrons while retaining other modules in 16-bit BF16. It gives **1.18–1.32× inference speedup on RTX 4090** without success degradation in the tested LIBERO setting.
 
-## 6. Evaluation: Scope, Adaptation, and Final Test Performance
+These changes make experiments cheaper. Whether the harness learns better recovery must still be established by task-success measurements.
 
-### 6.1 What Is Trained, Evolved, and Tested?
+## 5. What Do the Final Success Rates Measure?
 
-- **LIBERO-Pro:** frozen pi0.5, with 50 development seeds/task excluding seeds 1–20; final evaluation uses seeds 1–20. Development targets the largest failure cluster and continues until its specified development success criterion reaches at least 50%.
-- **RoboCasa:** frozen, previously post-trained GR00T N1.5; 50 random development seeds/task and a disjoint set of 50 final test seeds/task.
-- **Compute:** the harness experiments report eight RTX 4090 GPUs. The separate infrastructure comparison uses eight A100 GPUs.
+### 5.1 Separate Harness Adaptation from Policy Training and Final Testing
 
-Zetta adds no policy pretraining or fine-tuning during evolution. Its learning data are rollout traces and task-specific physical evidence, not additional gradient-training demonstrations for the VLA. The exact checkpoint preparation, agent-model configuration, numerical episode horizons, and total adaptation/repair budgets are not fully specified in the supplied PDF.
+Zetta uses existing policies and evolves their surrounding software:
 
-**Information access matters:** diagnosis may inspect internal simulator state; the appendix critics use official grasp predicates, finger contact, relative object geometry, and official task-success predicates. These are not established as estimates obtainable from RGB alone. The results therefore should not be directly compared with sensor-only harnesses that withhold object state, contacts, or evaluator feedback.
+| Benchmark | Frozen base policy | Development per task | Final evaluation per task |
+|---|---|---|---|
+| LIBERO-Pro | pi0.5 | 50 seeds excluding seeds 1–20 | Seeds 1–20 |
+| RoboCasa | Previously post-trained GR00T N1.5 | 50 random seeds | 50 disjoint seeds |
 
-### 6.2 LIBERO-Pro: Goal-Only and Broader Averages Differ
+For LIBERO-Pro, the benchmark setup targets the largest failure cluster and states a stopping criterion of at least 50% success on the targeted development seeds. The method section separately prescribes the 100% historical-cluster admission rule above; the PDF does not fully explain how these criteria are coordinated. Final scores come from separate test seeds. The harness experiments use **eight RTX 4090 GPUs**.
 
-Table 3 covers **40 task-setting pairs**: ten tasks each in Goal-T, Goal-S, LIBERO-10-T, and LIBERO-10-S. T denotes instruction/target redirection; S denotes object-position swapping. This is not every suite in the complete LIBERO-Pro benchmark.
+There is no additional VLA pretraining or fine-tuning during this process. The new experience is stored in rollout evidence and executable software. The PDF does not fully specify agent-model configuration, numerical episode horizons, total repair budgets, or every detector threshold, which limits exact reproduction.
 
-| Setting | Frozen pi0.5 | Zetta | Gain |
+The information-access distinction from Section 2 also matters: simulator contact, object geometry, and official predicates support these experiments. The scores do not isolate performance under sensor-only observation restrictions.
+
+### 5.2 LIBERO-Pro Tests Changes in Goals and Object Positions
+
+LIBERO-Pro perturbs tasks from the original LIBERO benchmark. Zetta evaluates ten Goal tasks and ten LIBERO-10 tasks under each of two settings:
+
+- **T: task/instruction redirection.** Redirect the instruction to another valid object or goal.
+- **S: position swapping.** Rearrange relevant objects while keeping the instruction fixed.
+
+This yields **40 task-setting pairs**, not every suite in the full LIBERO-Pro benchmark. LIBERO-10 is also called Long in the paper.
+
+Table 3 reports:
+
+| Setting | Frozen pi0.5 | Zetta | Absolute gain |
 |---|---:|---:|---:|
 | Goal-T | 31.0% | 92.5% | 61.5 points |
 | Goal-S | 38.0% | 89.0% | 51.0 points |
@@ -229,13 +277,15 @@ Table 3 covers **40 task-setting pairs**: ten tasks each in Goal-T, Goal-S, LIBE
 | LIBERO-10-S | 9.0% | 40.0% | 31.0 points |
 | All 40 settings | 32.00% | **71.13%** | 39.13 points |
 
-The abstract's **90.8%** matches the **Goal-only average**: $(92.5+89.0)/2=90.75\%$. Its corresponding baseline is $(31+38)/2=34.5\%$. This explains the headline numerically; it should not replace the 71.13% aggregate over Goal plus LIBERO-10.
+The abstract's **90.8%** is consistent with the **Goal-only average**: $(92.5+89.0)/2=90.75\%$, with a corresponding baseline of 34.5%. The broader 40-setting score is 71.13%.
 
-Zetta improves 32 task-setting pairs and matches eight. Some long-task settings remain at zero success, so large Goal-suite gains do not establish that multi-stage execution is solved.
+Zetta improves 32 task-setting pairs and matches eight. The smaller LIBERO-10 gains and remaining zero-success settings show that stronger local recovery does not resolve every multi-stage task.
 
-### 6.3 RoboCasa: Eighteen Atomic Tasks
+### 5.3 RoboCasa Evaluates Eighteen Atomic Tasks
 
-Table 2 evaluates the complete **18-task Atomic-Seen split of RoboCasa 1.0.1**, rather than all RoboCasa365 tasks or its composite-task suite. The macro-average rises from **73.56% to 93.56%**. Selected task results are:
+The RoboCasa result covers the complete **18-task Atomic-Seen split of RoboCasa 1.0.1**: individual operations such as navigation, object transfer, and appliance manipulation. “Seen” names the task partition; the final environment seeds are still held out. This does not evaluate the full RoboCasa365 task collection.
+
+Table 2 gives the following selected results:
 
 | Task | Frozen GR00T N1.5 | Zetta |
 |---|---:|---:|
@@ -245,47 +295,65 @@ Table 2 evaluates the complete **18-task Atomic-Seen split of RoboCasa 1.0.1**, 
 | CloseBlenderLid | 50% | 100% |
 | All 18 tasks | 73.56% | **93.56%** |
 
-Four cumulative global repair rounds yield **73.56 → 78.71 → 84.85 → 90.54 → 93.56%**. Each checkpoint retains validated earlier capabilities. This supports improvement with the reported experience budget, but does not isolate the contributions of critics, recovery code, added tools, or infrastructure in a comprehensive component ablation.
+The aggregate is a **macro-average**: each task contributes equally to the average success rate. Its 20-point gain shows useful harness adaptation across this task set, including contact-rich manipulation. It is not a measurement of general real-world deployment reliability.
 
-### 6.4 Cross-Task Transfer Is Zero-Shot with Respect to Harness Evolution
+## 6. Does Accumulated Experience Help Beyond the Repaired Episode?
 
-Pregrasp, regrasp, and placement skills evolved on PnP-Stove transfer to related targets without target-specific repair rounds:
+### 6.1 More Validated Mechanisms Improve the Same Task Collection
 
-| Target task | Parent | Transferred harness |
+Across four cumulative global repair rounds, RoboCasa success rises
+
+$$
+73.56\%\rightarrow78.71\%\rightarrow84.85\%
+\rightarrow90.54\%\rightarrow93.56\%.
+$$
+
+Each checkpoint retains previously validated critics, recoveries, and tools. Thus later versions can handle several failure mechanisms rather than replacing one successful correction with another.
+
+These rounds differ from the within-episode sequence in Figure 12: one chains physical repairs during an attempt; the other adds reusable capabilities across software versions. The upward curve supports improvement with the reported experience budget, but does not independently isolate critics, recovery code, extra tools, and infrastructure through a comprehensive component ablation.
+
+### 6.2 Transfer Tests Whether the Physical Rule Is Reusable
+
+On **PnP-Stove**, a counter-to-stove pick-and-place task, evolution adds pregrasp alignment, regrasp after loss, and stable placement. The accumulated harness is then applied to related target tasks **without additional target-task evolution**:
+
+| Transfer task | Parent policy | Transferred harness |
 |---|---:|---:|
 | PnP-Sink | 58% | 82% |
 | PnP-Cabinet | 62% | 80% |
 | PnP-Toaster | 72% | 90% |
 | Average | 64% | 84% |
 
-These are transfer checkpoints, rather than the independently evolved per-task harnesses in Table 2. Articulated-interaction skills from TurnOffStove similarly raise the average over three related tasks from **64% to 80%**. LIBERO-Pro examples transfer cumulative skills using matched seeds, policy RNGs, checkpoints, and execution budgets.
+The transfer scores are distinct from independently evolved task-specific results in Table 2. They test whether the existing correction mechanisms work when the live object and destination are changed.
 
-“Zero-shot” here means **no additional target-task harness evolution**. It does not establish that the base VLA never saw related tasks during its original training, or that no task goal/context is supplied. The demonstrated transfer is primarily between related physical failure mechanisms.
+A second source, **TurnOffStove**, supplies target-localization, collision-aware approach, and stable-contact mechanisms. Their transfer to three related articulated-interaction tasks raises average success from **64% to 80%**. LIBERO-Pro transfer comparisons similarly match seeds, policy random-number settings, checkpoints, and execution budgets across alternatives.
 
-## 7. Efficiency Results: Compare the Same Load Before Quoting a Speedup
+Here **“zero-shot” refers to harness evolution**: the target gets no additional repair-development rounds. It does not mean the frozen policy never encountered related tasks in its original training. The demonstrated reuse concerns related physical failure mechanisms.
 
-The Z-Infra comparison uses the same model checkpoints and action budgets on **eight A100s**. Figure 15 reports valid rollout throughput:
+## 7. How Much Faster Does Z-Infra Make the Experiments?
+
+The infrastructure comparison uses **eight A100 GPUs**, identical model checkpoints, and identical action budgets on LIBERO Goal. **Concurrency** is the number of simultaneously active rollouts. **Throughput** counts completed valid episodes per minute; **latency** measures how long one episode takes.
+
+Figure 15 reports:
 
 | Concurrency | Zetta + Z-Infra | Zetta without Z-Infra | RPent |
 |---|---:|---:|---:|
 | 8 | 12.18 episodes/min | 2.71 | 1.10 |
 | 16 | 22.09 episodes/min | 2.88 | 1.72 |
-| 32 | 32.8 episodes/min | OOM | OOM |
-| 64 | 35.1 episodes/min | OOM | OOM |
+| 32 | 32.8 episodes/min | Out of memory | Out of memory |
+| 64 | 35.1 episodes/min | Out of memory | Out of memory |
 
-At concurrency 16, throughput is **7.7×** the version without Z-Infra and **12.8×** RPent. Episode latency is about **43 s versus 112 s and 513 s**, respectively. At concurrency 64, Z-Infra reaches 35.1 episodes/min while episode latency rises to 95 s; throughput and individual-request latency are different objectives.
+RPent is the paper's agent-in-the-loop baseline, which pays language-model-call overhead along the execution path.
 
-The headline approximately 20.6× throughput improvement compares peak reported rates at different supported concurrency levels. Likewise, the abstract's 11.1× “inference” speedup should not be confused with the separate 53% neural-inference latency reduction from partitioning: Section 4.6 primarily measures **episode wall-clock latency** and reports a roughly 12× RPent comparison at concurrency 16.
+At the same concurrency of 16, Z-Infra provides **7.7×** the throughput of Zetta without it and **12.8×** that of RPent. Episode latency is about **43 s versus 112 s and 513 s**. At concurrency 64, throughput reaches 35.1 episodes/min while latency rises to 95 s: completing more episodes overall can still mean a longer wait for an individual episode.
 
-One implementation boundary remains unclear. Section 2 describes an online multimodal Orchestrator that approves mode transitions, while Section 4.6 attributes low overhead to agents running only in offline reflection/evolution and lightweight critics running online. The PDF does not fully specify how those descriptions are reconciled. It supports a fast code-based monitoring path, but not an assumption that an LLM is invoked on every critic check.
+The headline **20.6× throughput** compares peak rates at different supported concurrency levels. The abstract's **11.1× “inference” speedup** should also be kept separate from the 53% neural-inference latency reduction in Section 4: the main infrastructure plots measure episode wall-clock time.
 
-## 8. Relation to Other Harnesses and Evidence Limits
+One runtime detail remains unresolved. Section 2 specifies an online reasoning Orchestrator approving mode changes, whereas Section 4.6 attributes low overhead to agents running offline and lightweight critics running online. The PDF does not fully reconcile these descriptions. It establishes a code-based monitoring path, but not a language-model call at every check.
 
-- **Harness VLA:** both compose frozen learned control with specialized tools. Zetta additionally evolves the executable conditions that request recovery and admit a return to the nominal policy.
-- **Spotter:** both detect failures during execution. Spotter uses parallel VLM screening/judgment and primitive repairs; Zetta emphasizes generated code critics, validation across seeds, and revisions between rollout batches.
-- **AdaHVLA:** both search harness programs rather than policy weights. Zetta focuses its evolvable state on critics, playbooks, and tools, and supplies dedicated rollout infrastructure.
-- **RegenHarness:** both separate proposals from verified progress, but their contracts and empirical claims differ. Zetta reports simulation improvement curves; those curves do not validate every proposed governance guarantee.
+## 8. What Distinguishes Zetta from Other Robot Agent Systems?
 
-The main lesson is a connected loop: **localize a recurring physical failure → encode its precursor as a critic → repair the state → verify re-entry → retain the mechanism only after validation**. Faster rollout production lets this search proceed more quickly, while the validation boundary determines whether the resulting code generalizes.
+[Spotter](./Spotter.md) focuses on parallel screening, VLM judgment, physical repair, and checking its effect during execution. Zetta additionally makes the executable monitoring and recovery programs themselves the subject of repeated, validated revision.
 
-The main quantitative evidence remains simulation-based; the conclusion presents extension to real robots as future work. Simulator-state access, unspecified agent/threshold/budget settings, limited component isolation, and the runtime-adjudication ambiguity constrain reproducibility and hardware conclusions. Neither task success nor the prescribed re-entry checks establish a general guarantee of safe physical execution.
+Like [AdaHVLA](./AdaHVLA.md), it changes software around a fixed policy. Its distinctive emphasis is the coupled **failure check → targeted recovery → verified re-entry** mechanism, together with infrastructure for testing revisions at scale. [Harness VLA](./Harness_VLA.md), [EmbodiedRSI](./EmbodiedRSI.md), and [RegenHarness](./RegenHarness.md) provide related perspectives on tool use and improving external control logic.
+
+The reported quantitative evidence is simulation-based; extending the approach to real robots is future work in the conclusion. Its strongest supported result is that accumulated, validated monitoring and recovery code can substantially improve frozen policies on the tested task distributions. Simulator-state access, unspecified settings, and limited component ablations constrain how far those results can be generalized.
