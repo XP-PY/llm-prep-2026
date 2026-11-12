@@ -89,10 +89,10 @@ The diagram gives a high-level overview; the sections below act as the detailed 
 - Vision models: [ViT](./docs/Model_Zoo/Vision_Models/ViT.md), [DINOv2](./docs/Model_Zoo/Vision_Models/DINOv2.md), [DINOv3](./docs/Model_Zoo/Vision_Models/DINOv3.md)
 - Vision-language models: [CLIP](./docs/Model_Zoo/Vision_Language_Models/CLIP.md), [SigLIP](./docs/Model_Zoo/Vision_Language_Models/SigLIP.md), [PaliGemma](./docs/Model_Zoo/Vision_Language_Models/PaliGemma.md), [SmolVLM](./docs/Model_Zoo/Vision_Language_Models/SmolVLM.md), [Gemma 3](./docs/Model_Zoo/Vision_Language_Models/Gemma_3.md), [Gemma 4](./docs/Model_Zoo/Vision_Language_Models/Gemma_4.md), [DeepSeek-VL](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL.md), [DeepSeek-VL2](./docs/Model_Zoo/Vision_Language_Models/DeepSeek_VL2.md)
 - Robotics datasets: [LIBERO](./docs/Model_Zoo/Robotics/Datasets/LIBERO.md), [Open X-Embodiment](./docs/Model_Zoo/Robotics/Datasets/Open_X_Embodiment.md), [RoboCasa365](./docs/Model_Zoo/Robotics/Datasets/RoboCasa365.md)
-- Grasping: [AnyGrasp](./docs/Model_Zoo/Robotics/Grasping/AnyGrasp.md), [GraspNet](./docs/Model_Zoo/Robotics/Grasping/GraspNet.md)
-- Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Fast-WAM](./docs/Model_Zoo/Robotics/Policies/Fast_WAM.md), [GR00T N1](./docs/Model_Zoo/Robotics/Policies/GR00T_N1.md), [MolmoAct2](./docs/Model_Zoo/Robotics/Policies/MolmoAct2.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RDT-1B](./docs/Model_Zoo/Robotics/Policies/RDT_1B.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [WALL-OSS](./docs/Model_Zoo/Robotics/Policies/WALL_OSS.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Pi_Hi_Robot.md), [Human-to-Robot Transfer](./docs/Model_Zoo/Robotics/Policies/Pi_Human_to_Robot.md), [MEM](./docs/Model_Zoo/Robotics/Policies/Pi_MEM.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
+- Grasping: [AnyGrasp](./docs/Model_Zoo/Robotics/Grasping/AnyGrasp.md), [GraspGen](./docs/Model_Zoo/Robotics/Grasping/GraspGen.md), [GraspNet](./docs/Model_Zoo/Robotics/Grasping/GraspNet.md)
+- Robot policies: [ACT / ALOHA](./docs/Model_Zoo/Robotics/Policies/ACT.md), [Diffusion Policy](./docs/Model_Zoo/Robotics/Policies/Diffusion_Policy.md), [Fast-WAM](./docs/Model_Zoo/Robotics/Policies/Fast_WAM.md), [GR00T N1](./docs/Model_Zoo/Robotics/Policies/GR00T_N1.md), [GR00T 2](./docs/Model_Zoo/Robotics/Policies/GR00T_2.md), [MolmoAct2](./docs/Model_Zoo/Robotics/Policies/MolmoAct2.md), [Octo](./docs/Model_Zoo/Robotics/Policies/Octo.md), [RDT-1B](./docs/Model_Zoo/Robotics/Policies/RDT_1B.md), [RT-1](./docs/Model_Zoo/Robotics/Policies/RT_1.md), [RT-2](./docs/Model_Zoo/Robotics/Policies/RT_2.md), [OpenVLA](./docs/Model_Zoo/Robotics/Policies/OpenVLA.md), [SmolVLA](./docs/Model_Zoo/Robotics/Policies/SmolVLA.md), [WALL-OSS](./docs/Model_Zoo/Robotics/Policies/WALL_OSS.md), [pi0](./docs/Model_Zoo/Robotics/Policies/Pi_0.md), [pi0-FAST](./docs/Model_Zoo/Robotics/Policies/Pi_0_FAST.md), [Hi Robot](./docs/Model_Zoo/Robotics/Policies/Pi_Hi_Robot.md), [Human-to-Robot Transfer](./docs/Model_Zoo/Robotics/Policies/Pi_Human_to_Robot.md), [MEM](./docs/Model_Zoo/Robotics/Policies/Pi_MEM.md), [pi0.5](./docs/Model_Zoo/Robotics/Policies/Pi_0_5.md), [pi0.5-KI](./docs/Model_Zoo/Robotics/Policies/Pi_0_5_KI.md), [pi0.6*](./docs/Model_Zoo/Robotics/Policies/Pi_0_6.md)
 - Robotics inference: [Real-Time Chunking](./docs/Model_Zoo/Robotics/Inference/RTC.md)
-- Agentic robotics systems: [AdaHVLA](./docs/Model_Zoo/Robotics/Agentic_Systems/AdaHVLA.md), [EmbodiedRSI](./docs/Model_Zoo/Robotics/Agentic_Systems/EmbodiedRSI.md), [Harness VLA](./docs/Model_Zoo/Robotics/Agentic_Systems/Harness_VLA.md), [RegenHarness](./docs/Model_Zoo/Robotics/Agentic_Systems/RegenHarness.md), [RoboHarness](./docs/Model_Zoo/Robotics/Agentic_Systems/RoboHarness.md), [SenseNova-RoboRSI](./docs/Model_Zoo/Robotics/Agentic_Systems/SenseNova_RoboRSI.md), [Show-Harness](./docs/Model_Zoo/Robotics/Agentic_Systems/Show_Harness.md), [Spotter](./docs/Model_Zoo/Robotics/Agentic_Systems/Spotter.md), [Zetta](./docs/Model_Zoo/Robotics/Agentic_Systems/Zetta.md)
+- Agentic robotics systems: [AdaHVLA](./docs/Model_Zoo/Robotics/Agentic_Systems/AdaHVLA.md), [ASPIRE](./docs/Model_Zoo/Robotics/Agentic_Systems/ASPIRE.md), [EmbodiedRSI](./docs/Model_Zoo/Robotics/Agentic_Systems/EmbodiedRSI.md), [Harness VLA](./docs/Model_Zoo/Robotics/Agentic_Systems/Harness_VLA.md), [RegenHarness](./docs/Model_Zoo/Robotics/Agentic_Systems/RegenHarness.md), [ReKep](./docs/Model_Zoo/Robotics/Agentic_Systems/ReKep.md), [RoboHarness](./docs/Model_Zoo/Robotics/Agentic_Systems/RoboHarness.md), [SenseNova-RoboRSI](./docs/Model_Zoo/Robotics/Agentic_Systems/SenseNova_RoboRSI.md), [Show-Harness](./docs/Model_Zoo/Robotics/Agentic_Systems/Show_Harness.md), [Spotter](./docs/Model_Zoo/Robotics/Agentic_Systems/Spotter.md), [Zetta](./docs/Model_Zoo/Robotics/Agentic_Systems/Zetta.md)
 
 ## 7. Book Notes
 - Robotics: [Modern Robotics: Mechanics, Planning, and Control](./docs/Books/Robotics/Modern_Robotics.md)
@@ -154,9 +154,11 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |-- Robotics/
     |   |   |-- Agentic_Systems/
     |   |   |   |-- AdaHVLA.md
+    |   |   |   |-- ASPIRE.md
     |   |   |   |-- EmbodiedRSI.md
     |   |   |   |-- Harness_VLA.md
     |   |   |   |-- RegenHarness.md
+    |   |   |   |-- ReKep.md
     |   |   |   |-- RoboHarness.md
     |   |   |   |-- SenseNova_RoboRSI.md
     |   |   |   |-- Show_Harness.md
@@ -168,6 +170,7 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |   |   `-- RoboCasa365.md
     |   |   |-- Grasping/
     |   |   |   |-- AnyGrasp.md
+    |   |   |   |-- GraspGen.md
     |   |   |   `-- GraspNet.md
     |   |   |-- Inference/
     |   |   |   `-- RTC.md
@@ -175,6 +178,7 @@ Images are grouped by model or topic under `assets/`; notes link to the correspo
     |   |       |-- ACT.md
     |   |       |-- Diffusion_Policy.md
     |   |       |-- Fast_WAM.md
+    |   |       |-- GR00T_2.md
     |   |       |-- GR00T_N1.md
     |   |       |-- MolmoAct2.md
     |   |       |-- Pi_Hi_Robot.md

@@ -114,7 +114,7 @@ For the bottle example, this means checking retention after the regrasp before c
 Figure 12 shows why a single generic retry is insufficient:
 
 1. **The object slips.** The critic reports grasp loss, so transport is interrupted and the robot re-approaches.
-2. **The proposed regrasp is infeasible.** Repeating it would not solve the geometry problem. Recovery invokes **GraspGen**, a tool that generates a feasible grasp pose.
+2. **The proposed regrasp is infeasible.** Repeating it would not solve the geometry problem. Recovery invokes **[GraspGen](../Grasping/GraspGen.md)**, a tool that generates a feasible grasp pose.
 3. **The new grasp is verified.** Ordinary transport can resume.
 4. **Placement becomes risky near the goal.** A placement recovery handles final alignment and release, followed by verification.
 
