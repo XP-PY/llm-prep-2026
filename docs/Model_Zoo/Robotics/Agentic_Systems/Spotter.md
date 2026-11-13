@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2609.36808), [official code](https://github.com/zqc3117/Spotter)
 - Related systems: [Harness VLA](./Harness_VLA.md), [RoboHarness](./RoboHarness.md), [AdaHVLA](./AdaHVLA.md), [SenseNova-RoboRSI](./SenseNova_RoboRSI.md)
 - Policy background: [pi0.5](../Policies/Pi_0_5.md), [Hi Robot](../Policies/Pi_Hi_Robot.md)
-- Agent background: [Memory Systems](../../../Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- Agent background: [Memory Systems](../../../Foundations/Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md)
 
 ## 1. Why Does Noticing a Failed Grasp Still Leave a Recovery Problem?
 

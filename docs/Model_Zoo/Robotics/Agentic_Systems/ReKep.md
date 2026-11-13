@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2409.01652), [project and videos](https://rekep-robot.github.io/), [official code](https://github.com/huangwl18/ReKep)
 - Components: [DINOv2](../../Vision_Models/DINOv2.md), [AnyGrasp](../Grasping/AnyGrasp.md)
 - Related systems: [ASPIRE](./ASPIRE.md), [Zetta](./Zetta.md), [Spotter](./Spotter.md)
-- Background: [Modern Robotics](../../../Books/Robotics/Modern_Robotics.md)
+- Background: [Modern Robotics](../../../Foundations/Books/Robotics/Modern_Robotics.md)
 
 ## 1. Why Describe Relationships Instead of Predicting One Target Pose?
 

@@ -2,7 +2,7 @@
 
 > **Brief:** LIBERO is a simulation benchmark for **lifelong robot learning**, with a procedural task generator, **130 manipulation tasks**, and **50 human demonstrations per task**. Its central contribution is to separate spatial, object, and behavioral knowledge transfer, then measure how policies acquire new skills while retaining earlier ones. The original experiments expose a tradeoff between learning new tasks and preventing forgetting.
 
-**Source:** Liu et al., NeurIPS 2023, Datasets and Benchmarks Track; local paper [2306.pdf](../../../../tmp/2306.pdf), arXiv:2306.03310v2, October 14, 2023, including Appendices A–E. Results below follow this version's lifelong imitation-learning protocol.
+**Source:** Liu et al., NeurIPS 2023, Datasets and Benchmarks Track; [paper, arXiv:2306.03310v2](https://arxiv.org/abs/2306.03310v2), October 14, 2023, including Appendices A–E. Results below follow this version's lifelong imitation-learning protocol.
 
 ## Convenient Links
 

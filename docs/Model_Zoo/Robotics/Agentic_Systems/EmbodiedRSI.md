@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2610.10498)
 - [Project](https://geeksongs.github.io/agentic_robotics/)
 - Related systems: [AdaHVLA](./AdaHVLA.md), [Harness VLA](./Harness_VLA.md), [RoboHarness](./RoboHarness.md), [RegenHarness](./RegenHarness.md)
-- Background: [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [PPO](../../Reinforcement_Learning/PPO.md), [SmolVLA](../Policies/SmolVLA.md), [LIBERO](../Datasets/LIBERO.md)
+- Background: [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [PPO](../../Reinforcement_Learning/PPO.md), [SmolVLA](../Policies/SmolVLA.md), [LIBERO](../Datasets/LIBERO.md)
 
 ## 1. Why Choose Experiments, Not Just Patches?
 

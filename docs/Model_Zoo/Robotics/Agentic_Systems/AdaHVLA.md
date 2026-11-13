@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2609.29204), [code linked by the paper](https://github.com/Haaareally/AdaHVLA-Adaptive_Harness_VLA)
 - Related systems: [Harness VLA](./Harness_VLA.md), [ASPIRE](./ASPIRE.md), [RegenHarness](./RegenHarness.md), [RoboHarness](./RoboHarness.md), [Hi Robot](../Policies/Pi_Hi_Robot.md)
 - VLA backgrounds: [SmolVLA](../Policies/SmolVLA.md), [OpenVLA](../Policies/OpenVLA.md), [pi0.5](../Policies/Pi_0_5.md)
-- Background: [Agent Memory](../../../Agent_Systems/Memory_Systems.md)
+- Background: [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md)
 
 ## 1. Why Can a Correct Local Action Still Fail the Task?
 

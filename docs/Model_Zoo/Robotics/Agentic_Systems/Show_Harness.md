@@ -10,7 +10,7 @@
 - [Project, code, models, and data](https://showlab.github.io/Show-Harness)
 - [Demonstration dataset](https://huggingface.co/showlab/Show-Harness-Data)
 - Related notes: [Harness VLA](./Harness_VLA.md), [Hi Robot](../Policies/Pi_Hi_Robot.md), [pi0.5](../Policies/Pi_0_5.md)
-- Background: [Agent Systems](../../../Agent_Systems/Agent_Basics.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- Background: [Agent Systems](../../../Foundations/Agent_Systems/Agent_Basics.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md)
 
 ## 1. What Should the VLM Decide?
 

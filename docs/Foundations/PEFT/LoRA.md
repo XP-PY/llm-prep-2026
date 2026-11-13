@@ -14,7 +14,7 @@ Full fine-tuning: Update all billions of parameters → massive memory (e.g., 70
 >   * kv_cache_memory (Inference)
 >   * ...
 
-**Key Empirical Insight:** In pretrained models, task-specific updates $\Delta W$ have low intrinsic rank — [SVD shows rapid singular value decay](../Attention_Machanisms/SVD_Attention.md)
+**Key Empirical Insight:** In pretrained models, task-specific updates $\Delta W$ have low intrinsic rank — [SVD shows rapid singular value decay](../Attention_Mechanisms/SVD_Attention.md)
 
 Theoretical angles:
 
@@ -45,4 +45,4 @@ $$h = x W = x W_0 + x \Delta W = x W_0 + \frac{\alpha}{r} (x A) B^T$$
 |[Specialized Variants](./Specialized_LoRA.md)|-|-|-|-|-|-|
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part3_lora_variants.ipynb)
+[Python script](../../../src/part3_lora_variants.ipynb)

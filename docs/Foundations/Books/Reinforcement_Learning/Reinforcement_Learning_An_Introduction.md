@@ -655,7 +655,7 @@ Each method acts for 1,000 steps. Performance is averaged across runs using:
 - **average reward** at each step;
 - **percentage of optimal-action selections** at each step.
 
-![Average reward and optimal-action rate for greedy and epsilon-greedy methods](../../../assets/Reinforcement_Learning_An_Introduction/ch02_epsilon_greedy_performance.png)
+![Average reward and optimal-action rate for greedy and epsilon-greedy methods](../../../../assets/Reinforcement_Learning_An_Introduction/ch02_epsilon_greedy_performance.png)
 
 *Greedy and $\varepsilon$-greedy methods on the 10-armed testbed. Cropped from book Figure 2.2.*
 
@@ -875,7 +875,7 @@ Contextual bandits introduce association between situations and actions, but sti
 
 ### 2.10 Method Comparison
 
-![Parameter study comparing epsilon-greedy, UCB, gradient bandit, and optimistic initialization](../../../assets/Reinforcement_Learning_An_Introduction/ch02_parameter_study.png)
+![Parameter study comparing epsilon-greedy, UCB, gradient bandit, and optimistic initialization](../../../../assets/Reinforcement_Learning_An_Introduction/ch02_parameter_study.png)
 
 *Parameter study on the stationary 10-armed testbed. Cropped from book Figure 2.6.*
 
@@ -979,7 +979,7 @@ An action must now be evaluated in context and by its long-term consequences.
 
 The **agent** selects actions. Everything it cannot arbitrarily control is treated as the **environment**, which produces the next state and reward.
 
-![Agent-environment interaction in an MDP](../../../assets/Reinforcement_Learning_An_Introduction/ch03_agent_environment_interface.png)
+![Agent-environment interaction in an MDP](../../../../assets/Reinforcement_Learning_An_Introduction/ch03_agent_environment_interface.png)
 
 *At time $t$, the agent receives $S_t$ and $R_t$, chooses $A_t$, and then receives $R_{t+1}$ and $S_{t+1}$. Cropped from book Figure 3.1.*
 
@@ -1364,7 +1364,7 @@ q_*(s,a)
 }
 $$
 
-![Bellman optimality backup diagrams](../../../assets/Reinforcement_Learning_An_Introduction/ch03_optimal_backup_diagrams.png)
+![Bellman optimality backup diagrams](../../../../assets/Reinforcement_Learning_An_Introduction/ch03_optimal_backup_diagrams.png)
 
 *White nodes are states and black nodes are state-action pairs. The arc marked `max` replaces averaging under a fixed policy. Cropped from book Figure 3.4.*
 
@@ -1392,7 +1392,7 @@ $$
 
 This is only a one-step search, but $v_*(s')$ already summarizes all later optimal rewards. The resulting greedy action is therefore optimal over the full future, not merely immediately greedy.
 
-![Optimal gridworld values and policies](../../../assets/Reinforcement_Learning_An_Introduction/ch03_optimal_gridworld.png)
+![Optimal gridworld values and policies](../../../../assets/Reinforcement_Learning_An_Introduction/ch03_optimal_gridworld.png)
 
 *The special transitions at $A$ and $B$, optimal values $v_*$, and optimal action arrows for $\gamma=0.9$. Cropped from book Figure 3.5.*
 
@@ -1640,7 +1640,7 @@ v_\pi=
 \end{bmatrix}.
 $$
 
-![Successive random-policy value estimates and their corresponding greedy policies in the 4 by 4 gridworld](../../../assets/Reinforcement_Learning_An_Introduction/ch04_gridworld_policy_evaluation.png)
+![Successive random-policy value estimates and their corresponding greedy policies in the 4 by 4 gridworld](../../../../assets/Reinforcement_Learning_An_Introduction/ch04_gridworld_policy_evaluation.png)
 
 *The left column evaluates the fixed random policy; the right column shows policies greedy with respect to those intermediate estimates. In this example, the greedy policy is already optimal after three sweeps, long before the values converge. Cropped from book Figure 4.1, printed p. 77.*
 
@@ -1878,7 +1878,7 @@ Here, "asynchronous" describes the update schedule. It does not require parallel
 * Evaluation moves $V$ toward $v_\pi$ for the current policy.
 * Improvement moves $\pi$ toward a policy greedy with respect to the current $V$.
 
-![Policy evaluation and policy improvement interacting until the policy and value function are jointly optimal](../../../assets/Reinforcement_Learning_An_Introduction/ch04_generalized_policy_iteration.png)
+![Policy evaluation and policy improvement interacting until the policy and value function are jointly optimal](../../../../assets/Reinforcement_Learning_An_Introduction/ch04_generalized_policy_iteration.png)
 
 *Evaluation changes values and improvement changes behavior. Their common solution is an optimal policy and its value function. Cropped from the unnumbered GPI diagram on printed p. 86.*
 
@@ -2130,7 +2130,7 @@ The book's simplified blackjack task has:
 
 For prediction, fix the player policy to stick on 20 or 21 and hit otherwise. Every nonterminal visit in a game then has the eventual game outcome as its return.
 
-![Monte Carlo estimates of the blackjack policy value with and without a usable ace](../../../assets/Reinforcement_Learning_An_Introduction/ch05_blackjack_prediction.png)
+![Monte Carlo estimates of the blackjack policy value with and without a usable ace](../../../../assets/Reinforcement_Learning_An_Introduction/ch05_blackjack_prediction.png)
 
 *Values become smoother with more episodes, but usable-ace states receive fewer samples and initially have noisier estimates. These are values of the fixed stick-on-20-or-21 policy, not optimal values. Cropped from book Figure 5.1, printed p. 94.*
 
@@ -2342,7 +2342,7 @@ $$
 
 The expected estimate is correct, but rare long trajectories cause enormous jumps.
 
-![Ordinary importance sampling estimates on the one-state looping example](../../../assets/Reinforcement_Learning_An_Introduction/ch05_importance_sampling_variance.png)
+![Ordinary importance sampling estimates on the one-state looping example](../../../../assets/Reinforcement_Learning_An_Introduction/ch05_importance_sampling_variance.png)
 
 *Ten runs show unstable ordinary-IS estimates over very large sample budgets. The inset defines the MDP, and the true value is 1. Cropped from book Figure 5.4, printed p. 107.*
 
@@ -2888,7 +2888,7 @@ Tabular Q-learning can converge to $q_*$ with adequate repeated state-action cov
 
 Book Example 6.6 is an undiscounted $4\times12$ grid. Start and goal are the bottom-left and bottom-right cells; the ten bottom cells between them are the cliff. Cardinal moves give reward $-1$, except entering the cliff gives $-100$ and returns the agent to start **without ending the episode**. Reaching the goal terminates it.
 
-![Cliff-walking grid showing the short cliff-edge route and a longer safer route](../../../assets/Reinforcement_Learning_An_Introduction/ch06_cliff_walking.png)
+![Cliff-walking grid showing the short cliff-edge route and a longer safer route](../../../../assets/Reinforcement_Learning_An_Introduction/ch06_cliff_walking.png)
 
 *Book Example 6.6: Q-learning's greedy target favors the short route beside the cliff. Sarsa accounts for future exploratory mistakes and learns a more distant route when exploration remains active.*
 
@@ -2942,7 +2942,7 @@ Choosing the largest estimate preferentially selects positive estimation errors.
 
 Book Example 6.7 makes this concrete, with $\gamma=1$. At A, right terminates for reward 0; left gives reward 0 and reaches B. Every action at B then terminates with a reward drawn from $\mathcal N(-0.1,1)$, where 1 is the variance. Thus the true values of left and right at A are $-0.1$ and 0. A maximum over many noisy B estimates can nevertheless make left look profitable.
 
-![Q-learning and Double Q-learning on the two-state maximization-bias example](../../../assets/Reinforcement_Learning_An_Introduction/ch06_maximization_bias.png)
+![Q-learning and Double Q-learning on the two-state maximization-bias example](../../../../assets/Reinforcement_Learning_An_Introduction/ch06_maximization_bias.png)
 
 *Book Figure 6.5: ordinary Q-learning chooses the inferior left action too frequently. With two actions at A and $\varepsilon=0.1$, the ideal exploratory policy still takes left 5% of the time. Results use constant $\alpha=0.1$, so residual estimation fluctuations do not contradict diminishing-step-size convergence results.*
 
@@ -3282,7 +3282,7 @@ This is the **error-reduction property**: the worst-state error of the expected 
 
 Longer horizons reduce reliance on an inaccurate bootstrap, but use more random rewards/transitions and delay learning. Their sample variance need not be monotonically ordered in every problem. The practical choice balances these effects, rather than assuming larger $n$ is always better.
 
-![RMS prediction error for different n-step horizons and learning rates on the 19-state random walk](../../../assets/Reinforcement_Learning_An_Introduction/ch07_random_walk_horizon.png)
+![RMS prediction error for different n-step horizons and learning rates on the 19-state random walk](../../../../assets/Reinforcement_Learning_An_Introduction/ch07_random_walk_horizon.png)
 
 *Book Figure 7.2, printed p. 145: intermediate horizons outperform the tested extremes at suitable step sizes. This experiment uses 19 nonterminal states, terminal rewards -1 on the left and +1 on the right, zero initial estimates, and averages over the first 10 episodes and 100 runs. It differs from the five-state example above; the best horizon depends on the task and step size.*
 
@@ -3723,7 +3723,7 @@ At a true terminal successor, set its value to zero while keeping the last rewar
 
 For a group parameter $w_j$, $\hat v(s,\mathbf w)=w_j$ and the gradient is a vector with 1 at component $j$ and zeros elsewhere. One update changes every state's prediction in that group. This is both the computational saving and the source of unavoidable compromise.
 
-![State aggregation approximation and the nonuniform visitation distribution on the 1000-state random walk](../../../assets/Reinforcement_Learning_An_Introduction/ch09_state_aggregation.png)
+![State aggregation approximation and the nonuniform visitation distribution on the 1000-state random walk](../../../../assets/Reinforcement_Learning_An_Introduction/ch09_state_aggregation.png)
 
 *Book Figure 9.1, printed p. 204: ten learned constants approximate 1000 state values. The gray distribution uses the right axis; the value curves use the left. Nonuniform visitation pulls each group estimate toward its more frequently visited states.*
 
@@ -3883,7 +3883,7 @@ $$
 
 $\mathcal I(s)$ is the active tile-index set. Predictions and updates cost $O(m)$ with sparse indices, not $O(d)$ for all potential tiles.
 
-![A single grid tiling compared with four offset tilings and their active tiles](../../../assets/Reinforcement_Learning_An_Introduction/ch09_tile_coding.png)
+![A single grid tiling compared with four offset tilings and their active tiles](../../../../assets/Reinforcement_Learning_An_Introduction/ch09_tile_coding.png)
 
 *Book Figure 9.9, printed p. 217: one state activates one tile in each of four tilings. Nearby states can share some, but not necessarily all, active tiles, allowing graded generalization with binary features.*
 
@@ -4524,7 +4524,7 @@ In Example 10.2 there are ten servers and an inexhaustible queue. Each step pres
 
 An accepted low-priority customer gives positive immediate reward but can prevent accepting a later high-priority customer. Differential action values account for that opportunity cost. The learned policy therefore becomes more selective when few servers are free, while the reward-rate estimate measures overall throughput value.
 
-![Access-control policy and differential action values](../../../assets/Reinforcement_Learning_An_Introduction/ch10_access_control.png)
+![Access-control policy and differential action values](../../../../assets/Reinforcement_Learning_An_Introduction/ch10_access_control.png)
 
 *Book Figure 10.5, printed p. 252: the upper panel shows priority-dependent acceptance thresholds; the lower panel shows the estimated differential value of the best action. The right-edge decline reflects poorly sampled states, not evidence that extra free servers are intrinsically harmful.*
 
@@ -4974,7 +4974,7 @@ The next action in the target is the one actually executed next, not a maximizin
 
 #### Why traces accelerate delayed credit
 
-![Gridworld credit propagation with one-step Sarsa, n-step Sarsa, and eligibility traces](../../../assets/Reinforcement_Learning_An_Introduction/ch12_gridworld_credit.png)
+![Gridworld credit propagation with one-step Sarsa, n-step Sarsa, and eligibility traces](../../../../assets/Reinforcement_Learning_An_Introduction/ch12_gridworld_credit.png)
 
 *Book Example 12.1, printed p. 304: a trajectory reaches a rewarding goal after otherwise zero rewards. One-step Sarsa credits the final action; ten-step Sarsa credits a finite suffix, including its pending terminal updates; Sarsa($\lambda$) distributes credit over the earlier path with recency-dependent strength.*
 
@@ -5225,7 +5225,7 @@ p_*=2-\sqrt2\approx0.586,
 \qquad J(p_*)=-(6+4\sqrt2)\approx-11.657.
 $$
 
-![Short-corridor return as a function of the shared right-action probability](../../../assets/Reinforcement_Learning_An_Introduction/ch13_short_corridor.png)
+![Short-corridor return as a function of the shared right-action probability](../../../../assets/Reinforcement_Learning_An_Introduction/ch13_short_corridor.png)
 
 *Book Example 13.1, printed p. 323: the best representable policy uses an intermediate right-action probability. With $\varepsilon=0.1$, the two strictly greedy-action choices give $p=0.95$ or $p=0.05$, with returns about $-44.21$ and $-82.11$, respectively.*
 

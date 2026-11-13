@@ -82,7 +82,7 @@ $$
 
 ### 3.3 How DSA is implemented inside MLA
 
-They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../../Attention_Machanisms/MLA.md) setup from [earlier DeepSeek work](./DeepSeek_V2.md)) but specifically in a way that is kernel-efficient: they use **[MQA mode](../../Attention_Machanisms/MQA.md)** so that each latent KV is shared across query heads. 
+They **instantiate DSA under MLA** (their [Multi-head Latent Attention](../../Foundations/Attention_Mechanisms/MLA.md) setup from [earlier DeepSeek work](./DeepSeek_V2.md)) but specifically in a way that is kernel-efficient: they use **[MQA mode](../../Foundations/Attention_Mechanisms/MQA.md)** so that each latent KV is shared across query heads.
 
 * The paper highlights a kernel-level constraint: **KV entries retrieved for sparse attention should be shareable across multiple query heads** for efficiency. so they choose MQA-mode MLA. 
   > If KV were per-head (classic full MHA), sparse retrieval would mean:
@@ -226,7 +226,7 @@ So the specialist stage is not the final serving model. It is more like a **data
 
 ### 6.3 The mixed RL stage
 
-After distillation, they run **[GRPO](../../Preference_Alignment/GRPO.md)** on a mixed task distribution instead of doing completely separate RL phases for each ability.
+After distillation, they run **[GRPO](../../Foundations/Preference_Alignment/GRPO.md)** on a mixed task distribution instead of doing completely separate RL phases for each ability.
 
 The paper's motivation is to reduce **catastrophic forgetting**. If reasoning RL, agent RL, and alignment RL are done too separately, one stage may damage abilities built in another stage.
 

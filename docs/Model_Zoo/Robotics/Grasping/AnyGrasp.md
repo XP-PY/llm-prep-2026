@@ -11,7 +11,7 @@
 - [Official SDK and examples](https://github.com/graspnet/anygrasp_sdk)
 - [GraspNet note](./GraspNet.md)
 - Related systems: [Spotter](../Agentic_Systems/Spotter.md), [Harness VLA](../Agentic_Systems/Harness_VLA.md)
-- Background: [Modern Robotics](../../../Books/Robotics/Modern_Robotics.md)
+- Background: [Modern Robotics](../../../Foundations/Books/Robotics/Modern_Robotics.md)
 
 ## 1. Why Is a Good Grasp in One Image Not Enough?
 

@@ -1,6 +1,6 @@
 # [DeepSeek-V3](https://arxiv.org/abs/2412.19437v1)
 
-> **Brief:** **Decoder-only Transformer:** [MLA](../../Attention_Machanisms/MLA.md) with [DeepSeekMoE](../../MoE/DeepSeekMoE.md), auxiliary-loss-free load balancing, and multi-token prediction (MTP).
+> **Brief:** **Decoder-only Transformer:** [MLA](../../Foundations/Attention_Mechanisms/MLA.md) with [DeepSeekMoE](../../Foundations/MoE/DeepSeekMoE.md), auxiliary-loss-free load balancing, and multi-token prediction (MTP).
 
 ## Convenient Links
 * [Github](https://github.com/deepseek-ai/DeepSeek-V3)
@@ -93,7 +93,7 @@ This is the heart of V3. It reuses V2's validated components but refines them fo
   - Optimized all-to-all (MoE routing bottleneck).
   - Memory-saving tricks.
 - **FP8 Mixed Precision** (huge cost saver):
-  - Forward/backward in [FP8](../../Math/dtypes.md), master weights in BF16.
+  - Forward/backward in [FP8](../../Foundations/Math/dtypes.md), master weights in BF16.
   - Custom quantization handles outliers.
   - Result: ~2× memory/throughput gain, negligible quality loss (Appendix B).
 - **Inference**: Fast prefilling + decoding via MLA.

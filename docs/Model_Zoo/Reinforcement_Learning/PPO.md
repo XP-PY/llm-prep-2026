@@ -8,8 +8,8 @@
 
 * [Paper](https://arxiv.org/abs/1707.06347)
 * [SAC](./SAC.md): an off-policy alternative using replay and a maximum-entropy objective.
-* [Policy-gradient foundations](../../Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-13-policy-gradient-methods) / [Eligibility traces](../../Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-12-eligibility-traces)
-* [PPO for RLHF](../../Preference_Alignment/PPO.md): a separate application note covering reward models and a reference policy.
+* [Policy-gradient foundations](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-13-policy-gradient-methods) / [Eligibility traces](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-12-eligibility-traces)
+* [PPO for RLHF](../../Foundations/Preference_Alignment/PPO.md): a separate application note covering reward models and a reference policy.
 
 ## 1. Why PPO: Reusing Data Without Unrestricted Updates
 
@@ -287,7 +287,7 @@ Here `bootstrap[t]` is zero for true termination; `trace[t]` is zero where the a
 
 * **Clipped objective, not a hard trust region:** PPO removes some incentives for large favorable changes; ratios and KL can still move substantially.
 * **Actor and critic, not four mandatory models:** the original method does not require a learned reward model or fixed reference policy.
-* **Old policy versus RLHF reference:** the old policy refreshes with each rollout iteration; an RLHF reference is a separate alignment anchor. See [PPO for RLHF](../../Preference_Alignment/PPO.md).
+* **Old policy versus RLHF reference:** the old policy refreshes with each rollout iteration; an RLHF reference is a separate alignment anchor. See [PPO for RLHF](../../Foundations/Preference_Alignment/PPO.md).
 * **Batch reuse, not unlimited replay:** old-policy ratios and advantage estimates stay fixed over a limited number of optimization epochs, then experience is refreshed.
 * **Empirical robustness, not monotonic improvement:** hyperparameters, advantage quality, policy parameterization, and task dynamics still affect stability.
 

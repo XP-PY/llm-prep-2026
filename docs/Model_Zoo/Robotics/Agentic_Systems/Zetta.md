@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2608.16590), [project](https://air-embodied-brain.github.io/zetta)
 - Related systems: [Harness VLA](./Harness_VLA.md), [AdaHVLA](./AdaHVLA.md), [EmbodiedRSI](./EmbodiedRSI.md), [RegenHarness](./RegenHarness.md), [Spotter](./Spotter.md)
 - Policies and benchmarks: [pi0.5](../Policies/Pi_0_5.md), [GR00T N1 background](../Policies/GR00T_N1.md), [LIBERO](../Datasets/LIBERO.md), [RoboCasa365](../Datasets/RoboCasa365.md)
-- Background: [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Skill Systems](../../../Agent_Systems/Skill_Systems.md)
+- Background: [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [Skill Systems](../../../Foundations/Agent_Systems/Skill_Systems.md)
 
 ## 1. Why Improve the Checks as Well as the Actions?
 

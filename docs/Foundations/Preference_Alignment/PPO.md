@@ -1,6 +1,6 @@
 # Proximal Policy Optimization (PPO) for RLHF
 
-For the original algorithm, rollout pipeline, and paper experiments, see [PPO: Proximal Policy Optimization Algorithms](../Model_Zoo/Reinforcement_Learning/PPO.md). This note focuses on its application to LLM alignment.
+For the original algorithm, rollout pipeline, and paper experiments, see [PPO: Proximal Policy Optimization Algorithms](../../Model_Zoo/Reinforcement_Learning/PPO.md). This note focuses on its application to LLM alignment.
 
 ## Overview
 

@@ -10,7 +10,7 @@
 - [Project](https://www.sensenova.ai/has-gpt-6-astra-achieved-embodied-intelligence)
 - [Open-source framework: SenseNova-RoboRSI](https://github.com/OpenSenseNova/SenseNova-RoboRSI)
 - Related systems: [Harness VLA](./Harness_VLA.md), [Show-Harness](./Show_Harness.md), [RoboHarness](./RoboHarness.md), [EmbodiedRSI](./EmbodiedRSI.md)
-- Background: [pi0.5](../Policies/Pi_0_5.md), [LIBERO](../Datasets/LIBERO.md), [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- Background: [pi0.5](../Policies/Pi_0_5.md), [LIBERO](../Datasets/LIBERO.md), [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md)
 
 ## 1. What Does a High Embodied Benchmark Score Establish?
 

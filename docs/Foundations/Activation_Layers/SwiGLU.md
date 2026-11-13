@@ -69,4 +69,4 @@ $$\text{RMSNorm}(x) = \frac{x}{\sqrt{\frac{1}{d} \sum x_i^2 + \epsilon}} \odot \
 Proof sketch: In deep nets, activations center around 0 naturally; variance normalization suffices.
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part2_swiglu_rmsnorm.ipynb)
+[Python script](../../../src/part2_swiglu_rmsnorm.ipynb)

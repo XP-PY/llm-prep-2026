@@ -26,4 +26,4 @@ $$W = W_0 + \Delta m \odot u_0 + m_0 \odot \Delta u + \Delta m \odot \Delta u$$
 Empirical proof: DoRA outperforms LoRA/VeRA on commonsense/math reasoning (+2–5% average).
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part3_lora_variants.ipynb)
+[Python script](../../../src/part3_lora_variants.ipynb)

@@ -108,4 +108,4 @@ VeRA often matches or exceeds LoRA quality with 10–50× fewer trainable parame
    - Reply with your key observations (e.g., “VeRA used only 5% params of LoRA but got 92% of the performance”).
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part3_lora_variants.ipynb)
+[Python script](../../../src/part3_lora_variants.ipynb)

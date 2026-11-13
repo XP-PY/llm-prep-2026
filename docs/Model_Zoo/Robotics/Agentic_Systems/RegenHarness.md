@@ -8,7 +8,7 @@
 
 - [Paper](https://arxiv.org/abs/2609.27612)
 - Related systems: [Harness VLA](./Harness_VLA.md), [RoboHarness](./RoboHarness.md), [Show-Harness](./Show_Harness.md)
-- Background: [Agent Systems](../../../Agent_Systems/Agent_Basics.md), [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md)
+- Background: [Agent Systems](../../../Foundations/Agent_Systems/Agent_Basics.md), [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md)
 
 ## 1. Why "Done" Is Not Enough
 

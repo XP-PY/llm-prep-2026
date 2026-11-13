@@ -9,7 +9,7 @@
 ## Convenient Links
 
 * [Paper](https://arxiv.org/abs/1801.01290) / [Paper's code repository](https://github.com/haarnoja/sac)
-* [PPO](./PPO.md) / [Actor-critic foundations](../../Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#135-actor-critic-methods) / [Continuous-action policy gradients](../../Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#137-policy-parameterization-for-continuous-actions)
+* [PPO](./PPO.md) / [Actor-critic foundations](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#135-actor-critic-methods) / [Continuous-action policy gradients](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#137-policy-parameterization-for-continuous-actions)
 
 ## 1. Why Combine Replay with Maximum Entropy?
 

@@ -73,4 +73,4 @@ This ensures each query head group attends to its shared KV.
 * **Future Implications**: Combine with Sliding Window Attention (SWA) or MLA (Multi-Linear Attention) for even longer contexts; key for multimodal (e.g., video LLMs).
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part2_gqa.ipynb)
+[Python script](../../../src/part2_gqa.ipynb)

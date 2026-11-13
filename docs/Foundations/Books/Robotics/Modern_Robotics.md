@@ -227,7 +227,7 @@ Only **independent** constraints reduce dimension. Redundant equations must not 
 
 A mechanism consists of rigid **links** connected by **joints**. One link is fixed and called the ground link. Each joint permits some relative link motions and constrains the others.
 
-![Typical revolute, prismatic, helical, cylindrical, universal, and spherical robot joints](../../../assets/Modern_Robotics/ch02_robot_joints.png)
+![Typical revolute, prismatic, helical, cylindrical, universal, and spherical robot joints](../../../../assets/Modern_Robotics/ch02_robot_joints.png)
 
 *Typical robot joints. Cropped from book Figure 2.3.*
 
@@ -315,7 +315,7 @@ The dimension of $\mathcal C$ tells us how many DOF the robot has, but not how c
 | $S^2$ | Sphere surface | A direction in 3D |
 | $T^n=(S^1)^n$ | $n$-torus | $n$ unlimited revolute joints |
 
-![Examples of C-space topology and coordinate representations](../../../assets/Modern_Robotics/ch02_cspace_topologies.png)
+![Examples of C-space topology and coordinate representations](../../../../assets/Modern_Robotics/ch02_cspace_topologies.png)
 
 *Topology and sample coordinate representations. Cropped from book Table 2.2.*
 
@@ -357,7 +357,7 @@ This uses three numbers for a two-dimensional space, but it is globally smooth a
 
 Closed-chain mechanisms and rolling systems show two fundamentally different kinds of constraints.
 
-![A four-bar linkage and a coin rolling without slipping](../../../assets/Modern_Robotics/ch02_constraints.png)
+![A four-bar linkage and a coin rolling without slipping](../../../../assets/Modern_Robotics/ch02_constraints.png)
 
 *A closed-chain configuration constraint and a nonholonomic rolling constraint. Cropped from book Figures 2.10 and 2.11.*
 
@@ -481,7 +481,7 @@ $$
 \mathcal W=h(\mathcal C)\subseteq\mathcal X.
 $$
 
-![Workspace examples for planar and spherical robot arms](../../../assets/Modern_Robotics/ch02_workspaces.png)
+![Workspace examples for planar and spherical robot arms](../../../../assets/Modern_Robotics/ch02_workspaces.png)
 
 *Examples of workspaces for different mechanisms. Cropped from book Figure 2.12.*
 
@@ -666,7 +666,7 @@ The adjacent $b$ subscripts cancel. This is a reliable dimensional-analysis rule
 
 Let $R_{sb}$ describe the current body orientation and let $R=\operatorname{Rot}(\hat\omega,\theta)$ be an additional rotation.
 
-![Premultiplication rotates around a fixed-frame axis, while postmultiplication rotates around a body-frame axis](../../../assets/Modern_Robotics/ch03_fixed_vs_body_rotation.png)
+![Premultiplication rotates around a fixed-frame axis, while postmultiplication rotates around a body-frame axis](../../../../assets/Modern_Robotics/ch03_fixed_vs_body_rotation.png)
 
 *Fixed-frame and body-frame rotations. Cropped from book Figure 3.9.*
 
@@ -790,7 +790,7 @@ Two singular cases need separate handling:
 - $R=I$: $\theta=0$, and the axis is arbitrary because no rotation occurred.
 - $\operatorname{tr}R=-1$: $\theta=\pi$, and the axis must be recovered from $R+I$ or equivalent component formulas.
 
-![SO(3) represented by an exponential-coordinate ball of radius pi](../../../assets/Modern_Robotics/ch03_so3_exponential_ball.png)
+![SO(3) represented by an exponential-coordinate ball of radius pi](../../../../assets/Modern_Robotics/ch03_so3_exponential_ball.png)
 
 *Exponential-coordinate view of $SO(3)$. Cropped from book Figure 3.13.*
 
@@ -981,7 +981,7 @@ A screw axis is described geometrically by:
 - a unit direction $\hat s$;
 - a pitch $h$, equal to linear speed along the axis divided by angular speed.
 
-![A screw axis represented by a point, direction, and pitch](../../../assets/Modern_Robotics/ch03_screw_axis.png)
+![A screw axis represented by a point, direction, and pitch](../../../../assets/Modern_Robotics/ch03_screw_axis.png)
 
 *Geometry of a screw axis. Cropped from book Figure 3.19.*
 
@@ -1271,7 +1271,7 @@ The output space depends on what the task needs:
 
 The robot configuration still contains all joint variables even when the task uses only end-effector position.
 
-![Forward kinematics of a planar 3R chain](../../../assets/Modern_Robotics/ch04_planar_3r_forward_kinematics.png)
+![Forward kinematics of a planar 3R chain](../../../../assets/Modern_Robotics/ch04_planar_3r_forward_kinematics.png)
 
 *A planar 3R chain with link lengths $L_1,L_2,L_3$. Cropped from book Figure 4.1.*
 
@@ -1385,7 +1385,7 @@ T_{sb}(\theta)
 }.
 $$
 
-![Product-of-exponentials composition](../../../assets/Modern_Robotics/ch04_poe_composition.png)
+![Product-of-exponentials composition](../../../../assets/Modern_Robotics/ch04_poe_composition.png)
 
 *Each joint exponential moves all links outward from that joint. Cropped from book Figure 4.2.*
 
@@ -1541,7 +1541,7 @@ For an $n$-joint spatial chain, the book counts $6n$ screw-axis numbers for PoE 
 
 URDF is an XML format used by ROS and other robotics software to describe a robot as a tree of links connected by joints.
 
-![URDF link-joint tree](../../../assets/Modern_Robotics/ch04_urdf_tree.png)
+![URDF link-joint tree](../../../../assets/Modern_Robotics/ch04_urdf_tree.png)
 
 *Links are tree nodes and joints are edges. Cropped from book Figure 4.10.*
 
@@ -1729,7 +1729,7 @@ L_2\cos(\theta_1+\theta_2)
 \end{bmatrix}.
 $$
 
-![2R arm Jacobian columns](../../../assets/Modern_Robotics/ch05_2r_jacobian_columns.png)
+![2R arm Jacobian columns](../../../../assets/Modern_Robotics/ch05_2r_jacobian_columns.png)
 
 *The Jacobian columns are the tip velocities generated by unit joint rates. Cropped from book Figure 5.1.*
 
@@ -1881,7 +1881,7 @@ for i = n-1, ..., 1:
 
 ### 5.5 Space and Body Jacobians Compared
 
-![Space and body Jacobian column construction](../../../assets/Modern_Robotics/ch05_space_body_jacobian.png)
+![Space and body Jacobian column construction](../../../../assets/Modern_Robotics/ch05_space_body_jacobian.png)
 
 *For a space Jacobian column, move the home screw axis by upstream joints; for a body Jacobian column, express the screw through downstream joints. Cropped from book Figure 5.9.*
 
@@ -2022,7 +2022,7 @@ At such a configuration, the robot loses at least one instantaneous motion direc
 
 Singularity is invariant to frame choices. Changing from $J_b$ to $J_s$ only multiplies by an invertible adjoint matrix, and changing the fixed or end-effector frame also multiplies the Jacobian by an invertible transformation. None of these operations changes rank.
 
-![Common singularity patterns](../../../assets/Modern_Robotics/ch05_singularity_patterns.png)
+![Common singularity patterns](../../../../assets/Modern_Robotics/ch05_singularity_patterns.png)
 
 *Two common causes of rank loss: collinear revolute axes and three parallel coplanar revolute axes. Cropped from book Figure 5.11.*
 
@@ -2085,7 +2085,7 @@ $$
 
 When analyzing the linear velocity of the end-effector origin, the body Jacobian is often more natural, because its linear part corresponds directly to the origin of the end-effector frame.
 
-![Manipulability and force ellipsoids](../../../assets/Modern_Robotics/ch05_manipulability_force_ellipsoids.png)
+![Manipulability and force ellipsoids](../../../../assets/Modern_Robotics/ch05_manipulability_force_ellipsoids.png)
 
 *Velocity manipulability and force ellipsoids for two configurations of a planar arm. Cropped from book Figure 5.6.*
 
@@ -2229,7 +2229,7 @@ x=L_1\cos\theta_1+L_2\cos(\theta_1+\theta_2),
 y=L_1\sin\theta_1+L_2\sin(\theta_1+\theta_2).
 $$
 
-![Planar 2R workspace, two arm postures, and the triangle used for geometric IK](../../../assets/Modern_Robotics/ch06_planar_2r_inverse_kinematics.png)
+![Planar 2R workspace, two arm postures, and the triangle used for geometric IK](../../../../assets/Modern_Robotics/ch06_planar_2r_inverse_kinematics.png)
 
 *The same interior workspace point admits two elbow postures. The triangle on the right provides the geometric IK solution. Cropped from book Figure 6.1, printed p. 220.*
 
@@ -2303,7 +2303,7 @@ The position formulas below use $p=(p_x,p_y,p_z)=p_w$, not necessarily the tool-
 
 #### PUMA-type arm: shoulder and elbow geometry
 
-![PUMA arm position geometry with shoulder rotation, two link lengths, elbow angle, and wrist-center coordinates](../../../assets/Modern_Robotics/ch06_puma_position_geometry.png)
+![PUMA arm position geometry with shoulder rotation, two link lengths, elbow angle, and wrist-center coordinates](../../../../assets/Modern_Robotics/ch06_puma_position_geometry.png)
 
 *Zero-offset PUMA position geometry. The first joint rotates the arm plane about $\hat z_0$; the next two joints position the wrist center within that plane. Cropped from book Figure 6.2, printed p. 222.*
 
@@ -2332,7 +2332,7 @@ Two shoulder choices and two elbow choices give up to four position branches. At
 
 #### PUMA shoulder offset and solution branches
 
-![PUMA shoulder offset and its top-view right-triangle construction](../../../assets/Modern_Robotics/ch06_puma_shoulder_offset.png)
+![PUMA shoulder offset and its top-view right-triangle construction](../../../../assets/Modern_Robotics/ch06_puma_shoulder_offset.png)
 
 *The shoulder offset $d_1$ separates the first joint axis from the arm plane. In the top view, the wrist-center radius $r$ is the hypotenuse of a triangle with perpendicular components $d_1$ and $\rho$. Cropped from book Figure 6.3, printed p. 222.*
 
@@ -2359,7 +2359,7 @@ $$
 
 Both $p_x^2+p_y^2\geq d_1^2$ and $|D|\leq1$ are necessary. For each signed $\rho$, take both signs in the expression for $\theta_3$, then compute $\theta_2$ from the preceding two-link formula. This gives up to four position solutions before checking joint limits; branches can merge at singular configurations.
 
-![Four PUMA arm postures combining lefty and righty shoulder choices with two elbow choices](../../../assets/Modern_Robotics/ch06_puma_ik_branches.png)
+![Four PUMA arm postures combining lefty and righty shoulder choices with two elbow choices](../../../../assets/Modern_Robotics/ch06_puma_ik_branches.png)
 
 *Four position-IK branches: the upper pair has lefty shoulder postures and the lower pair has righty shoulder postures; each pair contains the two elbow choices. Wrist angles are solved separately to match the target orientation. Cropped from book Figure 6.5, printed p. 224.*
 
@@ -2390,7 +2390,7 @@ A second nonsingular branch is $(\theta_4+\pi,\pi-\theta_5,\theta_6+\pi)$ modulo
 
 #### Stanford-type arm: replace the elbow by a prismatic joint
 
-![Stanford arm position geometry with two revolute joints, a radial prismatic joint, and base-height offset](../../../assets/Modern_Robotics/ch06_stanford_position_geometry.png)
+![Stanford arm position geometry with two revolute joints, a radial prismatic joint, and base-height offset](../../../../assets/Modern_Robotics/ch06_stanford_position_geometry.png)
 
 *The Stanford arm's first three joints form an RRP positioning mechanism: $\theta_1$ sets azimuth, $\theta_2$ sets elevation, and the prismatic joint changes radial reach. Cropped from book Figure 6.6, printed p. 225.*
 
@@ -2555,7 +2555,7 @@ $$
 
 The target pose is generated by $(\theta_1,\theta_2)=(30^\circ,90^\circ)$: its position is approximately $(0.366,1.366)\,\mathrm m$ and its orientation is $120^\circ$ about $z$. Start from $(0^\circ,30^\circ)$ and use $\epsilon_\omega=10^{-3}\,\mathrm{rad}$, $\epsilon_v=10^{-4}\,\mathrm m$.
 
-![Initial and updated arm configurations with the screw motion toward the target frame](../../../assets/Modern_Robotics/ch06_newton_raphson_pose_update.png)
+![Initial and updated arm configurations with the screw motion toward the target frame](../../../../assets/Modern_Robotics/ch06_newton_raphson_pose_update.png)
 
 *The first joint update approaches the target pose. The curved dashed path represents the constant-twist frame motion used to define the error; it is not the arm's executed trajectory. Cropped from book Figure 6.8, printed p. 231.*
 
@@ -2894,7 +2894,7 @@ The dependency is therefore $K\rightarrow M\rightarrow c$, while $P\rightarrow g
 
 #### Worked model: the book's point-mass 2R arm
 
-![Planar 2R arm with point masses at the link ends and downward gravity](../../../assets/Modern_Robotics/ch08_2r_dynamics_model.png)
+![Planar 2R arm with point masses at the link ends and downward gravity](../../../../assets/Modern_Robotics/ch08_2r_dynamics_model.png)
 
 *The links are massless rods of lengths $L_1,L_2$, with masses $m_1,m_2$ at their distal ends. The second angle is relative to the first link; gravity points along negative $y$. Cropped from book Figure 8.1, printed p. 273.*
 
@@ -3029,7 +3029,7 @@ At a fixed configuration, write $M=Q\operatorname{diag}(\lambda_i)Q^T$, where th
 * a unit torque ball maps through $M^{-1}$ to an acceleration ellipsoid with semiaxis lengths $1/\lambda_i$;
 * torque and acceleration are parallel only along an eigenvector, unless all eigenvalues are equal.
 
-![Configuration-dependent mapping between joint acceleration and torque ellipsoids](../../../assets/Modern_Robotics/ch08_mass_ellipsoids.png)
+![Configuration-dependent mapping between joint acceleration and torque ellipsoids](../../../../assets/Modern_Robotics/ch08_mass_ellipsoids.png)
 
 *Solid curves show a unit acceleration circle and its torque image; dotted curves show a unit torque circle and its acceleration image. The 2R arm has unit lengths and masses. Interpret the torques as inertial torques after removing gravity. Cropped from Figure 8.3, printed p. 280.*
 
@@ -3286,7 +3286,7 @@ The last equality uses $X_iV_{i-1}=V_i-A_i\dot\theta_i$ and the antisymmetry of 
 
 The forward pass has supplied every link's motion, so the single-body law now gives every link's net wrench requirement. It does **not** yet give $F_i$: the parent must supply that requirement plus the load transmitted to the next link. Starting from the known tip load makes that next-link contribution available at each backward step.
 
-![Incoming joint wrench and outgoing child reaction on one link](../../../assets/Modern_Robotics/ch08_link_wrench_balance.png)
+![Incoming joint wrench and outgoing child reaction on one link](../../../../assets/Modern_Robotics/ch08_link_wrench_balance.png)
 
 *Link $i$ receives $F_i$ from its parent and the reaction $-\operatorname{Ad}_{T_{i+1,i}}^TF_{i+1}$ from its child. Their sum must produce the link's rigid-body dynamics. Cropped from Figure 8.6, printed p. 293.*
 
@@ -3693,7 +3693,7 @@ p(s)=p_{\mathrm{start}}+s(p_{\mathrm{end}}-p_{\mathrm{start}}),\qquad
 R(s)=R_{\mathrm{start}}\exp\!\left(\log(R_{\mathrm{start}}^TR_{\mathrm{end}})s\right).
 $$
 
-![Constant screw motion and decoupled straight-line translation with rotation](../../../assets/Modern_Robotics/ch09_screw_cartesian_paths.png)
+![Constant screw motion and decoupled straight-line translation with rotation](../../../../assets/Modern_Robotics/ch09_screw_cartesian_paths.png)
 
 *Book Figure 9.2: the same endpoint poses admit different geometric paths. The lower path keeps the origin on a Cartesian straight line; the upper path follows one fixed screw. Neither implies constant speed in time until $s(t)$ is chosen.*
 
@@ -3934,7 +3934,7 @@ Thus the vectors $(\dot s,L)$ and $(\dot s,U)$ bound a **motion cone**. For $\do
 
 Under the book's regularity assumptions, feasible speeds at each $s$ form an interval from zero to a **velocity limit curve** $\dot s_{\lim}(s)$. This ceiling is induced by dynamics and torque limits, not just a separately specified motor-speed limit.
 
-![Feasible motion cones and a phase-plane curve that demands excessive deceleration](../../../assets/Modern_Robotics/ch09_motion_cones.png)
+![Feasible motion cones and a phase-plane curve that demands excessive deceleration](../../../../assets/Modern_Robotics/ch09_motion_cones.png)
 
 *Book Figure 9.11: the gray region is inadmissible. On the boundary the cone collapses; below it, a candidate trajectory is feasible only if its tangent lies inside the local cone. The right-hand example is below the ceiling but demands more braking than is available.*
 
@@ -3975,7 +3975,7 @@ The book's construction, under its stated assumptions, is:
 4. **Find where braking must start.** Integrate $L$ backward from that tangent state until it intersects the preceding $A$. This intersection is the earlier $U\rightarrow L$ switch; keep the braking segment from there to the tangent.
 5. **Accelerate after the bottleneck.** At the tangent state, switch $L\rightarrow U$ and repeat from step 2 until the final braking curve is reached.
 
-![Forward acceleration, backward braking, and tangent searches produce multiple switching points](../../../assets/Modern_Robotics/ch09_time_scaling_switches.png)
+![Forward acceleration, backward braking, and tangent searches produce multiple switching points](../../../../assets/Modern_Robotics/ch09_time_scaling_switches.png)
 
 *Book Figure 9.13: $F$ is the goal-reaching braking curve. The intermediate tangent requires braking before the bottleneck and acceleration afterward, producing the sequence acceleration, deceleration, acceleration, deceleration. The figure's step labels refer to the book's six-step version of the same construction.*
 
@@ -4279,7 +4279,7 @@ $$
 
 For example, $\zeta=0.5$ gives about 16.3% overshoot. At $\zeta=0$ the oscillation does not decay. Zero overshoot for critical/overdamping refers to the standard unit response, not every possible initial velocity.
 
-![Pole locations and corresponding second-order error responses](../../../assets/Modern_Robotics/ch11_error_dynamics.png)
+![Pole locations and corresponding second-order error responses](../../../../assets/Modern_Robotics/ch11_error_dynamics.png)
 
 *Figure 11.5, printed p. 412: real and imaginary parts of the poles determine decay and oscillation. The standard unit response distinguishes over-, critical, and underdamping; poles in the right half-plane produce growing modes.*
 
@@ -4482,7 +4482,7 @@ $$
 
 This works along general smooth reference trajectories, not only setpoints. It is called **computed torque**, **inverse dynamics control**, or **feedback linearization**: state-dependent nonlinear effort creates simple linear joint-error dynamics. It is not merely a local Taylor linearization of the plant.
 
-![Computed torque block diagram with acceleration feedback and current-state dynamics compensation](../../../assets/Modern_Robotics/ch11_computed_torque.png)
+![Computed torque block diagram with acceleration feedback and current-state dynamics compensation](../../../../assets/Modern_Robotics/ch11_computed_torque.png)
 
 *Figure 11.18, printed p. 430: feedforward acceleration and feedback correction are summed before multiplication by the inertia model. Both inertia and bias compensation use the measured state; the PID block here outputs an acceleration correction, not torque.*
 

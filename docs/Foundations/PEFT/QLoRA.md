@@ -32,4 +32,4 @@ $$h = x \cdot \text{dequant}(W_0^q) + x \cdot \Delta W$$
 **Proof of Efficiency:** Quantization error bounded by NF4 design (theoretical info loss <1 bit/param vs uniform).
 
 ## Step-by-Step Code Implementation
-[Python script](../../src/part3_lora_variants.ipynb)
+[Python script](../../../src/part3_lora_variants.ipynb)

@@ -8,7 +8,7 @@
 
 - [Paper](https://arxiv.org/abs/2010.11929)
 - [Official code and pretrained models](https://github.com/google-research/vision_transformer)
-- Building blocks: [Multi-Head Attention](../../Attention_Machanisms/MHA.md), [LayerNorm](../../Norm/LayerNorm.md), [GELU](../../Activation_Layers/GELU.md)
+- Building blocks: [Multi-Head Attention](../../Foundations/Attention_Mechanisms/MHA.md), [LayerNorm](../../Foundations/Norm/LayerNorm.md), [GELU](../../Foundations/Activation_Layers/GELU.md)
 - Related notes: [DINOv2](./DINOv2.md), [DINOv3](./DINOv3.md), [CLIP](../Vision_Language_Models/CLIP.md)
 
 ## 1. Why Patches, and Why Scale?

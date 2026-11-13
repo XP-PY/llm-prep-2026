@@ -11,7 +11,7 @@
 - [Official baseline implementation](https://github.com/graspnet/graspnet-baseline)
 - [Dataset and evaluation API](https://github.com/graspnet/graspnetAPI)
 - [AnyGrasp: stability-aware grasp detection and temporal association](./AnyGrasp.md)
-- Related notes: [Modern Robotics](../../../Books/Robotics/Modern_Robotics.md), [Spotter](../Agentic_Systems/Spotter.md), [Harness VLA](../Agentic_Systems/Harness_VLA.md)
+- Related notes: [Modern Robotics](../../../Foundations/Books/Robotics/Modern_Robotics.md), [Spotter](../Agentic_Systems/Spotter.md), [Harness VLA](../Agentic_Systems/Harness_VLA.md)
 
 ## 1. What Does the Network Produce?
 

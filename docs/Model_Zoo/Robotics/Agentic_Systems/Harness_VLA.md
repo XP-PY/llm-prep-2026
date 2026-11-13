@@ -10,7 +10,7 @@
 - [Project](https://harnessvla.github.io/)
 - [Official code: RPent](https://github.com/RLinf/RPent)
 - Related policies: [pi0.5](../Policies/Pi_0_5.md), [Hi Robot](../Policies/Pi_Hi_Robot.md)
-- Background: [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md), [LIBERO](../Datasets/LIBERO.md)
+- Background: [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md), [LIBERO](../Datasets/LIBERO.md)
 
 ## 1. Why Put an Agent Around a VLA?
 

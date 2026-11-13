@@ -9,7 +9,7 @@
 - [Paper](https://arxiv.org/abs/2507.13097), [project](https://graspgen.github.io)
 - Related grasp models: [GraspNet](./GraspNet.md), [AnyGrasp](./AnyGrasp.md)
 - A system using grasp generation for recovery: [Zetta](../Agentic_Systems/Zetta.md)
-- Background: [Diffusion Policy](../Policies/Diffusion_Policy.md), [Modern Robotics](../../../Books/Robotics/Modern_Robotics.md)
+- Background: [Diffusion Policy](../Policies/Diffusion_Policy.md), [Modern Robotics](../../../Foundations/Books/Robotics/Modern_Robotics.md)
 
 ## 1. What Must a Grasp Generator Supply?
 

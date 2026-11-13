@@ -5,7 +5,7 @@
 * [PyTorch checkpoint API](https://docs.pytorch.org/docs/stable/checkpoint.html)
 * [PyTorch autograd mechanics](https://docs.pytorch.org/docs/stable/notes/autograd.html)
 * [FSDP note in this repo](../Parallelism/FSDP.md)
-* [FlashAttention note in this repo](../Attention_Machanisms/FlashAttention.md)
+* [FlashAttention note in this repo](../Attention_Mechanisms/FlashAttention.md)
 * [Memory Estimation note in this repo](../Math/Memory_Estimation.md)
 * [Mixed Precision Training note in this repo](./Mixed_Precision_Training.md)
 

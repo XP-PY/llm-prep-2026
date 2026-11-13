@@ -1,6 +1,6 @@
 # [Gemma 3](https://arxiv.org/abs/2503.19786)
 
-> **Brief:** **Vision-language model on a decoder-only LLM:** SigLIP vision encoder, [GQA](../../Attention_Machanisms/GQA.md), and 5:1 local/global attention interleaving.
+> **Brief:** **Vision-language model on a decoder-only LLM:** SigLIP vision encoder, [GQA](../../Foundations/Attention_Mechanisms/GQA.md), and 5:1 local/global attention interleaving.
 
 # Convenient Links
 * [Github](https://github.com/google-deepmind/gemma?tab=readme-ov-file)

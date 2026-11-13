@@ -59,4 +59,4 @@ $$
 
 ## Step-by-Step Code Implementation
 
-[Python script](../../src/part1_optimizers.ipynb)
+[Python script](../../../src/part1_optimizers.ipynb)

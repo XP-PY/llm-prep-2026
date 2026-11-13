@@ -10,7 +10,7 @@
 - [Project and source code](https://github.com/LZY-1021/RoboHarness)
 - Related systems: [Harness VLA](./Harness_VLA.md), [Show-Harness](./Show_Harness.md)
 - VLA backbones: [pi0](../Policies/Pi_0.md), [pi0.5](../Policies/Pi_0_5.md), [SmolVLA](../Policies/SmolVLA.md)
-- Background: [RAG](../../../Agent_Systems/RAG_Systems.md), [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [MCP](../../../Agent_Systems/MCP_Protocol.md)
+- Background: [RAG](../../../Foundations/Agent_Systems/RAG_Systems.md), [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [MCP](../../../Foundations/Agent_Systems/MCP_Protocol.md)
 
 ## 1. Why Adapt the Context Instead of the Policy?
 

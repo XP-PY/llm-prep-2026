@@ -8,7 +8,7 @@
 
 - [Paper](https://arxiv.org/abs/2607.00272), [project](https://research.nvidia.com/labs/gear/aspire/), [official code](https://github.com/NVlabs/ASPIRE)
 - Related systems: [Zetta](./Zetta.md), [AdaHVLA](./AdaHVLA.md), [EmbodiedRSI](./EmbodiedRSI.md), [Spotter](./Spotter.md), [Harness VLA](./Harness_VLA.md)
-- Background: [Skill Systems](../../../Agent_Systems/Skill_Systems.md), [Agent Memory](../../../Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Agent_Systems/Tool_Registry_and_Function_Calling.md), [LIBERO](../Datasets/LIBERO.md)
+- Background: [Skill Systems](../../../Foundations/Agent_Systems/Skill_Systems.md), [Agent Memory](../../../Foundations/Agent_Systems/Memory_Systems.md), [Tool Interfaces](../../../Foundations/Agent_Systems/Tool_Registry_and_Function_Calling.md), [LIBERO](../Datasets/LIBERO.md)
 
 ## 1. Why Does a Failed Robot Program Need More Than Another Attempt?
 
