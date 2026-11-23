@@ -1,294 +1,341 @@
-# [PPO: Proximal Policy Optimization Algorithms](https://arxiv.org/abs/1707.06347)
+# [PPO: Proximal Policy Optimization Algorithms](https://arxiv.org/abs/1707.06347v2)
 
-**PPO** is a family of on-policy reinforcement learning algorithms that alternate between collecting fresh trajectories and performing several minibatch optimization epochs on those trajectories. Its main contribution is a simple first-order objective, especially **probability-ratio clipping**, that discourages excessively large policy updates while allowing more reuse of each rollout batch.
+**Proximal Policy Optimization (PPO)** collects experience with the current policy and trains on that batch for several passes. Its main variant, PPO-Clip, reduces the incentive to keep changing an action's probability once the change is already large in the direction favored by the batch. Fresh rollouts then show what the updated policy actually does.
 
-**Source:** the supplied Schulman et al. paper, arXiv:1707.06347v2 (2017), especially Sections 2-6 and Appendix A. This note covers the original algorithm and experiments, not a particular modern library's implementation.
+The method, figures, and experiments below follow the original paper by John Schulman, Filip Wolski, Prafulla Dhariwal, Alec Radford, and Oleg Klimov, revised August 2017. [Paper PDF, arXiv:1707.06347v2](https://arxiv.org/pdf/1707.06347v2)
 
 ## Convenient Links
 
-* [Paper](https://arxiv.org/abs/1707.06347)
-* [SAC](./SAC.md): an off-policy alternative using replay and a maximum-entropy objective.
-* [Policy-gradient foundations](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-13-policy-gradient-methods) / [Eligibility traces](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-12-eligibility-traces)
-* [PPO for RLHF](../../Foundations/Preference_Alignment/PPO.md): a separate application note covering reward models and a reference policy.
+- Policy gradients and actor–critic methods. [Reinforcement Learning: An Introduction, Chapter 13](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#chapter-13-policy-gradient-methods)
+- Applying PPO to language model alignment. [PPO for RLHF](../../Foundations/Preference_Alignment/PPO.md)
+- A continuous-control algorithm that reuses experience from many previous policies. [Soft Actor-Critic](./SAC.md)
 
-## 1. Why PPO: Reusing Data Without Unrestricted Updates
+## 1. Why Does Reusing a Rollout Make the Update Harder?
 
-A policy-gradient update increases the probability of actions with positive estimated advantage and decreases it for negative ones:
+Suppose a simulated robot usually steps straight ahead. One sampled wider step helps it regain balance. The policy should try that step more often in similar situations. After several updates, however, the robot might take wider steps much more often and reach different poses. The original rollout tells us what happened when the old policy took that one step and then continued as usual. It contains little evidence about what happens when the updated policy takes wider steps repeatedly.
 
-$$
-\hat g=\hat{\mathbb E}_t
-\left[\nabla_\theta\log\pi_\theta(a_t\mid s_t)\hat A_t\right],
-\qquad
-A_\pi(s,a)=q_\pi(s,a)-v_\pi(s).
-$$
+PPO uses an **advantage** to encode the first judgment. At a state $s$, the state value $V^\pi(s)$ is the expected discounted sum of future rewards when following policy $\pi$. The action value $Q^\pi(s,a)$ makes the same prediction after first taking action $a$. Their difference, $A^\pi(s,a)=Q^\pi(s,a)-V^\pi(s)$, measures how taking that action changes the expected outcome relative to the policy's usual behavior at that state.
 
-Here $\pi_\theta$ is the actor, $\hat A_t$ estimates how much better the sampled action was than the state's usual outcome, and $\hat{\mathbb E}_t$ is an empirical batch average. These are the paper's sampled surrogate objectives; they are not an exact evaluation of a new policy's return.
+In a sampled rollout, $\hat A_t$ estimates this difference for the recorded action $a_t$ at step $t$. A positive estimate favors making the action more likely, and a negative estimate favors making it less likely. A zero estimate contributes zero to the policy objective. Section 3 builds these estimates from rewards and a value network.
 
-One update per batch uses expensive environment interaction inefficiently. But repeatedly optimizing $\hat{\mathbb E}_t[\log\pi_\theta(a_t\mid s_t)\hat A_t]$ on the same data can move the policy far from the one that generated it. Its fixed advantage estimates then become a poor guide to further improvement.
+### 1.1 Measure the Change against the Policy That Generated the Data
 
-### 1.1 The Old-Policy Ratio and the [Trust Region Policy Optimization (TRPO)](https://arxiv.org/abs/1502.05477) Connection
-
-Freeze the rollout policy $\pi_{\theta_{\mathrm{old}}}$ and define
+Let $\pi_{\mathrm{old}}$ be the policy used to collect the batch, and let $\pi_\theta$ be the current policy with trainable parameters $\theta$. For each recorded state $s_t$ and action $a_t$, PPO evaluates the action under both policies.
 
 $$
-r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}
-{\pi_{\theta_{\mathrm{old}}}(a_t\mid s_t)},
-\qquad
-L^{\mathrm{CPI}}(\theta)=\hat{\mathbb E}_t[r_t(\theta)\hat A_t].
+r_t(\theta)=\frac{\pi_\theta(a_t\mid s_t)}{\pi_{\mathrm{old}}(a_t\mid s_t)}
+=\exp\!\bigl(\log\pi_\theta(a_t\mid s_t)-\log\pi_{\mathrm{old}}(a_t\mid s_t)\bigr).
 $$
 
-The ratio compares the **same stored action in the same stored state** under the current and behavior policies. It is not a ratio of their separately sampled actions. At $\theta=\theta_{\mathrm{old}}$, $r_t=1$ and
+For the illustrative wider step, a rollout probability of $0.25$ and a current probability of $0.35$ give $r_t=1.4$. The step is now 40% more likely at that state. The numerator evaluates the recorded step under the current policy even if that policy would sample a different step on a fresh visit. For continuous actions, the two terms are probability densities evaluated at the same recorded action. For independent coordinates of a continuous action, add their log densities before computing the ratio so it represents the whole action.
+
+The paper's **conservative policy iteration (CPI) surrogate** averages the product of ratio and advantage over the stored batch.
 
 $$
-\left.\nabla_\theta L^{\mathrm{CPI}}\right|_{\theta_{\mathrm{old}}}
-=\hat{\mathbb E}_t[\hat A_t\nabla_\theta\log\pi_\theta(a_t\mid s_t)].
+L^{\mathrm{CPI}}(\theta)=\widehat{\mathbb E}_t[r_t(\theta)\hat A_t],
 $$
 
-Thus the surrogate has the usual policy-gradient direction at the rollout policy. The ratio corrects action probabilities at sampled states, **not the change in future state visitation**; it does not make arbitrarily stale trajectories safe for unlimited reuse.
+where $\widehat{\mathbb E}_t$ is a finite sample average. At the start of optimization, $\pi_\theta =\pi_{\mathrm{old}}$, so every ratio is one. Differentiating $r_t$ gives $r_t\nabla_\theta \log\pi_\theta(a_t\mid s_t)$. At ratio one this recovers the usual policy-gradient contribution $\hat A_t\nabla_\theta \log\pi_\theta(a_t\mid s_t)$. The ratio starts at one while its gradient still responds to changes in $\theta$.
 
-TRPO maximizes this surrogate subject to
+For a fixed positive advantage, the unclipped contribution keeps growing as the ratio grows. The ratio adjusts action weighting at the **recorded states**. Those states and their estimated advantages still come from the old rollout. Repeated updates therefore benefit from a way to reduce the incentive for large changes.
+
+### 1.2 TRPO Limits the Change through a Constraint
+
+Trust Region Policy Optimization (TRPO) uses the ratio-weighted surrogate and constrains the average Kullback–Leibler (KL) divergence from the rollout policy to the candidate policy.
 
 $$
-\hat{\mathbb E}_t\left[
+\widehat{\mathbb E}_t\!\left[
 D_{\mathrm{KL}}\bigl(\pi_{\mathrm{old}}(\cdot\mid s_t)\Vert
-\pi_\theta(\cdot\mid s_t)\bigr)\right]\le\delta_{\mathrm{KL}}.
+\pi_\theta(\cdot\mid s_t)\bigr)\right]\leq\delta_{\mathrm{KL}}.
 $$
 
-Its approximate constrained update requires more machinery, including curvature information and conjugate gradients. PPO instead seeks a surrogate that ordinary first-order optimizers such as Adam can improve for multiple epochs.
+The budget $\delta_{\mathrm{KL}}$ is measured on states from the batch. At each state, KL compares the full action distributions. For instance, two candidate policies can give the recorded wider step probability $0.35$ while distributing the remaining $0.65$ very differently among other actions. The recorded step has the same ratio under both candidates, but their divergences from the old distribution can differ.
 
-## 2. The Clipped Objective
+TRPO approximates the constrained step using curvature and a conjugate-gradient solve. PPO-Clip changes the objective itself so that ordinary first-order minibatch optimization can use it. [Trust Region Policy Optimization](https://arxiv.org/abs/1502.05477)
 
-PPO-Clip maximizes
+## 2. How Does PPO-Clip Stop Rewarding Large Changes?
 
-$$
-\boxed{L^{\mathrm{CLIP}}(\theta)=\hat{\mathbb E}_t\left[
-\min\left(r_t(\theta)\hat A_t,
-\operatorname{clip}(r_t(\theta),1-\epsilon,1+\epsilon)\hat A_t\right)
-\right].}
-$$
+### 2.1 Compare the Ordinary Score with a Clipped Score
 
-The minimum is essential: clipping alone would also remove the learning signal for changes in the **wrong** direction. Written by advantage sign, each sample contributes
+Suppose the wider step has estimated advantage $+2$ and the clip width is $\epsilon=0.2$. A current probability of $0.28$ gives a ratio of $1.12$ and an ordinary score of $2.24$. At probability $0.35$, the ratio is $1.4$ and the ordinary score is $2.8$. Evaluating the latter at the upper threshold $1.2$ gives a score of $2.4$. PPO keeps the smaller score, so further increases above ratio $1.2$ earn the same credit for that sample.
+
+The second candidate score uses a clipped **copy** of the ratio. The minimum ensures that a large change in the unfavorable direction still reduces the objective. For example, if the wider-step probability falls to $0.15$, the actual ratio $0.6$ gives a score of $1.2$. Clipping it to $0.8$ would raise the score to $1.6$. Taking the minimum keeps $1.2$, so raising the ratio again still improves that term.
 
 $$
-\ell_t(\theta)=
-\begin{cases}
-\hat A_t\min(r_t,1+\epsilon),&\hat A_t\ge0,\\
-\hat A_t\max(r_t,1-\epsilon),&\hat A_t<0.
-\end{cases}
+\begin{aligned}
+u_t &= \operatorname{clip}(r_t,1-\epsilon,1+\epsilon),\\
+\ell_t &= \min(r_t\hat A_t,\ u_t\hat A_t),\\
+L^{\mathrm{CLIP}} &= \widehat{\mathbb E}_t[\ell_t].
+\end{aligned}
 $$
 
-* **Positive advantage:** increasing the action probability is favorable, but there is no further benefit from this term once $r_t>1+\epsilon$. An unfavorable decrease remains penalized.
-* **Negative advantage:** decreasing the action probability is favorable, but there is no further benefit once $r_t<1-\epsilon$. An unfavorable increase remains penalized.
+*Paper Equation (7). The comparison is made for each sample before averaging.*
 
-![PPO clipped surrogate for positive and negative advantages](../../../assets/PPO/clipped_surrogate.png)
+When $\hat A_t<0$, multiplying by it reverses the ordering of the two ratios. This shifts the flat side to the **lower** threshold. The table follows both signs through the same calculation.
 
-*Paper Figure 1: the positive-advantage term flattens above the upper threshold, while the negative-advantage term flattens below the lower threshold. Red dots mark the initial ratio $r=1$.*
+| Illustrative advantage | Actual ratio | Ordinary score $r_t\hat A_t$ | Score using $u_t$ | PPO keeps | Effect of further movement in that direction |
+|---:|---:|---:|---:|---:|---|
+| $+2$ | $1.4$ | $2.8$ | $2.4$ | $2.4$ | Increasing the ratio earns no more credit |
+| $+2$ | $0.6$ | $1.2$ | $1.6$ | $1.2$ | Decreasing the ratio lowers the score |
+| $-1$ | $0.6$ | $-0.6$ | $-0.8$ | $-0.8$ | Decreasing the ratio earns no more credit |
+| $-1$ | $1.4$ | $-1.4$ | $-1.2$ | $-1.4$ | Increasing the ratio lowers the score |
 
-For $\epsilon=0.2$, four cases make the asymmetry concrete:
+![PPO's single-sample objective as a function of ratio for positive and negative advantages](../../../assets/PPO/clipped_surrogate.png)
 
-| Advantage | Ratio | Unclipped $r\hat A$ | Clipped surrogate $\ell$ | Meaning |
-|:--:|:--:|:--:|:--:|:--|
-| $+2$ | $1.4$ | $2.8$ | $2.4$ | Further favorable increase gives no additional benefit |
-| $+2$ | $0.6$ | $1.2$ | $1.2$ | Unfavorable decrease still has a corrective gradient |
-| $-2$ | $0.6$ | $-1.2$ | $-1.6$ | Further favorable decrease gives no additional benefit |
-| $-2$ | $1.4$ | $-2.8$ | $-2.8$ | Unfavorable increase still has a corrective gradient |
+*Paper Figure 1. The red dots mark $r=1$. The positive-advantage curve rises to the upper threshold and flattens. The negative-advantage curve flattens below the lower threshold and slopes down above it.*
 
-**What clipping does not guarantee:** it does not project the policy into a feasible set or force every ratio into $[1-\epsilon,1+\epsilon]$. Shared parameters, other samples, and auxiliary losses can keep changing a ratio after its own policy-loss term becomes flat. Nor does clipping guarantee a bound on KL divergence or monotonic reward improvement.
+For positive advantages the contribution is $\hat A_t\min(r_t,1+\epsilon)$. For negative advantages it is $\hat A_t\max(r_t,1-\epsilon)$. At the relevant threshold both branches give the same value. The curve is continuous with a corner there. Inside the interval the ordinary score applies, including near $r=1$, where PPO retains the usual policy-gradient direction.
 
-The exact lower-bound statement is $L^{\mathrm{CLIP}}\le L^{\mathrm{CPI}}$ on the same batch. This is **not by itself a certified lower bound on the true environment return**. PPO retains the unclipped surrogate's first-order behavior around $r=1$ and becomes pessimistic about large favorable changes farther away.
+### 2.2 A Flat Sample Can Still Move with the Rest of the Batch
 
-### 2.1 The Paper's Alternative: Adaptive KL Penalty
+Consider the wider-step example at ratio $1.4$. Its term is flat with respect to its own ratio. Another state can still give a gradient through parameters shared with the wider-step distribution. If an update driven by that other state raises the wider-step probability to $0.37$, its new ratio is $1.48$ and its contribution remains $2.4$. This is how a ratio can move beyond the interval even after its sample stops rewarding the move.
 
-The paper also studies PPO with
+For the same batch and policy parameters, the minimum ensures that $L^{\mathrm{CLIP}}\le L^{\mathrm{CPI}}$. It compares two scores computed from rollout data. The new policy's actual return depends on which states and actions it visits after deployment. Clipping is an incentive in the objective, so the update has no hard ratio or KL constraint and actual return can fall.
+
+![Clipped and unclipped batch objectives along the first PPO update direction on Hopper](../../../assets/PPO/surrogate_interpolation.png)
+
+*Paper Figure 2. Horizontal position 0 is the rollout policy and 1 is the resulting policy. Along this parameter direction, the ordinary surrogate (orange) keeps rising while the PPO surrogate (red) peaks around the update and then falls. The mean KL (blue) is about 0.02 at the update.*
+
+This plot uses many samples from the first Hopper update. Some contributions flatten while others can worsen, so the average can peak and decline even though either single-sample curve in Figure 1 only slopes in one direction. The plotted KL belongs to this run and this update direction.
+
+### 2.3 Adaptive KL Penalty Changes the Cost of a Policy Update
+
+The other PPO variant in the paper subtracts the mean old-to-current KL from the ratio-weighted score, scaled by a coefficient $\beta$.
 
 $$
-L^{\mathrm{KLPEN}}(\theta)=\hat{\mathbb E}_t\left[
+L^{\mathrm{KLPEN}}(\theta)=\widehat{\mathbb E}_t\!\left[
 r_t(\theta)\hat A_t-\beta
-D_{\mathrm{KL}}(\pi_{\mathrm{old}}(\cdot\mid s_t)\Vert\pi_\theta(\cdot\mid s_t))
+D_{\mathrm{KL}}\bigl(\pi_{\mathrm{old}}(\cdot\mid s_t)\Vert
+\pi_\theta(\cdot\mid s_t)\bigr)\right].
+$$
+
+The optimizer holds $\beta$ fixed for the batch. After the minibatch epochs, measure mean KL $d$ and compare it with a target $d_{\mathrm{targ}}$. Halve $\beta$ if $d<d_{\mathrm{targ}}/1.5$, double it if $d>1.5d_{\mathrm{targ}}$, and keep it at or between those boundaries. The revised coefficient applies to the next batch.
+
+For an illustrative target of $0.01$ and $\beta=1$, a measured KL of $0.02$ sets the next coefficient to $2$. A low KL of $0.005$ would set it to $0.5$, and $0.015$ leaves it at $1$ because the upper test is strict. The feedback regulates future updates. The paper evaluates this variant separately from clipping and also allows the two to be combined.
+
+## 3. Where Does the Advantage Come From?
+
+### 3.1 Compare Each Observed Transition with the Critic's Prediction
+
+The **actor** maps a state to an action distribution. The **critic** estimates the return from the state, giving the actor a baseline for evaluating a recorded action. PPO commonly uses **generalized advantage estimation (GAE)** to combine several successive corrections to that baseline. The temporal-difference (TD) error compares the critic's current-state prediction with the observed reward plus its discounted successor prediction.
+
+Let $R_{t+1}$ be the reward received for the transition to $s_{t+1}$, $\gamma$ the reward discount, and $V_{\mathrm{old}}$ the rollout-time critic used to prepare the batch. For a true terminal transition, use zero for the successor value. The error and the finite-segment advantage are
+
+$$
+\begin{aligned}
+\delta_t &= R_{t+1}+\gamma V_{\mathrm{old}}(s_{t+1})-V_{\mathrm{old}}(s_t),\\
+\hat A_t &= \delta_t+\gamma\lambda\hat A_{t+1}.
+\end{aligned}
+$$
+
+Compute the recursion backward from zero residual advantage after the last collected step. The coefficient $\lambda\in [0,1]$ controls how much later TD errors affect today's estimate. High $\lambda$ uses more observed rewards before relying on the critic at the end of the segment. Low $\lambda$ leans more on the critic's near-term values, which can reduce sampling noise while retaining more of its prediction error.
+
+### 3.2 Work a Two-Step Rollout Backward
+
+In this illustrative rollout the first action is the wider step. The robot regains balance briefly and then the episode ends. Use $\gamma=0.8$, $\lambda=0.5$, and therefore $\gamma\lambda=0.4$. Rewards and values use the same reward units.
+
+| Step | Current value | Reward | Successor value | TD error $\delta_t$ | Advantage $\hat A_t$ |
+|---|---:|---:|---:|---:|---:|
+| 0, wider step | 0.2 | 1 | 2.0 | $1+0.8(2)-0.2=2.4$ | $2.4+0.4(-1)=2$ |
+| 1, episode ends | 2.0 | 1 | 0 | $1+0.8(0)-2=-1$ | $-1$ |
+
+Step 1 gives a positive reward but falls short of the critic's prediction. Its negative error reduces the credit assigned to step 0, which still has positive advantage. These are the two advantages used in the clipping table. The actor evaluates their new ratios independently on the same batch.
+
+With $\lambda=0$, step 0 would use its one-step error $2.4$. With $\lambda=1$, the intermediate critic prediction cancels and the advantage becomes the discounted segment return minus the initial critic value, $1+0.8(1)-0.2=1.6$. The same cancellation leaves a discounted final value if the segment ends while the episode continues.
+
+### 3.3 A Terminal State and a Collection Cutoff Have Different Values
+
+**Bootstrapping** uses a value estimate for rewards beyond the available data. Taking a bootstrap from the actual successor and continuing the advantage recursion are separate decisions.
+
+| Boundary after a stored transition | Include successor value in $\delta_t$? | Carry the next stored advantage backward? |
+|---|---|---|
+| Ordinary step within the segment | Yes | Yes |
+| True episode termination | Use zero | Stop |
+| Batch cutoff in an ongoing episode | Yes | Stop at the batch boundary |
+| Time limit used only to truncate an ongoing task | Yes, from the final observation before reset | Stop before the reset |
+
+For example, if step 1 above were a collection cutoff with successor value $0.5$, its error would be $1+0.8(0.5)-2=-0.6$. The trace still ends there, so step 0 would become $2.4+0.4(-0.6)=2.16$. Using the next episode's initial observation would introduce value from an unrelated trajectory.
+
+The same advantages can produce a fixed critic target. One GAE-based choice is $V_t^{\mathrm{targ}}=V_{\mathrm{old}}(s_t)+\hat A_t$, which gives $2.2$ and $1.0$ for the terminal example. If the actor advantages are normalized, use the raw advantages to construct these value targets so they remain in reward units.
+
+## 4. What Stays Fixed as the Actor Learns?
+
+### 4.1 Collect Once, Update Several Times, Then Collect Again
+
+At the start of a training iteration, use the current policy as the rollout policy. Each of $N$ parallel environment workers collects $T$ transitions, for a total batch size $B=NT$. Store the observations, recorded actions, rewards, actual successor and boundary information, old action log-probabilities, and values needed for advantage estimation.
+
+1. **Prepare targets.** Compute the advantages and value targets from the rollout. The sampled data, old log-probabilities, and targets stay fixed throughout the update.
+2. **Run $K$ epochs.** An epoch is one pass through the batch. Divide it into minibatches of size $M$ and recompute each sampled action's log-probability under the current actor. Recompute the critic's current prediction for its loss. Each optimizer step changes the current networks.
+3. **Refresh the rollout.** After the final epoch, use the updated actor to generate the next batch, with its own log-probabilities and new estimates. Clipping uses the new denominators from then on.
+
+*Training sequence adapted from paper Algorithm 1. Caching the sampled actions' old log-probabilities is sufficient for PPO-Clip. Computing the original KL penalty also requires the old action distributions at sampled states.*
+
+The wider step illustrates why the denominator has to follow the data. If its probability starts at 0.25 and moves to 0.30 then 0.35 across optimizer steps, the same batch sees ratios $1$, $1.2$, and $1.4$. Resetting the denominator to 0.30 partway through would give $0.35/0.30\approx1.17$, putting the same update below the upper threshold and restoring the incentive to increase the probability. The batch still came from the policy with probability 0.25. Once the next rollout is collected at 0.35, its own ratio starts at $0.35/0.35=1$. This limited reuse of a batch from the current rollout policy is why PPO is classified as on-policy.
+
+### 4.2 Combine the Policy, Value, and Entropy Terms
+
+When sharing features between actor and critic, the paper combines the policy surrogate with squared value error and an entropy bonus. For an optimizer that **minimizes** a loss, reverse the signs of the paper's maximization objective.
+
+$$
+\mathcal L=\widehat{\mathbb E}_t\left[
+-\ell_t
++c_1\bigl(V_\phi(s_t)-V_t^{\mathrm{targ}}\bigr)^2
+-c_2\mathcal H\bigl(\pi_\theta(\cdot\mid s_t)\bigr)
 \right].
 $$
 
-After optimizing a batch, measure its mean KL $d$. For a target $d_{\mathrm{targ}}$, halve $\beta$ if $d<d_{\mathrm{targ}}/1.5$, and double it if $d>1.5d_{\mathrm{targ}}$; otherwise retain it. Use the revised coefficient on the next policy update.
+Here $\phi$ denotes the critic's parameters, which can include parameters shared with $\theta$. The first term adjusts the probability of stored actions using their advantages. The second fits the critic to targets for estimating future returns. The third favors higher entropy, $\mathcal H$, meaning a broader distribution that can explore more actions. The coefficients $c_1$ and $c_2$ control the strength of those two auxiliary terms. A value or entropy gradient through shared features can affect the actor even when an individual clipped policy term is flat.
 
-This is an alternative to clipping, although the paper allows combining them. Its experiments favor clipping. **An explicit KL penalty is not required by PPO-Clip**, and this old-to-new KL is not the fixed-reference KL used in RLHF.
+For an illustrative minibatch containing the two steps above, suppose the positive-advantage ratio is $1.4$ and the negative-advantage ratio is $0.6$. The clipped policy average is $(2.4-0.8)/2=0.8$. If the mean squared value error is $0.05$, mean entropy is $0.60$ nats, and the coefficients are $c_1=1$ and $c_2=0.01$, then the **total minimized loss** is $-0.8+0.05-0.006=-0.756$. The value and entropy numbers illustrate the objective arithmetic. They are separate from the policy score.
 
-## 3. What Modules and Data Does PPO Use?
+The MuJoCo experiments use separate networks and omit the entropy bonus. Their actor is a fully connected network with two 64-unit tanh layers, a Gaussian action mean, and adjustable standard deviations. In the paper's shared-network formulation, the value term is ordinary squared error. Some implementations additionally normalize advantages, clip value updates or gradient norms, or stop epochs based on measured KL. Those choices have their own effects and can be considered separately from the paper's policy objective.
 
-PPO is an optimization algorithm, not a prescribed backbone. Its actor-critic implementation has these roles:
+### 4.3 Acting after Training
 
-| Component | Input and output | Role |
-|:--|:--|:--|
-| Actor $\pi_\theta$ | Observation/state $s_t$ -> action distribution -> sampled action $a_t$ | Interact with the environment and compute action log-probabilities |
-| Critic $V_\phi$ | $s_t$ -> scalar expected return | Estimate advantages and provide a bootstrap at rollout cutoffs |
-| Old-policy information | Stored $\log\pi_{\mathrm{old}}(a_t\mid s_t)$; old distribution parameters if needed for KL | Fixed denominator during all epochs on one rollout batch |
-| Environment | $a_t$ -> reward $R_{t+1}$, successor $s_{t+1}$, episode status | Generate training experience |
+To act, evaluate the actor on the current observation and sample from its action distribution. A deterministic evaluation may instead take the mode or Gaussian mean, which changes the action selection rule. Fresh trajectories, critic targets, and ratio calculations are used when training resumes.
 
-The actor and critic can have separate networks or a shared feature extractor with separate output heads. In the paper's MuJoCo experiments, they are **separate**; the actor is a two-hidden-layer MLP with 64 units per layer and tanh activations, producing a Gaussian mean with variable standard deviations. The Atari comparison uses the same policy architecture across PPO, A2C, and ACER, rather than introducing a new PPO-specific architecture.
+## 5. What Do the Experiments Establish?
 
-For an independent multidimensional Gaussian, sum the per-coordinate log densities to obtain the **joint action log-probability** before taking the ratio. For discrete actions, use the categorical log-probability of the sampled action.
+### 5.1 Which Surrogate Works Best in the Same MuJoCo Setup?
 
-No reward model or permanently frozen reference model is required by the original method. There is also no offline pre-training dataset in these experiments: training data are fresh interactions from the evolving policy.
+The authors compare objectives on seven MuJoCo tasks using one million environment timesteps per run and three seeds per task. Most settings are held fixed while the clipping width or KL penalty is varied. Each run is scored by mean episode reward over its last 100 episodes. The authors scale each environment's scores so a random policy gives 0 and the best observed result gives 1, then average 21 runs for each setting. A negative normalized score represents performance below the random baseline on that scale.
 
-## 4. Training Pipeline: Rollout, Estimate, Reuse, Refresh
+| Objective | Setting | Average normalized score |
+|---|---:|---:|
+| Unclipped surrogate | No clipping or penalty | −0.39 |
+| PPO-Clip | $\epsilon=0.1$ | 0.76 |
+| PPO-Clip | $\epsilon=0.2$ | **0.82** |
+| PPO-Clip | $\epsilon=0.3$ | 0.70 |
+| Adaptive KL | $d_{\mathrm{targ}}=0.003$ | 0.68 |
+| Adaptive KL | $d_{\mathrm{targ}}=0.01$ | 0.74 |
+| Adaptive KL | $d_{\mathrm{targ}}=0.03$ | 0.71 |
+| Fixed KL | $\beta=0.3$ | 0.62 |
+| Fixed KL | $\beta=1$ | 0.71 |
+| Fixed KL | $\beta=3$ | 0.72 |
+| Fixed KL | $\beta=10$ | 0.69 |
 
-### 4.1 Collect and Freeze One Rollout Batch
+*Paper Table 1, all settings. The adaptive penalty starts with $\beta=1$.*
 
-At the start of an iteration, set $\theta_{\mathrm{old}}\leftarrow\theta$. Each of $N$ parallel actors collects $T$ transitions, giving a batch of $B=NT$ transitions. Store observations, actions, rewards, successor/episode information, old log-probabilities, and rollout-time critic predictions.
+The result supports using clipping in this setup. The unregularized run's particularly poor HalfCheetah scores pull its average below zero. Among the tested settings, $\epsilon=0.2$ leads with 0.82 versus 0.74 for the strongest adaptive KL setting. This comparison is specific to the paper's tasks, training budgets, and tested hyperparameters.
 
-The rollout policy is fixed during collection. During optimization, **only the numerator policy changes**; old log-probabilities, advantages, and value targets are treated as fixed data. Stored old log-probabilities suffice for PPO-Clip; a complete frozen actor need not be evaluated on every minibatch.
+### 5.2 How Does PPO Compare with Other Continuous-Control Algorithms?
 
-### 4.2 Turn Rewards and Values into Advantages
+![MuJoCo learning curves for PPO and five algorithm baselines](../../../assets/PPO/mujoco_learning_curves.png)
 
-With a rollout ending just before time $T$, the paper's truncated generalized advantage estimator (GAE) is
+*Paper Figure 3. Each panel plots reward against environment timesteps on its own scale, from 0 to one million timesteps. The purple curve is PPO-Clip with $\epsilon=0.2$. The legend identifies advantage actor–critic (A2C), its trust-region version, the cross-entropy method (CEM), vanilla policy gradient (PG) with an adaptive step size, and TRPO.*
 
-$$
-\delta_t=R_{t+1}+\gamma V_{\mathrm{old}}(s_{t+1})-V_{\mathrm{old}}(s_t),
-\qquad
-\hat A_t=\sum_{l=0}^{T-t-1}(\gamma\lambda)^l\delta_{t+l}.
-$$
+The curves let us compare reward at a fixed interaction budget. PPO rises much faster and ends higher than the displayed baselines in HalfCheetah and Walker2d. In Swimmer, TRPO finishes higher. This experiment compares whole algorithms with tuned baselines. The surrogate comparison in Table 1 more directly isolates the choice of objective.
 
-$\gamma$ discounts rewards, while $\lambda$ controls how much the estimate relies on longer sequences of TD errors. Compute the same sum backward using $\hat A_t=\delta_t+\gamma\lambda\hat A_{t+1}$, with no residual advantage beyond the collected segment. At $\lambda=0$, this is a one-step TD error; at $\lambda=1$, it telescopes to a bootstrapped segment return minus $V_{\mathrm{old}}(s_t)$.
+### 5.3 Can PPO Learn to Run, Turn, and Recover in Simulation?
 
-For example, rewards $(1,2)$, rollout values $(0.5,1,0)$ with a terminal final state, $\gamma=0.9$, and $\lambda=0.95$ give $\delta_0=1.4$, $\delta_1=1$, and $\hat A_0=2.255$, $\hat A_1=1$.
+![PPO learning curves on the three Roboschool humanoid tasks](../../../assets/PPO/roboschool_learning_curves.png)
 
-**Episode boundaries matter.** A true terminal state has zero bootstrap value, and the advantage recursion must not continue into a reset episode. A rollout cutoff in an ongoing episode instead uses the critic's value of the actual successor. If a time limit is only a collection truncation, bootstrap from its final observation but stop the trace across the reset. These boundary rules explain how to implement the finite-segment equations; a single undifferentiated `done` flag can incorrectly erase a needed bootstrap.
+*Paper Figure 4. The left task rewards forward locomotion. Flagrun in the middle changes the target location, and FlagrunHarder on the right adds disturbances and requires getting back up. The runs contain 50 million timesteps for locomotion and 100 million for each Flagrun variant.*
 
-The paper writes the value loss using a target $V_t^{\mathrm{targ}}$. A consistent GAE-based implementation chooses $V_t^{\mathrm{targ}}=V_{\mathrm{old}}(s_t)+\hat A_t$, detached from gradients. This is a target-construction choice, not a new PPO objective. If normalizing actor advantages, construct value targets from the **raw** advantages, not the normalized ones.
+![Twelve frames of a simulated humanoid turning toward a changed target](../../../assets/PPO/roboschool_flagrun.png)
 
-### 4.3 Optimize the Same Batch for Several Epochs
+*Paper Figure 5. Read left to right across each row. The humanoid runs toward the first target in the top row. After the target changes, the bottom row shows the policy turning toward the new location.*
 
-Re-evaluate the stored actions under the current actor:
+The rising curves show learning on all three simulated problems, and the frames illustrate one response to a target change. These runs extend the evaluation to higher-dimensional control with longer training budgets. Figure 3 supplies the comparison against other algorithms.
 
-$$
-r_t(\theta)=\exp\bigl(\log\pi_\theta(a_t\mid s_t)
--\log\pi_{\mathrm{old}}(a_t\mid s_t)\bigr).
-$$
+### 5.4 Atari Separates Learning Speed from Final Performance
 
-For joint actor-critic training, the paper maximizes
+The paper compares PPO, A2C, and Actor-Critic with Experience Replay (ACER) on 49 Atari games. The methods share the same policy architecture. Training lasts 40 million game frames, equivalent to 10 million agent timesteps in this setup. The reported game winner for each metric is determined using the mean over three trials.
 
-$$
-\hat{\mathbb E}_t\left[
-\ell_t(\theta)-c_1\bigl(V_\phi(s_t)-V_t^{\mathrm{targ}}\bigr)^2
-+c_2\mathcal H(\pi_\theta(\cdot\mid s_t))\right],
-$$
+| Metric used to choose each game's winner | A2C | ACER | PPO | Ties |
+|---|---:|---:|---:|---:|
+| Mean episode reward across training | 1 | 18 | **30** | 0 |
+| Mean episode reward over the final 100 episodes | 1 | **28** | 19 | 1 |
 
-where $c_1$ weights value fitting and $c_2$ weights entropy to encourage exploration. A minimization-based optimizer uses the negative policy surrogate, **plus** value error, **minus** entropy.
+*Paper Table 2, game-wise win counts. Each row counts 49 games.*
 
-```text
-repeat:
-    collect N * T transitions with the current rollout policy
-    cache old action log-probabilities and rollout value predictions
-    compute fixed advantages and value targets, respecting episode boundaries
-    for epoch = 1,...,K:
-        shuffle the collected batch into minibatches of size M
-        evaluate current log-probabilities, values, and entropy
-        take an Adam step on -policy_surrogate + c1 * value_error - c2 * entropy
-    discard this batch and collect fresh experience with the updated policy
-```
+PPO leads in more games when the metric rewards performance throughout training. ACER leads in more games when the metric emphasizes the end of training. A method can earn more reward early and still be overtaken later.
 
-One **iteration** includes collection plus $K$ optimization epochs, not just one gradient step. If minibatches divide the batch evenly, it performs $KNT/M$ optimizer steps. Do not refresh the denominator after each step: it must remain the policy that actually generated these actions.
+| Game | A2C | ACER | PPO |
+|---|---:|---:|---:|
+| Breakout | 303.0 | **456.4** | 274.8 |
+| Enduro | 0.0 | 0.0 | **758.3** |
+| Kangaroo | 45.3 | 50.0 | **9,928.7** |
+| MontezumaRevenge | 0.0 | 0.3 | **42.0** |
 
-PPO is normally classified as **on-policy with limited batch reuse**, not a replay-buffer algorithm like SAC. After several updates, the frozen data become less representative, so the next iteration refreshes the experience. Clipping is not permission to train indefinitely on a fixed dataset.
+*Selected rows from paper Table 6. Scores are mean rewards per episode over the last 100 episodes after 40 million frames. Interpret differences within each game because the reward scales differ.*
 
-### 4.4 Inference
+Figure 6's panels below preserve the three seed curves for each method. The colors identify A2C (blue), ACER (green), and PPO (red). Each panel spans 0–40 million frames and uses its own reward scale.
 
-At deployment, the actor alone maps the current observation to an action distribution. Sampling preserves its stochastic policy; choosing a mode or Gaussian mean is an evaluation choice that changes that policy. The critic, rollout buffer, advantages, and old-policy denominator are training machinery, not required for action selection.
+![Atari reward curves from Alien through CrazyClimber](../../../assets/PPO/atari_learning_curves_1.png)
 
-## 5. What the Experiments Establish
+*Paper Figure 6, first three rows. Breakout illustrates how later ACER gains can lead to a higher final score.*
 
-### 5.1 Surrogate Ablation and Continuous Control
+![Atari reward curves from DemonAttack through MsPacman](../../../assets/PPO/atari_learning_curves_2.png)
 
-The main MuJoCo benchmark uses seven tasks: HalfCheetah, Hopper, InvertedDoublePendulum, InvertedPendulum, Reacher, Swimmer, and Walker2d, all the paper's `-v1` versions. Each run trains for one million environment timesteps, with three seeds per task. Scores use the final 100 episodes, normalized per environment so a random policy scores zero and the best observed result scores one, then averaged over 21 runs.
+*Paper Figure 6, rows four through six. Enduro shows repeated gains for PPO. MontezumaRevenge shows one PPO seed breaking away, making variation across runs visible behind the mean.*
 
-| Surrogate setting | Average normalized score, paper Table 1 |
-|:--|:--:|
-| No clipping or KL penalty | -0.39 |
-| Clip $\epsilon=0.1$ | 0.76 |
-| Clip $\epsilon=0.2$ | **0.82** |
-| Clip $\epsilon=0.3$ | 0.70 |
-| Best tested adaptive KL setting, $d_{\mathrm{targ}}=0.01$ | 0.74 |
-| Best tested fixed KL setting, $\beta=3$ | 0.72 |
+![Atari reward curves from NameThisGame through UpNDown](../../../assets/PPO/atari_learning_curves_3.png)
 
-The negative unregularized score is driven by a particularly poor HalfCheetah result. The comparison supports clipping over the tested alternatives, but it is not evidence that $\epsilon=0.2$ is universally optimal. The separate algorithm comparison reports strong performance against tuned TRPO, vanilla policy gradient, A2C, trust-region A2C, and CEM on these tasks.
+*Paper Figure 6, rows seven through nine. In Pong, methods learn at different rates and later approach similar rewards.*
 
-The Roboschool humanoid experiments additionally demonstrate running, steering toward changing targets, and recovering under disturbances. They use much longer runs and a different configuration; they are not another one-million-step benchmark or a pre-training/fine-tuning pipeline.
+![Atari reward curves from Venture through Zaxxon with the shared legend](../../../assets/PPO/atari_learning_curves_4.png)
 
-### 5.2 Atari: Learning Speed Versus Final Performance
+*Paper Figure 6, final row and legend. The horizontal axis counts game frames.*
 
-The Atari evaluation covers 49 games, three seeds, and 40 million game frames (10 million timesteps). Table 2 counts which method wins each game:
+### 5.5 How Much Work Happens per Rollout?
 
-| Scoring criterion | A2C wins | ACER wins | PPO wins | Ties |
-|:--|:--:|:--:|:--:|:--:|
-| Average episode reward across training | 1 | 18 | **30** | 0 |
-| Average reward over final 100 episodes | 1 | **28** | 19 | 1 |
+| Setting | MuJoCo | Roboschool | Atari |
+|---|---:|---:|---:|
+| Horizon $T$ per worker | 2,048 | 512 | 128 |
+| Workers $N$ | — | 32 locomotion, 128 Flagrun | 8 |
+| Epochs $K$ | 10 | 15 | 3 |
+| Minibatch size $M$ | 64 | 4,096 | 256 |
+| Adam step size | $3\times10^{-4}$ | Adjusted using target KL | $2.5\times10^{-4}\alpha$ |
+| Reward discount $\gamma$ | 0.99 | 0.99 | 0.99 |
+| GAE weight $\lambda$ | 0.95 | 0.95 | 0.95 |
+| Clip width $\epsilon$ | $0.2$ in Section 6.2 | — | $0.1\alpha$ |
+| Value coefficient $c_1$ | Separate networks | — | 1 |
+| Entropy coefficient $c_2$ | 0 | — | 0.01 |
+| Action log standard deviation schedule | — | Linear from −0.7 to −1.6 | — |
 
-PPO wins more games on the metric favoring fast learning, but ACER wins more on final performance. These are **counts of game-wise wins**, not pooled reward scores; the paper does not establish PPO as best on every task or metric.
+*Combined summary of paper Tables 3–5 and Sections 6.1–6.2. Dashes mark settings unlisted in those sources. Atari's $\alpha$ decreases linearly from 1 to 0, shrinking both its learning rate and clip width. Roboschool's KL-based learning rate adjustment is distinct from the adaptive objective coefficient in Section 2.3.*
 
-### 5.3 Reported Configurations, Not Universal Defaults
+For Atari, $NT=8\times128=1{,}024$ transitions form one batch. Each epoch has $1{,}024/256=4$ optimizer steps, so three epochs give 12 steps per collection iteration. This distinguishes the amount of new environment interaction from the amount of optimization. The number of epochs, learning rate, and clip width jointly affect how far the policy can move before collecting again.
 
-| Setting | MuJoCo, Appendix Table 3 | Atari, Appendix Table 5 |
-|:--|:--|:--|
-| Rollout horizon $T$ | 2048 | 128 per actor |
-| Parallel actors $N$ | Not listed in Table 3 | 8 |
-| Optimization epochs $K$ | 10 | 3 |
-| Minibatch size $M$ | 64 | 256 |
-| Adam learning rate | $3\times10^{-4}$ | $2.5\times10^{-4}u$ |
-| Discount / GAE | $\gamma=0.99$, $\lambda=0.95$ | Same |
-| Clip range | $0.2$ in the main algorithm comparison | $0.1u$ |
-| Value / entropy | Separate networks; no entropy bonus | $c_1=1$, $c_2=0.01$ |
+## 6. Check the Worked Examples in Python
 
-For Atari, $u$ decreases linearly from one to zero over training. The batch contains $8\times128=1024$ transitions, giving $3\times1024/256=12$ optimizer steps per collection iteration. The Roboschool setup instead uses horizon 512, 15 epochs, minibatches of 4096, and 32 or 128 actors depending on the task, with KL-adjusted learning rate and annealed action log-standard-deviation (Appendix Table 4).
-
-The paper's displayed value loss is ordinary squared error. Value-loss clipping, advantage normalization, gradient-norm clipping, or KL-based early stopping should be identified as implementation choices when used, not silently treated as terms required by Equation (7).
-
-## 6. Minimal Numerical Check
-
-This standard-library Python example checks the clipping signs and the GAE example above. It isolates objective arithmetic rather than implementing a full trainer; run the block with Python 3.
+Run the following block with Python 3 to check the clipping, GAE, and combined-loss arithmetic. The successor values belong to the recorded transitions. Bootstrap and trace masks handle terminal states and reset boundaries independently.
 
 ```python
-from math import exp, isclose, log
+from math import isclose
 
 
-def clipped_surrogate(logp, old_logp, advantage, epsilon=0.2):
-    ratio = exp(logp - old_logp)
-    clipped = min(max(ratio, 1.0 - epsilon), 1.0 + epsilon)
-    return min(ratio * advantage, clipped * advantage)
+def clipped_score(ratio, advantage, epsilon=0.2):
+    bounded_ratio = min(max(ratio, 1 - epsilon), 1 + epsilon)
+    return min(ratio * advantage, bounded_ratio * advantage)
 
 
-def gae_segment(rewards, values, bootstrap, trace, gamma=0.9, lam=0.95):
-    # values includes the actual final successor; masks handle termination/reset.
-    if not (len(values) == len(rewards) + 1
-            and len(bootstrap) == len(trace) == len(rewards)):
-        raise ValueError("inconsistent rollout lengths")
+def gae(rewards, values, successor_values, bootstrap, continue_trace,
+        gamma=0.8, lam=0.5):
     advantages = [0.0] * len(rewards)
     future = 0.0
-    for t in range(len(rewards) - 1, -1, -1):
-        delta = rewards[t] + gamma * bootstrap[t] * values[t + 1] - values[t]
-        future = delta + gamma * lam * trace[t] * future
+    for t in reversed(range(len(rewards))):
+        delta = rewards[t] + gamma * bootstrap[t] * successor_values[t] - values[t]
+        future = delta + gamma * lam * continue_trace[t] * future
         advantages[t] = future
     return advantages
 
 
-for ratio, advantage, expected in [(1.4, 2, 2.4), (0.6, 2, 1.2),
-                                    (0.6, -2, -1.6), (1.4, -2, -2.8)]:
-    result = clipped_surrogate(log(ratio), 0.0, advantage)
-    assert isclose(result, expected)
+for ratio, advantage, expected in [
+    (1.4, 2, 2.4), (0.6, 2, 1.2), (0.6, -1, -0.8), (1.4, -1, -1.4),
+    (1.2, 2, 2.4), (0.8, -1, -0.8), (1.4, 0, 0),
+]:
+    assert isclose(clipped_score(ratio, advantage), expected)
 
-advantages = gae_segment([1, 2], [0.5, 1, 0], [1, 0], [1, 0])
-assert isclose(advantages[0], 2.255) and isclose(advantages[1], 1.0)
-# Collection cutoff: bootstrap is allowed, but no trace crosses the boundary.
-assert isclose(gae_segment([1], [0.5, 2], [1], [0])[0], 2.3)
-print("PPO clipping and GAE checks passed.")
+rewards = [1, 1]
+values = [0.2, 2.0]
+terminal = gae(rewards, values, [2.0, 0.0], [1, 0], [1, 0])
+cutoff = gae(rewards, values, [2.0, 0.5], [1, 1], [1, 0])
+assert all(isclose(a, b) for a, b in zip(terminal, [2.0, -1.0]))
+assert all(isclose(a, b) for a, b in zip(cutoff, [2.16, -0.6]))
+
+policy_average = (clipped_score(1.4, 2) + clipped_score(0.6, -1)) / 2
+assert isclose(-policy_average + 0.05 - 0.01 * 0.60, -0.756)
+print("PPO examples passed.")
 ```
-
-Here `bootstrap[t]` is zero for true termination; `trace[t]` is zero where the advantage recursion must stop. The example represents one contiguous segment. For buffers spanning resets, store each transition's actual successor value explicitly rather than accidentally using the next episode's initial observation. In autodiff code, detach old log-probabilities, advantages, and value targets, while keeping current log-probabilities differentiable; $r=1$ initially does **not** mean its gradient is zero.
-
-## 7. Key Distinctions to Remember
-
-* **Clipped objective, not a hard trust region:** PPO removes some incentives for large favorable changes; ratios and KL can still move substantially.
-* **Actor and critic, not four mandatory models:** the original method does not require a learned reward model or fixed reference policy.
-* **Old policy versus RLHF reference:** the old policy refreshes with each rollout iteration; an RLHF reference is a separate alignment anchor. See [PPO for RLHF](../../Foundations/Preference_Alignment/PPO.md).
-* **Batch reuse, not unlimited replay:** old-policy ratios and advantage estimates stay fixed over a limited number of optimization epochs, then experience is refreshed.
-* **Empirical robustness, not monotonic improvement:** hyperparameters, advantage quality, policy parameterization, and task dynamics still affect stability.
-
-**In one sentence:** PPO turns a rollout policy's advantage estimates into several first-order policy updates, using a clipped surrogate or adaptive KL penalty to discourage moving too far before collecting new experience.
