@@ -1,112 +1,103 @@
-# [SAC: Soft Actor-Critic](https://arxiv.org/abs/1801.01290)
+# [SAC: Soft Actor-Critic](https://arxiv.org/abs/1801.01290v2)
 
-**Soft Actor-Critic (SAC)** combines replay-based off-policy learning with a stochastic actor that maximizes both reward and entropy. Soft value learning evaluates that objective, while a reparameterized policy update learns high-value continuous actions without solving an action-space maximization problem at every step.
+**Soft Actor-Critic (SAC)** learns continuous control from a replay buffer and trains its policy to balance reward with entropy. The critics learn from recorded actions and their outcomes. The actor draws fresh actions at the same states and uses the critics to improve those choices. Entropy enters both the actor's objective and the critics' estimates of future value.
 
-**Source:** the supplied Haarnoja et al. paper, *Soft Actor-Critic: Off-Policy Maximum Entropy Deep Reinforcement Learning with a Stochastic Actor*, ICML 2018, arXiv:1801.01290v2. The core method is in Sections 3-5; Appendices B-D provide proofs, action-bound handling, and hyperparameters.
-
-**Version boundary:** this paper uses **two Q-networks, an explicit soft state-value network, and a target copy of the value network**. Its experiments tune a reward scale rather than learn a temperature automatically. Do not replace its value-network target or add an automatic-temperature loss when reproducing this formulation.
+This note follows the original 2018 formulation by Tuomas Haarnoja, Aurick Zhou, Pieter Abbeel, and Sergey Levine. That version uses two action-value networks, a separate state-value network and its target copy, and a reward scale chosen per task. [Paper PDF with appendices](https://arxiv.org/pdf/1801.01290v2) · [ICML proceedings](https://proceedings.mlr.press/v80/haarnoja18b.html)
 
 ## Convenient Links
 
-* [Paper](https://arxiv.org/abs/1801.01290) / [Paper's code repository](https://github.com/haarnoja/sac)
-* [PPO](./PPO.md) / [Actor-critic foundations](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#135-actor-critic-methods) / [Continuous-action policy gradients](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#137-policy-parameterization-for-continuous-actions)
+- Original implementation. [haarnoja/sac](https://github.com/haarnoja/sac)
+- An on-policy comparison. [PPO](./PPO.md)
+- Background on actors and critics. [Reinforcement Learning: An Introduction, Section 13.5](../../Foundations/Books/Reinforcement_Learning/Reinforcement_Learning_An_Introduction.md#135-actor-critic-methods)
 
-## 1. Why Combine Replay with Maximum Entropy?
+## 1. What Does SAC Gain from Replay and Entropy?
 
-[PPO](./PPO.md) reuses a recent rollout batch for a limited number of updates, then collects fresh experience. SAC instead keeps a **replay buffer** containing transitions from many previous policies. This can reduce the amount of new environment interaction required, but puts more pressure on the stability and accuracy of value learning.
+Suppose a simulated robot tries two ways to regain balance from the same pose. It can reuse the recorded outcome of each attempt while learning from later trials. Once its policy changes, the outcomes remain evidence about the actions that actually ran. The transition answers “what happened when the robot applied this command here?” even if the current policy would now choose a different command.
 
-SAC's second ingredient is not merely extra exploration noise. It changes the objective so the policy values both task reward and retained randomness. In the paper's finite-horizon notation,
+SAC stores these transitions in a **replay buffer** $\mathcal D$. Training is **off-policy** because a sampled record can come from an earlier version of the actor, while the critic estimates future behavior under the current actor. Each record gives a state $s$, a commanded action $a$, its reward $R$, and the observed successor $s'$. Reuse assumes the environment still responds to the same state and action according to the same dynamics. Useful policy improvement also depends on replay covering enough of the states and actions the learner needs to evaluate.
+
+### 1.1 Reward and Entropy Favor Different Properties of a Policy
+
+If several actions look promising, early value estimates may differ just because some actions have been tried more often. A policy trained to concentrate on the current winner can stop collecting evidence about alternatives. SAC gives the policy a reason to keep several options available by rewarding **entropy**, a measure of the spread of its action distribution.
+
+For a finite sequence of decisions, the paper's objective adds the policy's entropy at each visited state to the expected task reward.
 
 $$
-J(\pi)=\sum_{t=0}^{T}\mathbb E_{(s_t,a_t)\sim\rho_\pi}
-\left[r(s_t,a_t)+\alpha\mathcal H(\pi(\cdot\mid s_t))\right],
+J(\pi)=\sum_t \mathbb E_{(s_t,a_t)\sim\rho_\pi}
+\left[r(s_t,a_t)+\alpha\mathcal H\bigl(\pi(\cdot\mid s_t)\bigr)\right],
 \qquad
-\mathcal H(\pi(\cdot\mid s))=-\mathbb E_{a\sim\pi}[\log\pi(a\mid s)].
+\mathcal H\bigl(\pi(\cdot\mid s)\bigr)
+=-\mathbb E_{a\sim\pi(\cdot\mid s)}[\log\pi(a\mid s)].
 $$
 
-Here $\rho_\pi$ denotes the policy-induced state/action distribution, and $\alpha>0$ controls entropy relative to reward. For continuous actions, this is **differential entropy**: $\pi(a\mid s)$ is a density, and neither entropy nor $-\log\pi(a\mid s)$ must be positive.
+Here $\pi(a\mid s)$ is the action distribution, $r(s,a)$ is the reward associated with a state and action, and $\rho_\pi$ describes the state and action pairs encountered by following $\pi$. The **temperature** $\alpha>0$ sets the importance of entropy relative to reward. With natural logarithms, entropy is measured in nats, and $\alpha$ converts it into reward units. For continuous actions, $\pi(a\mid s)$ is a density and the formula gives differential entropy. Densities can exceed one, so the entropy contribution can be negative.
 
-Larger $\alpha$ favors broader action distributions; smaller $\alpha$ favors concentrating on high-reward behavior. This is not "be random regardless of reward": low-value actions remain unattractive, while multiple good choices can retain probability mass. A restricted policy family may still fail to represent all desirable modes.
+**Illustrative two-action example.** Suppose either of two commands earns reward 4 and the episode then ends. Always choosing one earns 4 with zero entropy. Choosing each half the time also earns 4 and adds $0.2\log 2\approx0.139$ when $\alpha=0.2$. If one command earns substantially less reward, mixing the commands can cost more reward than the entropy is worth. Section 2 shows how their value gap controls the resulting probabilities.
 
-The paper suppresses $\alpha$ after Section 3.2 by scaling rewards by $1/\alpha$. **This note retains $\alpha$ explicitly**, with Q and V measured in the corresponding unscaled reward units. In the paper's unit-entropy convention, multiplying rewards by $c$ is equivalent, at the objective level, to using effective temperature $\alpha=1/c$ with unscaled rewards. These conventions should not be applied twice.
+### 1.2 Reward Scaling Changes the Same Trade-off
 
-The algorithm introduces discount $\gamma$ in its Bellman backups. Appendix A discusses the distinction between discounting future returns and weighting state visitation; the practical replay-state actor objective below should not be mistaken for an exact on-policy gradient of a fixed-start discounted return.
+The paper writes its algorithm with a unit entropy coefficient and multiplies task rewards by a positive scale $c$. This note keeps $\alpha$ explicit and uses unscaled rewards in the equations. Multiplying $r+\alpha\mathcal H$ by $c=1/\alpha$ gives $cr+\mathcal H$. The two expressions rank policies the same under the corresponding change of value units, although numerical training can respond differently to the change in scale.
 
-## 2. From Soft Values to a Policy Objective
+For example, multiplying rewards by 5 in the paper's convention corresponds to $\alpha=0.2$ in the unscaled convention. Increasing $c$ gives a fixed reward difference more weight relative to entropy, as lowering the temperature does. The paper chooses $c$ before training and studies its effect in Figure 3.
 
-### 2.1 Evaluate Both Reward and Future Entropy
+## 2. How Does Entropy Change Evaluation and Improvement?
 
-The soft Bellman equations are
+### 2.1 Q Fixes This Action While V Includes the Current Choice
+
+The critic needs to know whether today's action leads to useful future choices. To track where the entropy enters, distinguish evaluating one specified action from evaluating the policy's whole distribution at a state.
 
 $$
 \begin{aligned}
-Q^\pi(s,a)&=r(s,a)+\gamma\mathbb E_{s'\sim p}[V^\pi(s')],\\
-V^\pi(s)&=\mathbb E_{a\sim\pi}
+Q^\pi(s,a)&=r(s,a)+\gamma\,\mathbb E_{s'\sim p(\cdot\mid s,a)}[V^\pi(s')],\\
+V^\pi(s)&=\mathbb E_{a\sim\pi(\cdot\mid s)}
 \left[Q^\pi(s,a)-\alpha\log\pi(a\mid s)\right].
 \end{aligned}
 $$
 
-$Q^\pi(s,a)$ evaluates taking a specified action and then following the policy, including entropy at future states. $V^\pi(s)$ also averages over the **current** action and includes its entropy. Consequently the Q backup does not separately subtract $\alpha\log\pi(a\mid s)$ for the fixed replay action: that would change this value convention.
+*Paper Equations (2)–(3), with temperature shown explicitly.*
 
-This placement makes entropy affect not only today's actor update but also which **future states** the critic considers valuable. A state offering several good action choices can be preferable to one permitting only a single viable choice.
+The transition distribution $p(\cdot\mid s,a)$ describes the environment's possible successors, and $\gamma$ discounts the future. $Q^\pi(s,a)$ takes the reward for the fixed current command and adds the value of following the policy from its successor. At that successor, $V^\pi$ already includes the entropy of the next choice. At the current state, $V^\pi(s)$ also averages over today's actions and includes the entropy of drawing one. The two equations therefore count each choice's entropy once.
 
-### 2.2 Improve the Policy Toward High Soft Q-Values
+Take the two equally good terminal commands from Section 1 as the choices at a successor state $s'$. An action that reaches $s'$ deterministically and earns immediate reward $1$ has $Q^\pi(s,a)=1+0.9(4.139)\approx4.725$ for $\gamma=0.9$ and the uniform policy at $s'$. If the policy at $s'$ always uses one command, the same preceding action has value $1+0.9(4)=4.6$. The immediate rewards are identical. The difference comes from the next state's freedom to choose between equally good actions.
 
-For a fixed Q-function, the unrestricted entropy-regularized improvement distribution is
+The paper's practical Bellman updates discount future rewards and entropy. Its Appendix A discusses how this discount differs from discounting the state distribution itself. The actor update below uses the states represented in replay.
 
-$$
-\pi_{\mathrm{Boltzmann}}(a\mid s)
-=\frac{\exp(Q(s,a)/\alpha)}{Z(s)},
-\qquad Z(s)=\int\exp(Q(s,a)/\alpha)\,da.
-$$
+### 2.2 Turn Value Differences into Action Probabilities
 
-For two discrete actions with Q-values $(2,1)$, $\alpha=0.5$ gives probabilities approximately $(0.881,0.119)$, while $\alpha=2$ gives $(0.622,0.378)$. The relative value gap is unchanged, but temperature controls how decisively the policy exploits it.
-
-In continuous spaces, computing $Z(s)$ and sampling this density exactly may be impractical. Restrict the actor to a tractable family $\Pi$, such as a squashed Gaussian, and minimize
+Once the current policy has been evaluated, the improvement step seeks actions with larger soft Q-values while accounting for the entropy of the new distribution. With fixed $Q$, the distribution that maximizes $\mathbb E[Q(s,a)]+\alpha\mathcal H$ at a state is the **Boltzmann distribution**.
 
 $$
-D_{\mathrm{KL}}\left(\pi_\phi(\cdot\mid s)
-\,\Vert\,\frac{\exp(Q(s,\cdot)/\alpha)}{Z(s)}\right).
+p_Q(a\mid s)=\frac{\exp(Q(s,a)/\alpha)}{Z(s)},
+\qquad Z(s)=\int \exp(Q(s,a)/\alpha)\,da .
 $$
 
-Expanding and multiplying by $\alpha$ gives
+$Z(s)$ is the normalizer, with a sum in the discrete case. For two illustrative commands with Q-values 2 and 1, the ratio of their desired probabilities is $\exp((2-1)/\alpha)$.
+
+| Temperature $\alpha$ | Probability of command valued at 2 | Probability of command valued at 1 |
+|---:|---:|---:|
+| 0.5 | 0.881 | 0.119 |
+| 2.0 | 0.622 | 0.378 |
+
+The larger temperature makes the same value gap less decisive. Equal Q-values give equal mass in this two-action example. As temperature goes to zero, the higher-valued action takes nearly all the mass.
+
+An exact normalizer involves an integral over the entire action space, which can be expensive for a neural Q-function. The paper fits a tractable actor $\pi_\phi$ by minimizing the Kullback–Leibler (KL) divergence from that actor to $p_Q$. Expanding the divergence gives
 
 $$
-\alpha D_{\mathrm{KL}}
-=\mathbb E_{a\sim\pi_\phi}
-\left[\alpha\log\pi_\phi(a\mid s)-Q(s,a)\right]
+\alpha D_{\mathrm{KL}}\bigl(\pi_\phi(\cdot\mid s)\Vert p_Q(\cdot\mid s)\bigr)
+=\mathbb E_{a\sim\pi_\phi(\cdot\mid s)}
+   [\,\alpha\log\pi_\phi(a\mid s)-Q(s,a)\,]
 +\alpha\log Z(s).
 $$
 
-During this policy-improvement step, Q is fixed, so $Z(s)$ has no dependence on actor parameters $\phi$. Dropping that constant gives the SAC actor loss. This is why SAC can improve the policy without evaluating the partition function.
+The expectation samples actions from the actor. The critic stays fixed during this update, so $Z(s)$ depends on the state and critic but is constant with respect to the actor parameters $\phi$. Minimizing the expectation alone gives the same actor gradient. In a continuous problem this lets the actor learn to propose high-value actions without solving a new integration or search problem at every control step. A limited policy family, such as a single squashed Gaussian, can only approximate the desired distribution.
 
-The paper proves improvement and convergence for **exact soft policy iteration with finite actions and bounded quantities**, under its stated policy-class assumptions. Neural SAC replaces exact evaluation and per-state optimization with shared approximators and finite stochastic updates. The theorem is not a guarantee of globally optimal or stable deep-network training.
+### 2.3 What the Exact Policy Iteration Result Covers
 
-## 3. Network Structure in This Paper
+In the finite-action analysis, repeated soft Bellman backups evaluate a fixed policy. When comparing two Q-estimates under the same policy, the reward and entropy terms cancel in their difference. Averaging successor values and discounting with $\gamma<1$ then shrinks the maximum difference, which gives convergence for bounded values. The KL projection then improves the policy because the old policy belongs to the same admissible class and is one candidate in the minimization. Reevaluating the improved policy propagates that change through future states. The paper proves convergence within the policy class for exact soft evaluation and improvement under its stated assumptions. Neural SAC uses shared function approximators and finite minibatch updates for both operations, so its deep-control results are evaluated empirically.
 
-Use the paper's parameter notation: $\phi$ for the actor, $\theta_1,\theta_2$ for Q-functions, $\psi$ for V, and $\bar\psi$ for its target copy.
+## 3. How Does the Actor Generate a Bounded, Differentiable Action?
 
-| Module | Input -> output | Role |
-|:--|:--|:--|
-| Actor $\pi_\phi$ | State $s$ -> Gaussian mean and scale -> bounded sampled action | Behavior and differentiable policy improvement |
-| $Q_{\theta_1}$ and $Q_{\theta_2}$ | State-action pair $(s,a)$ -> scalar soft Q-value each | Fit replay transitions; reduce optimistic actor/value estimates by taking their minimum |
-| Soft value $V_\psi$ | State $s$ -> scalar | Approximate the current policy expectation of Q plus entropy |
-| Target value $V_{\bar\psi}$ | Successor state $s'$ -> scalar | Slowly moving bootstrap for both Q-networks |
-| Replay buffer $\mathcal D$ | Stored $(s,a,R,s',d)$ transitions | Reuse experience collected by earlier policies |
-
-The implementation uses two hidden layers of 256 units and ReLU activations for all networks (Appendix D). There are four trainable networks plus one target value copy. The main algorithm has **no target actor or target Q-networks**; its target is $V_{\bar\psi}$.
-
-The two Q-networks learn the same target, but separate estimates allow
-
-$$
-Q_{\min}(s,a)=\min_{i\in\{1,2\}}Q_{\theta_i}(s,a)
-$$
-
-to reduce exploitation of overestimated values. The paper uses this minimum in **both the V target and the actor loss**. It is a bias-control heuristic, not a guarantee that the result is a true lower bound on $Q^\pi$.
-
-### 3.1 Bounded Actions and Their Correct Log Density
-
-For a diagonal Gaussian actor, sample noise and transform it:
+A continuous command needs to stay within the range the environment accepts. The paper samples from a Gaussian and applies $\tanh$ coordinate by coordinate. Writing the random draw as fixed-distribution noise $\epsilon$ separates the random input from the trainable transformation.
 
 $$
 \epsilon\sim\mathcal N(0,I),\qquad
@@ -114,222 +105,265 @@ u=\mu_\phi(s)+\sigma_\phi(s)\odot\epsilon,\qquad
 \tilde a=\tanh(u)=f_\phi(\epsilon;s).
 $$
 
-The raw variable $u$ is Gaussian; the action $\tilde a$ lies in $(-1,1)^D$ and is **not Gaussian**. Appendix C gives its change-of-variables density:
+The actor predicts a mean vector $\mu_\phi$ and positive standard deviations $\sigma_\phi$. The symbol $\odot$ denotes elementwise multiplication. Each normalized command coordinate lies in $(-1,1)$. At a fixed noise draw, changing the mean or scale changes the command smoothly, which lets the actor learn from the critic's derivative with respect to the command.
+
+### 3.1 Use the Density of the Command after Squashing
+
+Squashing compresses wide intervals of raw Gaussian samples near the action limits. In one dimension, a short interval $du$ becomes $da=(1-\tanh^2u)\,du$. The interval keeps its probability mass, so the density per unit of action changes by the inverse factor. The entropy term therefore uses the transformed density.
 
 $$
-\boxed{\log\pi_\phi(\tilde a\mid s)
-=\log\mathcal N(u;\mu_\phi(s),\operatorname{diag}(\sigma_\phi(s)^2))
--\sum_{j=1}^{D}\log\left(1-\tanh^2(u_j)\right).}
+\log\pi_\phi(\tilde a\mid s)
+=\log\mathcal N\!\left(u;\mu_\phi(s),\operatorname{diag}(\sigma_\phi(s)^2)\right)
+-\sum_{j=1}^{D}\log\!\left(1-\tanh^2(u_j)\right),
 $$
 
-Sum across action dimensions to get one joint log density per sample. Omitting the Jacobian correction gives the wrong entropy and actor loss. Numerical implementations should evaluate this correction stably near saturation; simply clipping Gaussian samples is not equivalent to this invertible transformation.
+where $D$ is the number of action coordinates. The sum gives a single change-of-variables correction for the joint action density. Close to saturation, implementations can evaluate the log Jacobian directly from $u$ using a stable identity, as in the numerical check at the end. [Paper Appendix C](https://arxiv.org/pdf/1801.01290v2#page=12)
 
-## 4. Training Pipeline and Gradient Flow
+**Illustrative sample.** In one dimension let $u=0.8$, the mean be $0.8$, and the standard deviation be $1$. The command is $\tilde a\approx0.664$, and the derivative of $\tanh$ there is about $0.559$. The Gaussian log density at its mean is about $-0.919$. Subtracting $\log(0.559)$ gives a bounded-action log density of about $-0.337$. This correction changes the entropy term in both the actor and state-value updates.
 
-### 4.1 Two Different Sources of Actions
+## 4. How Does One Replay Transition Train Four Networks?
 
-An environment step samples $a\sim\pi_\phi(\cdot\mid s)$, executes it, and stores $(s,a,R,s',d)$ in replay, where $d$ marks genuine termination. For each gradient step, sample a minibatch from replay:
+The actor collects experience by sampling a command and executing it. A training round then draws a minibatch from replay. Each stored command has an observed outcome. The current actor supplies new candidate commands at the sampled states, and the critics provide estimates for those commands.
 
-* **Q update:** use the stored action $a$ and its observed reward/successor.
-* **V and actor updates:** use replay states $s$, but sample **fresh actions $\tilde a\sim\pi_\phi(\cdot\mid s)$** from the current actor.
+| Network | Input and output | Information it uses to learn |
+|---|---|---|
+| Actor $\pi_\phi$ | State → distribution over bounded actions | Soft Q and log density evaluated at a fresh, differentiable sample |
+| Two action-value critics $Q_{\theta_1}$, $Q_{\theta_2}$ | State and action → soft action value | Stored action, observed reward, and target value at the observed successor |
+| State-value network $V_\psi$ | State → soft state value | Soft Q and entropy sampled under the current actor |
+| Target state-value network $V_{\bar\psi}$ | Successor state → bootstrap value | A delayed copy of the state-value network's parameters |
 
-The distinction is crucial: replay actions teach the critics what happened, while current actions teach the actor what it should do now. There is no frozen old-policy probability ratio or PPO-style batch advantage in these losses.
+*Component summary based on Section 4.2 and Algorithm 1. The actor, two critics, and state-value network have separate training objectives. The target value copy is updated from $\psi$.*
 
-### 4.2 Fit the Soft State Value
+![The paper's SAC algorithm collects experience, updates the value and Q networks and actor, then updates the target value weights](../../../assets/SAC/algorithm_1.png)
 
-For each replay state, draw a current-policy action and form
+*Paper Algorithm 1. The first loop adds transitions to replay. Each learning round updates $V_\psi$, both Q-networks, and the actor in that order, then moves the target weights $\bar\psi$ toward $\psi$. The three $\lambda$ symbols in the algorithm denote the respective learning rates.*
+
+### 4.1 Fit V Using a Fresh Action at a Replay State
+
+To fit $V_\psi(s)$, estimate the expectation from Section 2 by sampling a command $\tilde a$ from the current actor at state $s$. The two Q-networks can disagree about that command. When one critic happens to assign a large value to a poor command, an actor trained against it can learn to seek that prediction error. SAC uses the lower estimate for each candidate in both the value and actor updates.
 
 $$
-y_V=Q_{\min}(s,\tilde a)-\alpha\log\pi_\phi(\tilde a\mid s),
+Q_{\min}(s,\tilde a)=\min\{Q_{\theta_1}(s,\tilde a),Q_{\theta_2}(s,\tilde a)\},
 \qquad
-J_V(\psi)=\mathbb E_{s\sim\mathcal D}
-\left[\tfrac12\bigl(V_\psi(s)-\operatorname{stopgrad}(y_V)\bigr)^2\right].
+y_V=Q_{\min}(s,\tilde a)-\alpha\log\pi_\phi(\tilde a\mid s).
 $$
 
-The paper defines the target as an expectation over the policy and estimates its gradient with an action sample. The sampled target is an unbiased estimate of that expectation for the fixed networks; the resulting value-gradient estimate has the intended expectation. Fit **only V** in this step, not the Q-networks or actor through the target.
+For instance, suppose the command from Section 3 has two illustrative Q-estimates of 5 and 6. A different command has estimates of 4 and 9. If we hold the entropy contributions equal, the second critic by itself favors the second command, while using the two minima favors the first. The rule reduces the influence of isolated high estimates. Both critics can still be wrong in the same direction.
 
-### 4.3 Fit Both Q-Functions from Replay Transitions
-
-The recorded successor supplies the one-step soft Bellman target:
+Continue with the fresh command $\tilde a\approx0.664$. Its log density is about $-0.337$ and $\alpha=0.2$, so $y_V=5-0.2(-0.337)\approx5.067$. If the current state-value prediction is $4.8$, its squared-error update moves it toward $5.067$. The sampled target estimates the policy expectation at that state. The update minimizes
 
 $$
-y_Q=R+\gamma(1-d)V_{\bar\psi}(s'),
-\qquad
-J_Q(\theta_i)=\mathbb E_{(s,a,R,s',d)\sim\mathcal D}
-\left[\tfrac12\bigl(Q_{\theta_i}(s,a)-\operatorname{stopgrad}(y_Q)\bigr)^2\right].
+J_V(\psi)=\mathbb E\!\left[\tfrac12
+  \bigl(V_\psi(s)-\operatorname{stopgrad}(y_V)\bigr)^2\right].
 $$
 
-The target V already summarizes the next state's policy expectation and entropy. Do not append another next-action entropy term to this particular backup. Both critics use the same detached $y_Q$, but each minimizes its own residual.
+The expectation here draws states from replay and actions from the current actor. $\operatorname{stopgrad}$ keeps the computed target fixed for differentiation. The actor and both critics supply numbers for this step, while only the state-value network receives a gradient. The separate $V_\psi$ fits these samples over many updates and can supply a next-state value without drawing another action when computing the Q target.
 
-The termination mask is an implementation boundary added to the paper's continuing-task equation: for true termination, $y_Q=R$. A collection cutoff that leaves the underlying task ongoing should still bootstrap from the actual final observation, not the reset state.
+### 4.2 Fit Both Q-Networks Using the Command That Actually Ran
 
-### 4.4 Improve the Actor Through Sampled Actions
+At the same recorded state, suppose the buffer contains an older command $a=-0.3$ that earned $R=1$ and reached $s'$. The observed outcome belongs to $a=-0.3$. The fresh $0.664$ command can be scored by the critics, but it has no observed reward or successor in this record.
 
-Minimize the policy-improvement objective derived in Section 2:
-
-$$
-\boxed{J_\pi(\phi)=\mathbb E_{s\sim\mathcal D,\epsilon\sim\mathcal N}
-\left[\alpha\log\pi_\phi(f_\phi(\epsilon;s)\mid s)
--Q_{\min}(s,f_\phi(\epsilon;s))\right].}
-$$
-
-The action is reparameterized as a differentiable function of parameters and fixed-distribution noise. Suppressing the sampled-state notation, the gradient has the form
+For this stored transition, the Q target comes from the reward and the slowly updated state-value prediction at $s'$. Each critic fits this same target with its own squared residual.
 
 $$
-\nabla_\phi J_\pi
-=\mathbb E\left[
-\alpha\,\partial_\phi\log\pi_\phi(a\mid s)
-+\bigl(\alpha\nabla_a\log\pi_\phi(a\mid s)-\nabla_aQ_{\min}(s,a)\bigr)
-\nabla_\phi f_\phi(\epsilon;s)\right],
+y_Q=R+\gamma(1-d)V_{\bar\psi}(s'),\qquad
+J_Q(\theta_i)=
+\mathbb E_{(s,a,R,s',d)\sim\mathcal D}\!\left[
+  \tfrac12\bigl(Q_{\theta_i}(s,a)-\operatorname{stopgrad}(y_Q)\bigr)^2
+\right],\quad i\in\{1,2\}.
 $$
 
-where $\partial_\phi$ denotes direct parameter dependence holding $a$ fixed; the second term includes dependence through the sampled action. Hold the critic parameters fixed while allowing **Q's action gradient to flow into the actor**. Detaching the sampled action or evaluating Q under a blanket no-gradient context would remove the reward-seeking part of this update.
+Here $d=1$ denotes true termination and $d=0$ permits bootstrapping, meaning the use of a prediction for rewards beyond the transition. If $V_{\bar\psi}(s')=4$, $\gamma=0.9$, and the episode continues, both critics train toward $1+0.9(4)=4.6$ at $a=-0.3$. A prediction of $4.2$ moves up, and a prediction of $4.9$ moves down. The fresh-action value target $5.067$ belongs to the separate state-value regression. Entropy from the next choice is already included in $V_{\bar\psi}(s')$.
 
-This differs from the score-function REINFORCE estimator in the book notes, which holds the sampled action fixed when differentiating log-probability. SAC uses the differentiable critic and reparameterized action to obtain a lower-variance pathwise estimator of its actor objective. That estimator does not eliminate error in the learned Q-function.
+The termination mask makes the continuing-task backup practical in episodic settings. On true termination, $y_Q=1$ in this example. If collection stops at a time limit that merely truncates the underlying task, keep the bootstrap and use the transition's actual final observation before reset. The reset observation belongs to the next episode.
 
-Why no importance ratio? The actor objective is explicitly an expectation over **replay states and fresh current-policy actions**, not an attempt to reuse behavior actions as on-policy REINFORCE samples. Conditional environment transitions also remain valid training data for the Bellman residual. Sufficient replay coverage and reliable Q estimates still matter; off-policy does not mean distribution mismatch is harmless.
+### 4.3 Improve the Actor Through the Action It Generates
 
-### 4.5 Slowly Update the Target and Continue Interacting
-
-After the learning updates, use
+The actor update uses the KL-derived objective from Section 2 and the differentiable sampler from Section 3. It draws noise $\epsilon$, obtains a current action, and measures its log density and Q-value.
 
 $$
-\bar\psi\leftarrow\tau\psi+(1-\tau)\bar\psi.
+J_\pi(\phi)=\mathbb E_{s\sim\mathcal D,\ \epsilon\sim\mathcal N(0,I)}
+  \left[\alpha\log\pi_\phi(\tilde a\mid s)-Q_{\min}(s,\tilde a)\right],
+\qquad \tilde a=f_\phi(\epsilon;s).
 $$
 
-Initialize $\bar\psi$ as a copy of $\psi$. Small $\tau$ smooths the moving bootstrap target; $\tau=1$ copies V immediately. The main experiments use $\tau=0.005$ every gradient step.
+For the illustrative command in the value example, holding the critic evaluations fixed for comparison gives a sample loss of approximately $-5.067$. This is the negative of the quantity used to train V at that action. The two updates differentiate different things. V fits a detached number, while the actor changes its own distribution and the action that produced the number.
 
-```text
-initialize actor, Q1, Q2, V, target_V = copy(V), and replay
-repeat:
-    sample an action from the current actor and step the environment
-    append the transition to replay
-    for each scheduled gradient step:
-        sample a replay minibatch
-        update V toward detached min(Q1, Q2) - alpha * log_policy
-            using fresh current-policy actions at replay states
-        update Q1 and Q2 toward detached reward + gamma * target_V(next_state)
-            using replay actions and the true-terminal mask
-        update actor to minimize alpha * log_policy - min(Q1, Q2)
-            using differentiable current-policy action samples
-        softly update target_V
-```
+To see what the actor can change, write $g_\phi(s,a)=\log\pi_\phi(a\mid s)$. With the noise draw fixed, the gradient of one sample loss is
 
-This follows the update order in Algorithm 1. Actor actions can be resampled for its step; no old log-probabilities or trajectory-wide returns are required. The default experiments perform one gradient-update round per environment step. Each round updates several networks, so it is not just one optimizer call.
+$$
+\alpha\nabla_\phi g_\phi(s,a)\big|_{a\ \mathrm{fixed}}
++\left(\frac{\partial f_\phi}{\partial\phi}\right)^{\!\top}
+   \left[\alpha\nabla_a g_\phi(s,a)-\nabla_a Q_{\min}(s,a)\right],
+\qquad a=f_\phi(\epsilon;s).
+$$
 
-**One numerical transition:** let $R=1$, $\gamma=0.9$, $V_{\bar\psi}(s')=4$, and $d=0$. Both stored-action Q estimates train toward $y_Q=4.6$. Separately, suppose a fresh action at $s$ has Q-values $(5,6)$, log density $-0.7$, and $\alpha=0.2$. Then $y_V=5.14$ and the actor sample loss is $-5.14$. These are three different computations; $5.14$ is not the replay-action Bellman target.
+The first term accounts for direct changes in log density at the same action. The second follows the change in the sampled action as the actor's parameters move. The critic's parameters stay fixed, and its derivative with respect to the action is available to the actor. Detaching the action at the critic input would discard the last term in brackets, which supplies the task-value direction.
 
-## 5. Training, Evaluation, and Empirical Findings
+**Illustrative local update.** Use the one-dimensional draw from Section 3 with mean $\mu=0.8$, standard deviation $1$, and noise draw $\epsilon=0$. Suppose the lower critic has local slope $\partial Q_{\min}/\partial a=1$ and stays the lower critic near this command. Increasing $\mu$ increases the command at rate $1-\tilde a^2\approx0.559$. The raw Gaussian log density stays constant along this noise path. The Jacobian correction changes the bounded-action log density at rate $2\tanh\mu\approx1.328$. Therefore the derivative of the sample loss with respect to $\mu$ is $0.2(1.328)-0.559\approx-0.293$. A small gradient descent step increases the mean, because this sample's local gain in Q outweighs the log-density cost.
 
-### 5.1 Experimental Setup
+This is a **pathwise gradient** because it follows how the draw changes with the actor weights. The states used for training come from replay, and the sampled actions already come from the policy optimized by this objective. This explains why the update can use replay without comparing the old and current probabilities of the recorded command.
 
-The paper trains from environment interaction on six continuous-control benchmarks. There is no separate offline dataset, pre-training stage, or task-specific fine-tuning stage.
+### 4.4 Move the Target Value Weights a Little at a Time
 
-| Environment | Action dimensions | Reward multiplier in the paper |
-|:--|:--:|:--:|
-| Hopper-v1 | 3 | 5 |
-| Walker2d-v1 | 6 | 5 |
-| HalfCheetah-v1 | 6 | 5 |
-| Ant-v1 | 8 | 5 |
-| Humanoid-v1 | 17 | 20 |
-| Humanoid (rllab) | 21 | 10 |
+If a critic trains against a bootstrap that moves every time the other networks learn, its target can change rapidly. SAC smooths the value-network parameters used for the bootstrap. Start with a copy of $\psi$ and use the following update after each scheduled round:
 
-Common settings from Appendix D: Adam with learning rate $3\times10^{-4}$, $\gamma=0.99$, replay capacity $10^6$, minibatch size 256, two 256-unit ReLU hidden layers per network, one gradient round per environment step, and target update interval one with $\tau=0.005$.
+$$
+\bar\psi\leftarrow\bar\psi+\tau(\psi-\bar\psi).
+$$
 
-Figure 1 compares SAC with DDPG, PPO, soft Q-learning (SQL), and concurrent TD3. Each method has five random seeds and one evaluation rollout every 1,000 environment steps. Curves show **mean return with minimum-to-maximum shading**, not confidence intervals. The plotted budgets are one million steps for Hopper/Walker2d, three million for HalfCheetah/Ant, and ten million for the humanoids.
+The parameter $\tau$ controls the fraction of the gap closed at each target update. For one illustrative weight, let the target have value 2 and the online weight have value 10. With $\tau=0.005$, the target moves to 2.04. If the online weight stays at 10 through the next update, the target moves to 2.0798. This is an average of **weights**. A nonlinear network's predicted values need not follow the same numerical average.
 
-SAC is competitive on easier tasks and stronger on the challenging humanoid tasks in these experiments, with faster learning than PPO and better stability than the compared DDPG runs. SQL also learns the tasks but is slower and has worse final performance in the reported comparison. These are results for the paper's tasks and implementations, not a universal ordering of algorithms.
+A zero coefficient keeps the target fixed. With $\tau=1$, one scheduled update copies the online weights in full. The original experiments use a small update each learning round. The appendix also studies a full copy every 1,000 gradient steps. Replay and network parameters persist across episodes. An environment reset starts a new trajectory while the learner continues to use previously stored transitions.
 
-### 5.2 What the Ablations Explain
+## 5. What Does the Trained Policy Do at Evaluation?
 
-![SAC evaluation, reward-scale, and target-smoothing sensitivity on Ant-v1](../../../assets/SAC/sensitivity.png)
+The actor alone maps the current observation to a command. It can still sample from its learned distribution. The paper's main SAC comparison uses the deterministic center action instead. For the squashed Gaussian, setting the Gaussian noise to zero gives $\tanh\mu_\phi(s)$. This is the transformed Gaussian mean and can differ from the expectation or mode of the bounded-action distribution.
 
-*Paper Figure 3: deterministic evaluation can improve raw reward; reward scale changes the reward-entropy balance; targets that move too quickly can destabilize learning, while very slow targets delay it.*
+The experiments report **environment return**, the sum of task rewards along a rollout. SAC trains with entropy as well. A deterministic run can earn a higher plotted return by avoiding lower-value sampled commands, while the stochastic actor continues to serve the exploration objective during training. Figure 3(a) tests this evaluation choice on Ant.
 
-* **Stochastic training:** a deterministic, no-entropy variant has much higher seed-to-seed variability on Humanoid (rllab). This comparison changes stochasticity and entropy together, so it is not an isolated test of one loss coefficient.
-* **Reward scale:** too small a reward relative to entropy can prevent exploitation; too large a scale can drive premature concentration and poor exploration. The paper tunes this scale per environment rather than claiming temperature-free robustness.
-* **Target smoothing:** large $\tau$ can destabilize training, while small $\tau$ slows it. The same $0.005$ is used across the main tasks. Appendix E also studies hard value-target copies every 1,000 gradient steps, with a different update schedule.
-* **Two Q-functions:** the paper reports faster learning, especially on harder tasks, compared with using one Q-function. Taking the minimum addresses optimistic estimates; it is distinct from the entropy objective and the slow target network.
+## 6. What Do the Experiments Establish?
 
-### 5.3 Inference Is Simpler Than Training
+### 6.1 Performance at a Fixed Interaction Budget
 
-Only the actor is needed to choose an action at deployment. Sampling preserves the learned stochastic policy; the paper's main SAC evaluations instead use a deterministic mean-action choice and report **environment reward without the entropy bonus**.
+The six benchmarks are simulated continuous-control tasks. Each run learns from its own environment interactions. The comparison asks how much return each method achieves after the same number of environment steps, so its horizontal axis measures sample efficiency. Table 2 shows that the action space grows from three dimensions in Hopper to 21 in rllab Humanoid. Each task also has its own training reward scale.
 
-For the squashed Gaussian, the usual zero-noise action is $\tanh(\mu_\phi(s))$. This is not generally the expectation or exact mode of the transformed density. Determinizing the actor changes the evaluated policy and can improve raw reward without improving the maximum-entropy objective. The critics, V target, and replay buffer are training machinery.
+| Environment | Action dimensions | Training reward multiplier | Plotted budget |
+|---|---:|---:|---:|
+| Hopper-v1 | 3 | 5 | 1 million steps |
+| Walker2d-v1 | 6 | 5 | 1 million steps |
+| HalfCheetah-v1 | 6 | 5 | 3 million steps |
+| Ant-v1 | 8 | 5 | 3 million steps |
+| Humanoid-v1 | 17 | 20 | 10 million steps |
+| Humanoid (rllab) | 21 | 10 | 10 million steps |
 
-## 6. SAC Versus PPO
+*Paper Table 2, complete, with interaction budgets from Figure 1. The reward multiplier is a training setting. The curves report task return with the original reward scale.*
 
-| Question | PPO-Clip | SAC in this paper |
-|:--|:--|:--|
-| Which experience is reused? | A recent rollout batch for a limited number of epochs | A replay buffer spanning earlier policies |
-| Which actions train the actor? | Stored rollout actions with an old/current probability ratio | Fresh current-policy actions at replay states |
-| Actor signal | Clipped ratio times fixed advantage | Reparameterized $\alpha\log\pi-Q_{\min}$ |
-| Role of entropy | Optional auxiliary bonus in the PPO objective | Part of both policy improvement and soft value evaluation |
-| Value machinery | Usually a state-value critic for advantages | Two Q-functions, V, and target V |
-| Main update safeguards | Clipped surrogate, optionally KL-related controls | Twin Q minimum, slow value target, stochastic entropy-regularized actor |
+Figure 1 compares SAC with deep deterministic policy gradient (DDPG), proximal policy optimization (PPO), soft Q-learning (SQL), and the concurrent twin delayed deep deterministic policy gradient method (TD3). The SQL implementation also uses two Q-networks. The paper runs five seeds per method with one evaluation rollout every 1,000 environment steps. Lines show the mean, and shaded bands span the minimum and maximum across runs. The bands show observed seed variability.
 
-SAC is not PPO with a replay buffer added: its policy-improvement objective and value-learning pipeline are different. Likewise, its KL derivation projects toward a Q-induced Boltzmann distribution, **not toward an old policy or an RLHF reference model**.
+![Learning curves for Hopper, Walker2d, and HalfCheetah](../../../assets/SAC/benchmark_upper.png)
 
-## 7. Minimal Numerical Check
+*Paper Figure 1(a–c). Each panel has its own return scale and step budget. SAC is orange, DDPG green, PPO brown, SQL pink, and TD3 purple. The shared legend appears in the second crop.*
 
-Run this standard-library block with Python 3. It verifies the distinct targets, the reward/temperature tradeoff, and the squashed-Gaussian density correction; it is not a full SAC trainer.
+![Learning curves for Ant and the two Humanoid environments, with the shared legend](../../../assets/SAC/benchmark_lower.png)
+
+*Paper Figure 1(d–f). Humanoid-v1 and rllab Humanoid are different benchmark environments. Read cross-method differences within a panel.*
+
+SAC stays competitive in Hopper, leads on HalfCheetah and Ant in these runs, and has a particularly large lead on rllab Humanoid. At 10 million steps, the rllab curve shows roughly 5,500 return for SAC and roughly 2,000–2,500 for PPO. These are approximate readings of the graph. Walker2d provides a counterexample to universal superiority, with TD3 finishing higher than SAC. In Humanoid-v1, SAC learns faster early and PPO catches up later.
+
+The baselines compare full learning systems. Their architectures, objectives, update rules, and evaluation conventions can differ. In particular, the paper reports turning off exploration noise for DDPG and PPO, sampling during SQL evaluation, and using the center action for SAC. The following studies help identify which choices within SAC matter.
+
+### 6.2 Stochastic Training and Seed Variability
+
+![Individual training runs for stochastic SAC and the deterministic variant on rllab Humanoid](../../../assets/SAC/humanoid_seed_variability.png)
+
+*Paper Figure 2. Red deterministic runs spread much farther apart than blue stochastic runs on the same benchmark. This comparison uses periodic hard target updates.*
+
+The stochastic variant achieves more consistent learning across seeds. The deterministic variant also drops the entropy terms, uses fixed Gaussian exploration noise, and uses target Q-networks in place of the separate state-value network. The result therefore compares two combinations of design choices. It supports the stochastic SAC recipe on this benchmark without measuring the separate effect of changing only the entropy coefficient. The paper's Section 4.2 also reports faster learning with two Q-networks than with one, especially on harder tasks. It provides the observation in prose.
+
+### 6.3 Read the Three Ant Sensitivity Panels Together
+
+![Ant evaluation-mode, reward-scale, and target-smoothing sensitivity](../../../assets/SAC/sensitivity.png)
+
+*Paper Figure 3, Ant-v1. Panel (a) compares ways to act at evaluation. Panels (b) and (c) compare different training settings. All three plot environment return against millions of steps.*
+
+| Panel | What changes | What the curves show |
+|---|---|---|
+| (a) Evaluation | Center action or stochastic sampling | Center actions generally earn higher task return in this run. This tests the action selection rule described in Section 5. |
+| (b) Reward scale | Multiplier on task reward while the entropy coefficient stays at one | A multiplier of 1 learns little. A setting of 10 achieves the highest late return of the plotted runs. The main Ant run in Figure 1 uses 5, which is outside this sweep's displayed settings. Setting the multiplier too high also hurts performance, as the scale of 100 illustrates. |
+| (c) Target smoothing | Fraction $\tau$ of the weight gap closed at each update | With $\tau=0.0001$, the target tracks so slowly that learning starts more slowly. At $\tau=0.1$, return deteriorates. The main comparative runs use $\tau=0.005$, between the tested $\tau=0.001$ and $0.01$. |
+
+These panels distinguish the effect of how the actor is evaluated from how it learns. Reward scale changes the policy's incentive to explore. Target smoothing changes how fast a critic's regression target tracks the value network.
+
+### 6.4 Compare Hard Target Copies with Smoothing
+
+![Appendix comparisons with Trust-PCL and SAC variants on Hopper, Walker2d, and HalfCheetah](../../../assets/SAC/appendix_benchmarks_upper.png)
+
+*Paper Figure 4(a–c). Standard SAC is orange, stochastic SAC with hard target updates is blue, the deterministic variant is red, and trust region path consistency learning (Trust-PCL) is gray.*
+
+![Appendix comparisons on Ant and the two Humanoid environments, with the shared legend](../../../assets/SAC/appendix_benchmarks_lower.png)
+
+*Paper Figure 4(d–f). The hard-update and deterministic variants are competitive on several tasks. The rllab Humanoid panel shows the clearest advantage for the standard recipe.*
+
+The blue variant keeps the explicit state-value network and copies its weights periodically. The red variant is the deterministic comparison described above. Trust-PCL shows lower return over the plotted budgets. The hard-update variant also takes four learning rounds per environment step on four of the six tasks, as Table 1 shows. Equal environment steps in those panels can therefore entail different numbers of gradient updates. The curves compare environment interaction efficiency for the tested recipes, including their different amounts of optimization.
+
+### 6.5 Reported Training Configuration
+
+| Setting | Paper value |
+|---|---|
+| Optimizer | Adam |
+| Learning rate | $3\times10^{-4}$ |
+| Discount $\gamma$ | 0.99 |
+| Replay capacity | $10^6$ transitions |
+| Minibatch size | 256 samples |
+| Network hidden layers | 2 per network |
+| Hidden units and activation | 256 per layer, rectified linear unit (ReLU) |
+
+| Schedule | Standard SAC | Stochastic SAC with hard target copies |
+|---|---:|---:|
+| Target coefficient $\tau$ | 0.005 | 1 |
+| Target update interval, in gradient rounds | 1 | 1,000 |
+| Gradient rounds per environment step | 1 | 4 except humanoids, where it is 1 |
+
+*Paper Table 1, shared settings and variant schedules, reorganized. A gradient round in Algorithm 1 includes an update to V, each Q-network, and the actor, with a target update when scheduled.*
+
+The replay-based loop differs from PPO at the point where the actor learns. PPO scores stored actions against a fixed rollout policy and advantage estimate. SAC learns a soft Q-function from stored transitions and improves fresh policy samples through that function. Its entropy term is also part of the future value propagated by the critics. [PPO note](./PPO.md)
+
+## 7. Check the Worked Example in Python
+
+Run this block with Python 3 to check the two-action probabilities, the replay and value targets, the gradient through the action, and two target updates. The local Q slope from Section 4.3 is represented by a linear function around the worked command.
 
 ```python
 from math import exp, isclose, log, log1p, pi, tanh
 
 
-def softmax_q(q_values, alpha):
-    if alpha <= 0:
-        raise ValueError("temperature must be positive")
-    weights = [exp((q - max(q_values)) / alpha) for q in q_values]
-    return [w / sum(weights) for w in weights]
+def first_action_probability(high_value, low_value, temperature):
+    return 1 / (1 + exp((low_value - high_value) / temperature))
 
 
-def q_target(reward, next_value, gamma, terminal=False):
-    return reward + (0.0 if terminal else gamma * next_value)
-
-
-def value_target(q1, q2, log_prob, alpha):
-    return min(q1, q2) - alpha * log_prob
+def q_target(reward, next_value, discount, terminal=False):
+    return reward + discount * (1 - terminal) * next_value
 
 
 def softplus(x):
     return max(x, 0.0) + log1p(exp(-abs(x)))
 
 
-def squashed_log_prob(u, mean, log_std):
-    if not (len(u) == len(mean) == len(log_std)):
-        raise ValueError("action dimensions must match")
-    total = 0.0
-    for ui, mu, ls in zip(u, mean, log_std):
-        gaussian = -0.5 * ((ui - mu) / exp(ls)) ** 2 - ls - 0.5 * log(2 * pi)
-        # Stable form of log(1 - tanh(ui)**2), including saturated inputs.
-        log_jacobian = 2.0 * (log(2.0) - ui - softplus(-2.0 * ui))
-        total += gaussian - log_jacobian
-    return total
+def log_density_at_zero_noise(mean):
+    # Standard deviation is one and the Gaussian sample equals its mean.
+    log_gaussian = -0.5 * log(2 * pi)
+    log_jacobian = 2 * (log(2) - mean - softplus(-2 * mean))
+    return log_gaussian - log_jacobian
 
 
+mean = 0.8
+temperature = 0.2
+action = tanh(mean)
+log_density = log_density_at_zero_noise(mean)
+state_target = min(5, 6) - temperature * log_density
+
+assert isclose(first_action_probability(2, 1, 0.5), 0.881, abs_tol=0.0005)
+assert isclose(first_action_probability(2, 1, 2.0), 0.622, abs_tol=0.0005)
 assert isclose(q_target(1, 4, 0.9), 4.6)
 assert q_target(1, 4, 0.9, terminal=True) == 1
-assert isclose(value_target(5, 6, -0.7, 0.2), 5.14)
-assert isclose(0.2 * (-0.7) - min(5, 6), -5.14)
-assert isclose(softmax_q([2, 1], 0.5)[0], 0.8807970779778823)
-assert softmax_q([2, 1], 2.0)[0] < softmax_q([2, 1], 0.5)[0]
+assert isclose(state_target, 5.067, abs_tol=0.0005)
 
-u = 0.8
-direct = -0.5 * u * u - 0.5 * log(2 * pi) - log(1 - tanh(u) ** 2)
-assert isclose(squashed_log_prob([u], [0], [0]), direct)
-assert isclose(0.005 * 10 + 0.995 * 2, 2.04)
-print("SAC target and density checks passed.")
+
+def local_actor_loss(candidate_mean):
+    local_q = 5 + tanh(candidate_mean) - action
+    return temperature * log_density_at_zero_noise(candidate_mean) - local_q
+
+
+step = 1e-5
+slope = (local_actor_loss(mean + step) - local_actor_loss(mean - step)) / (2 * step)
+analytic_slope = temperature * 2 * action - (1 - action**2)
+assert isclose(slope, analytic_slope, abs_tol=1e-7)
+assert local_actor_loss(mean + 0.01) < local_actor_loss(mean)
+
+target, online, tau = 2.0, 10.0, 0.005
+target += tau * (online - target)
+assert isclose(target, 2.04)
+target += tau * (online - target)
+assert isclose(target, 2.0798)
+print("SAC examples passed.")
 ```
-
-## 8. Key Distinctions to Remember
-
-* **Original formulation:** explicit V and target V, twin Q-functions, and manually selected reward scale; no learned-temperature loss in this paper.
-* **Replay action versus actor sample:** Q learns from the recorded action; V and the policy use current-policy samples at replay states.
-* **Detach targets, not the actor's action path:** critic/value targets are fixed regression targets, while the actor needs gradients through both its sample and Q's action input.
-* **Soft Q is not ordinary return Q:** entropy enters its future value through V; adding an extra entropy term to the original Q target would double-count it.
-* **Tanh changes the density:** its Jacobian belongs in the log-probability and therefore in both entropy-related losses.
-* **Theory versus practice:** exact soft policy iteration has a convergence argument; deep replay-based SAC relies on approximations and remains sensitive to reward scale and optimization choices.
-
-**In one sentence:** SAC reuses old transitions to fit soft values, then trains a stochastic actor through fresh actions to seek high Q-values while preserving entropy, with twin critics and a slow value target helping stabilize the loop.
